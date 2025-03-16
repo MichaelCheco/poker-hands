@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Text, View, TextInput, Button } from 'react-native';
+import { Text, View, Button, StyleSheet, ScrollView } from 'react-native';
+import { List, TextInput } from 'react-native-paper';
 
 enum Stage {
   Preflop,
@@ -8,6 +9,14 @@ enum Stage {
   River,
   Showdown,
 }
+
+const MyComponent = ({text}) => (
+    <List.Item
+      title={text}
+    //   description="Item description"
+      left={props => <List.Icon {...props} icon="alpha-p-circle" />}
+    />
+  );
 
 function getStagePlaceholder(stage: Stage): string {
   switch (stage) {
@@ -121,25 +130,57 @@ export default function App() {
   };
 
   return (
-    <View>
-      <TextInput
-        autoFocus
-        placeholder={getStagePlaceholder(state.stage)}
-        onChangeText={handleInputChange}
-        value={state.input}
-      />
-      {state.inputError ? <Text style={{ color: 'red' }}>{state.inputError}</Text> : null}
-      <Text>Stage: {Stage[state.stage]}</Text>
-      <Text>Current Action: {state.currentAction}</Text>
-      <Text>Hand History:</Text>
-      {state.handHistory.map((item, index) => (
-        <Text key={index}>
-          {Stage[item.stage]}: {item.action}
-        </Text>
-      ))}
-      {state.stage === Stage.Showdown && (
-        <Button title="Reset" onPress={() => dispatch({ type: 'RESET' })} />
-      )}
+    <View style={styles.container}>
+      <ScrollView style={styles.content}>
+        {state.inputError ? <Text style={styles.errorText}>{state.inputError}</Text> : null}
+        <Text variant="displayMedium">{Stage[state.stage].toUpperCase()}</Text>
+        {/* <Text variant="bodyLarge">Current Action: {state.currentAction}</Text> */}
+        {state.handHistory.map((item, index) => (
+          <MyComponent key={index} stage={Stage[item.stage]} text={`${item.action}`}/>
+        ))}
+        {state.stage === Stage.Showdown && (
+          <Button mode="contained" onPress={() => dispatch({ type: 'RESET' })}>
+            Reset
+          </Button>
+        )}
+      </ScrollView>
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          mode="outlined"
+          label={getStagePlaceholder(state.stage)}
+          onChangeText={handleInputChange}
+          value={state.input}
+          style={styles.input}
+          autoFocus
+        />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    content: {
+      flex: 1,
+      padding: 16,
+    },
+    inputContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 16,
+      backgroundColor: 'white', // or any background color
+    },
+    input: {
+      alignSelf: 'center',
+      width: '90%', // Adjust width as needed
+    },
+    errorText: {
+      color: 'red',
+      marginBottom: 8,
+    },
+  });
