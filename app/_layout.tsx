@@ -8,23 +8,11 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: '#f0f0f0', // Set background color
-          },
-          headerTintColor: '#333', // Set text color
-          headerTitleStyle: {
-            fontWeight: 'bold', // Set title font weight
-          },
-          headerRight: () => (
-            <Button
-              onPress={() => router.push('add-hand')}
-              title="Info"
-              color="#00cc00"
-            />
-          ),
-        }} />
+      <Stack>
+      <Stack.Screen name="add-hand" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerTitle: "Saved Hands" }}/>
+      {/* other screens */}
+    </Stack>
     </SafeAreaProvider>
   )
 }
