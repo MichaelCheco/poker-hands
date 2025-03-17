@@ -33,7 +33,7 @@ const Card = ({ card }) => {
 };
 
 // Function to render multiple cards in a row
-const CardRow = ({ cards }) => {
+export const CardRow = ({ cards }) => {
   return (
     <View style={styles.cardRow}>
       {cards.map((card, index) => (

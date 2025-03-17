@@ -5,6 +5,7 @@ import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { Stage } from '@/types';
+import { CardRow } from '@/components/CardsRow';
 
 function getStagePlaceholder(stage: Stage): string {
     switch (stage) {
@@ -71,38 +72,81 @@ const stageSteps: Record<Stage, Step[]> = {
     ]
 };
 
+enum ActionType {
+    kCard,
+    kActionSequence,
+}
+
 const initialState = {
     handHistory: [],
-    currentAction: '',
     stage: Stage.Preflop,
     input: '',
     inputError: '',
-    blinds: '',
-    location: '',
     position: '',
-    flopCards: '',
+    cards: [],
     preflopAction: [],
-    hand: '',
+    flopAction: [],
+    queue: [
+        {
+            placeholder: 'Flop cards',
+            shouldTransitionAfterStep: false,
+            validate: () => ({ success: true }),
+            dataKey: 'cards',
+            actionType: ActionType.kCard
+        },
+        {
+            placeholder: 'Flop action',
+            shouldTransitionAfterStep: true,
+            validate: () => ({ success: true }),
+            dataKey: 'flopAction',
+            actionType: ActionType.kActionSequence
+        },
+        
+    ],
+        currentAction:  {
+        placeholder: 'Preflop action',
+        shouldTransitionAfterStep: true,
+        validate: () => ({ success: true }),
+        dataKey: 'preflopAction',
+        actionType: ActionType.kActionSequence
+    },
 };
 
-const getLastAction = (s) => {
-    let val = s.split(',').filter(e => Boolean(e)).pop()
-    if (val.endsWith('.')) {
-        return val.slice(0, -1);
+function getCards(currVal, newVal) {
+    let text = newVal.slice(0, -1)
+    if (currVal.length === 0) {
+        return [text.slice(0,2), text.slice(2, 4), text.slice(4)];
     }
-    return val;
+    return [...currVal, text];
+}
+const getLastAction = (currVal, newVal) => {
+    let val = newVal.split(',').filter(e => Boolean(e)).pop()
+    if (val.endsWith('.')) {
+        return [...currVal, val.slice(0, -1)]
+    }
+    return [...currVal, val]
 };
 
 const reducer = (state, action) => {
     const input = action.payload;
+    const {currentAction, stage, queue} = state;
     switch (action.type) {
         case 'SET_INPUT':
             return { ...state, input };
         case 'ADD_ACTION':
-            return { ...state, input, preflopAction: [...state.preflopAction, getLastAction(input)] };
+            return { ...state, input, [state.currentAction.dataKey]: getLastAction(state[currentAction.dataKey], input) };
         case 'TRANSITION':
-            const stage = getNextStage(state.stage) as Stage;
-            return { ...state, stage, preflopAction: [...state.preflopAction, getLastAction(input)], input: '' };
+            const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
+            const nextAction = queue[0];
+            const nextState =  { 
+                ...state, 
+                stage: nextStage, 
+                [currentAction.dataKey]: currentAction.actionType === ActionType.kCard 
+                ? getCards(state[currentAction.dataKey], input) 
+                : getLastAction(state[currentAction.dataKey], input),
+                input: '', queue: queue.slice(1), currentAction: nextAction};
+            console.log(nextState)
+                return nextState
         default:
             return state;
     }
@@ -133,6 +177,8 @@ export default function App() {
                 <GameInfo info={parsedGameInfo} />
                 <Divider />
                 <ActionList stage={state.stage} preflopAction={state.preflopAction} />
+                <Divider />
+                <CardRow cards={state.cards}/>
                 {state.stage === Stage.Showdown && (
                     <Button mode="contained" onPress={() => dispatch({ type: 'RESET' })}>
                         Reset
