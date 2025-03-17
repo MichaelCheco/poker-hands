@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { View, Button, StyleSheet, ScrollView } from 'react-native';
 import { Divider, TextInput } from 'react-native-paper';
-import PreflopList from '../components/PreflopList';
+import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { Stage } from '@/types';
@@ -132,7 +132,7 @@ export default function App() {
             <ScrollView style={styles.content}>
                 <GameInfo info={parsedGameInfo} />
                 <Divider />
-                <PreflopList state={state} />
+                <ActionList stage={state.stage} preflopAction={state.preflopAction} />
                 {state.stage === Stage.Showdown && (
                     <Button mode="contained" onPress={() => dispatch({ type: 'RESET' })}>
                         Reset
