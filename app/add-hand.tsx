@@ -4,27 +4,24 @@ import { Divider, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { Stage } from '@/types';
+import { ActionType, Stage } from '@/types';
 import { CardRow } from '@/components/CardsRow';
 import SegmentedActionLists from '@/components/SegmentedActionLists';
-
-enum ActionType {
-  kCard,
-  kActionSequence,
-}
+import { numPlayersToActionSequenceList } from '@/constants';
+import { PokerFormData } from '@/components/PokerHandForm';
 
 const initialState = {
   handHistory: [],
-  stage: Stage.Preflop,
   input: '',
   position: '',
-  cards: ['', '','','',''],
+  cards: ['','','','',''],
   preflopAction: [],
   flopAction: [],
   turnAction: [],
   riverAction: [],
+  stage: Stage.Preflop,
   stageDisplayed: Stage.Preflop,
-  queue: [
+  gameQueue: [
     {
       placeholder: 'Flop cards',
       shouldTransitionAfterStep: false,
@@ -139,17 +136,37 @@ function reducer(state, action) {
         };
       case 'SET_VISIBLE_STAGE':
             return {...state, stageDisplayed: action.payload.newStage}
+      case 'SET_GAME_INFO':
+        console.log(action.payload);
+        return state;
     default:
       return state;
   }
 }
 
 export default function App() {
-  const { data } = useLocalSearchParams();
-  const parsedGameInfo = JSON.parse(data);
+  const { data }: {data: string} = useLocalSearchParams();
+  const gameInfo: PokerFormData = JSON.parse(data);
   const [state, dispatch] = useReducer(reducer, initialState);
+  console.table(gameInfo);
+//   dispatch({type: 'SET_GAME_INFO', payload: {
+//     actionSequence: numPlayersToActionSequenceList[gameInfo.numPlayers], 
+//     potSize: gameInfo.smallBlind + gameInfo.bigBlind}})
+    // const isInitialRender = useRef(true);
 
-  const handleInputChange = (text) => {
+    React.useEffect(() => {
+    //   if (isInitialRender.current) {
+        dispatch({
+          type: 'SET_GAME_INFO',
+          payload: {
+            actionSequence: numPlayersToActionSequenceList[gameInfo.numPlayers],
+            potSize: gameInfo.smallBlind + gameInfo.bigBlind,
+          },
+        });
+        // isInitialRender.current = false;
+    //   }
+    }, []);
+  const handleInputChange = (text: string) => {
     const isTransition = text.endsWith('.');
     const isAddAction = text.endsWith(',');
 
@@ -165,7 +182,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.content}>
-        <GameInfo info={parsedGameInfo} />
+        <GameInfo info={gameInfo} />
         <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch}/>
         <View style={{alignItems: 'flex-end'}}><CardRow cards={state.cards} small={true}/></View>
         <ActionList stage={state.stageDisplayed} preflopAction={getActionList(state)} />
