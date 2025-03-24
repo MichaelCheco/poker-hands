@@ -11,8 +11,6 @@ import { numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd } from '@/utils';
 
-// transition state -- DONE
-// cleanup
 // autofold
 // record game state
 // undo
@@ -99,54 +97,77 @@ const initialState: InitialState = {
     foldedOutPlayers: [],
 };
 
-function reducer(state: InitialState, action: {type: DispatchActionType, payload: any}) {
+function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue } = state;
+  
     switch (action.type) {
-        case DispatchActionType.kSetInput:
-            return { ...state, input: action.payload.input };
-        case DispatchActionType.kAddAction:
+      case DispatchActionType.kSetInput:
+        return { ...state, input: action.payload.input };
+  
+      case DispatchActionType.kAddAction: {
         const mostRecentActionText = getLastAction(action.payload.input);
         const actionInfo = parseAction(mostRecentActionText);
         const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
-        const actionArr = state.playerActions;
-        const newState = { 
-            ...state,
-            input: action.payload.input,
-            playerActions: [...actionArr, playerAction]
+        return {
+          ...state,
+          input: action.payload.input,
+          playerActions: [...state.playerActions, playerAction],
+        };
+      }
+  
+      case DispatchActionType.kTransition: {
+        const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
+        const nextAction = gameQueue[0];
+        let propertyToAdd: Partial<InitialState> = {};
+  
+        if (currentAction.actionType === ActionType.kCard) {
+          const newCards = getCards(state.cards, action.payload.input.slice(0, -1));
+          propertyToAdd = { cards: newCards };
+        } else {
+          const mostRecentActionText = getLastAction(action.payload.input);
+          const actionInfo = parseAction(mostRecentActionText);
+          const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
+          propertyToAdd = { playerActions: [...state.playerActions, playerAction] };
         }
-        return newState;
-        case DispatchActionType.kTransition:
-            const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
-            const nextAction = gameQueue[0];
-            let propertyToAdd = {}
-            if (currentAction.actionType === ActionType.kCard) {
-                const newCards = getCards(state.cards, action.payload.input.slice(0, -1))
-                propertyToAdd['cards'] = newCards;
-            } else {
-                const mostRecentActionText = getLastAction(action.payload.input);
-                const actionInfo = parseAction(mostRecentActionText);
-                const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
-                propertyToAdd['playerActions'] = [...state.playerActions, playerAction]
-            }
-            const nextState = {
-                ...state,
-                stage: nextStage,
-                stageDisplayed: nextStage,
-                ...propertyToAdd,
-                input: '',
-                gameQueue: gameQueue.slice(1),
-                currentAction: nextAction,
-            };
-            return nextState;
-        case DispatchActionType.kSetVisibleStage:
-            return { ...state, stageDisplayed: action.payload.newStage }
-        case DispatchActionType.kSetGameInfo:
-            const { actionSequence, potSize, heroPosition } = action.payload;
-            return { ...state, actionSequence: moveFirstTwoToEnd(actionSequence), pot: potSize, hero: heroPosition };
-        default:
-            return state;
+        const newState= {
+            ...state,
+            stage: nextStage,
+            stageDisplayed: nextStage,
+            ...propertyToAdd,
+            input: '',
+            gameQueue: gameQueue.slice(1),
+            currentAction: nextAction,
+          };
+          console.log(newState)
+          return newState
+        // return {
+        //   ...state,
+        //   stage: nextStage,
+        //   stageDisplayed: nextStage,
+        //   ...propertyToAdd,
+        //   input: '',
+        //   gameQueue: gameQueue.slice(1),
+        //   currentAction: nextAction,
+        // };
+      }
+  
+      case DispatchActionType.kSetVisibleStage:
+        return { ...state, stageDisplayed: action.payload.newStage };
+  
+      case DispatchActionType.kSetGameInfo: {
+        const { actionSequence, potSize, heroPosition } = action.payload;
+        return {
+          ...state,
+          actionSequence: moveFirstTwoToEnd(actionSequence),
+          pot: potSize,
+          hero: heroPosition,
+        };
+      }
+  
+      default:
+        return state;
     }
-}
+  }
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
