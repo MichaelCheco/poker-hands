@@ -129,26 +129,15 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
           const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
           propertyToAdd = { playerActions: [...state.playerActions, playerAction] };
         }
-        const newState= {
-            ...state,
-            stage: nextStage,
-            stageDisplayed: nextStage,
-            ...propertyToAdd,
-            input: '',
-            gameQueue: gameQueue.slice(1),
-            currentAction: nextAction,
-          };
-          console.log(newState)
-          return newState
-        // return {
-        //   ...state,
-        //   stage: nextStage,
-        //   stageDisplayed: nextStage,
-        //   ...propertyToAdd,
-        //   input: '',
-        //   gameQueue: gameQueue.slice(1),
-        //   currentAction: nextAction,
-        // };
+        return {
+          ...state,
+          stage: nextStage,
+          stageDisplayed: nextStage,
+          ...propertyToAdd,
+          input: '',
+          gameQueue: gameQueue.slice(1),
+          currentAction: nextAction,
+        };
       }
   
       case DispatchActionType.kSetVisibleStage:
@@ -186,14 +175,12 @@ export default function App() {
     const handleInputChange = (text: string) => {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
-
-        if (isTransition) {
-            dispatch({ type: DispatchActionType.kTransition, payload: { input: text } });
-        } else if (isAddAction) {
-            dispatch({ type: DispatchActionType.kAddAction, payload: { input: text } });
-        } else {
-            dispatch({ type: DispatchActionType.kSetInput, payload: { input: text } });
-        }
+        const type = isTransition
+        ? DispatchActionType.kTransition
+        : isAddAction
+        ? DispatchActionType.kAddAction
+        : DispatchActionType.kSetInput;
+        dispatch({ type, payload: { input: text } });
     };
 
     return (
@@ -204,7 +191,7 @@ export default function App() {
                 <View style={{ alignItems: 'flex-end' }}><CardRow cards={state.cards} small={true} /></View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
                 {state.stage === Stage.Showdown && (
-                    <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset })}>
+                    <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
                         Reset
                     </Button>
                 )}
