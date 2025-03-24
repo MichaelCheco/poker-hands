@@ -11,6 +11,11 @@ import { numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd } from '@/utils';
 
+// transition state
+// cleanup
+// autofold
+// record game state
+// undo
 const initialState = {
     gameQueue: [
         {
@@ -66,151 +71,13 @@ const initialState = {
     foldedOutPlayers: [],
 };
 
-function getActionList(state) {
-    switch (state.stageDisplayed) {
-        case Stage.Preflop:
-            return state.preflopAction;
-        case Stage.Flop:
-            return state.flopAction;
-        case Stage.Turn:
-            return state.turnAction;
-        case Stage.River:
-            return state.riverAction;
-        default:
-            // TODO
-            return state.preflopAction
-    }
-}
-
-function getCards(cards, newCards) {
-    let cardsToAdd = newCards.length > 2 ? [newCards.slice(0, 2), newCards.slice(2, 4), newCards.slice(4)] : [newCards]
-    for (let i = 0; i < cards.length; i++) {
-        if (!cards[i]) {
-            cards[i] = cardsToAdd.shift();
-            if (cardsToAdd.length === 0) {
-                return cards;
-            }
-        }
-    }
-    return cards
-}
-
-function buildPlayerAction(text: string, actionInfo: ActionTextToken, stage: Stage): PlayerAction {
-    return {text, stage, ...actionInfo};
-}
-
-function getLastAction(newVal: string): string {
-    const actions: string[] = newVal.split(',').filter(Boolean);
-    const lastAction = actions.pop() as string;
-    return lastAction?.endsWith('.') ? lastAction.slice(0, -1): lastAction;
-}
-
-function getNextStage(stage: Stage) {
-    const nextStages = {
-        [Stage.Preflop]: Stage.Flop,
-        [Stage.Flop]: Stage.Turn,
-        [Stage.Turn]: Stage.River,
-        [Stage.River]: Stage.Showdown,
-    };
-    return nextStages[stage];
-}
-
-enum Decision {
-  kCheck = 'x',
-  kBet = 'b',
-  kRaise = 'r',
-  kCall = 'c',
-  kFold = 'f',
-}
-// num tokens, 3 tokens = bet/raise  || 2 tokens = call, check, fold, all in
-interface PlayerAction {
-  text: string;
-  position: Position;
-  decision: Decision;
-  amount: number | null;
-  stage:  Stage;
-}
-
-interface ActionTextToken {
-    position: Position;
-    decision: Decision;
-    amount: number | null;
-}
-
-function parseAction(action: string): ActionTextToken {
-    const tokens = action.split(' ').map(s => s.trim());
-    const positionKey = tokens[0];
-    const decisionKey = tokens[1];
-    const amountStr = tokens[2];
-    let decision: Decision | undefined;
-    for (const key in Decision) {
-        if (Decision[key] === decisionKey) {
-            decision = Decision[key];
-            break;
-        }
-    }
-
-    let position: Position | undefined;
-
-    for (const key in Position) {
-        if (Position[key] === positionKey) {
-            position = Position[key];
-            break;
-        }
-    }
-    const amount = amountStr ? Number(amountStr) : null;
-    return { position, decision, amount };
-}
-
-function findPlayerAndAddAction() {
-
-}
-
-
-function recordFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
-    let folds = [];
-    // let found = false;
-    for (let player of actionSequence) {
-        if (player == mostRecentAction.position) {
-            if (mostRecentAction.decision == Decision.kFold) {
-                folds.push(player);
-                return folds;
-            }
-            return folds;
-        }
-        folds.push(player);
-    }
-  
-}
-
-function getAutoFolds(actionSequence: Position[], mostRecentAction: PlayerAction): Position[] {
-    let folds = [];
-    for (let player of actionSequence) {
-        if (player == mostRecentAction.position) {
-            return folds;
-        }
-        folds.push(player);
-    }
-    return folds;
-}
-
-function removeFoldsFromActionSequence(array1: string[], array2: string[]): string[] {
-    return array2.filter(element => !array1.includes(element));
-  }
-
-function updateActionSequenceAndFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
-  let folds = getAutoFolds(actionSequence, mostRecentAction);
-  let updatedActionSequence = removeFoldsFromActionSequence(folds, actionSequence)
-  console.log(folds, ' - [ ', updatedActionSequence)
-  return {folds, sequence: [...updatedActionSequence.splice(1), updatedActionSequence[0]]}
-}
 
         // "UTG", "UTG+1", "LJ", "HJ", "CO", "BTN", "SB", "BB"
         // LJ r 20, --> {position: LJ, action: r, size: number}
         // ['UTG', 'UTG+1']
         // ['HJ', 'CO', 'BTN', 'SB', 'BB', 'LJ']
 function reducer(state, action) {
-    const { currentAction, stage, queue } = state;
+    const { currentAction, stage, gameQueue } = state;
 
     switch (action.type) {
         case 'SET_INPUT':
@@ -222,9 +89,8 @@ function reducer(state, action) {
     //
         // currentAction.actionType
         const mostRecentActionText = getLastAction(action.payload.input);
-
         const actionInfo = parseAction(mostRecentActionText);
-        const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, state.stage);
+        const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
         console.log(playerAction, ' player action')
         const actionArr = state.playerActions;
         // const mostRecentAction = parseAction(actionArr[actionArr.length - 1]);
@@ -241,18 +107,28 @@ function reducer(state, action) {
         return newState;
         case 'TRANSITION':
             const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
-            const nextAction = queue[0];
-            return {
+            const nextAction = gameQueue[0];
+            let propertyToAdd = {}
+            if (currentAction.actionType === ActionType.kCard) {
+                const newCards = getCards(state.cards, action.payload.input.slice(0, -1))
+                propertyToAdd['cards'] = newCards;
+            } else {
+                const mostRecentActionText = getLastAction(action.payload.input);
+                const actionInfo = parseAction(mostRecentActionText);
+                const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
+                propertyToAdd['playerActions'] = [...state.playerActions, playerAction]
+            }
+            const nextState = {
                 ...state,
-                // stage: nextStage,
-                // stageDisplayed: nextStage,
-                // [currentAction.dataKey]: currentAction.actionType === ActionType.kCard
-                //     ? getCards(state[currentAction.dataKey], action.payload.input.slice(0, -1))
-                //     : getLastAction(state[currentAction.dataKey], action.payload.input),
-                // input: '',
-                // queue: queue.slice(1),
-                // currentAction: nextAction,
+                stage: nextStage,
+                stageDisplayed: nextStage,
+                ...propertyToAdd,
+                input: '',
+                gameQueue: gameQueue.slice(1),
+                currentAction: nextAction,
             };
+            console.log(nextState, ' nextState')
+            return nextState;
         case 'SET_VISIBLE_STAGE':
             return { ...state, stageDisplayed: action.payload.newStage }
         case 'SET_GAME_INFO':
@@ -338,3 +214,131 @@ const styles = StyleSheet.create({
         width: '90%',
     },
 });
+
+function getCards(currentCards: string[], newCards: string) {
+    const EMPTY_CARD = '';
+    let cardsToAdd: string[] = newCards.length > 2 ? [newCards.slice(0, 2), newCards.slice(2, 4), newCards.slice(4)] : [newCards]
+    for (let i = 0; i < currentCards.length; i++) {
+        if (currentCards[i] === EMPTY_CARD) {
+            currentCards[i] = cardsToAdd.shift() as string;
+            if (cardsToAdd.length === 0) {
+                return currentCards;
+            }
+        }
+    }
+    return currentCards
+}
+
+function buildPlayerAction(text: string, actionInfo: ActionTextToken, stage: Stage): PlayerAction {
+    return {text, stage, ...actionInfo};
+}
+
+function getLastAction(newVal: string): string {
+    const actions: string[] = newVal.split(',').filter(Boolean);
+    const lastAction = actions.pop() as string;
+    const text = lastAction?.endsWith('.') ? lastAction.slice(0, -1): lastAction;
+    return text.trim();
+}
+
+function getNextStage(stage: Stage) {
+    const nextStages = {
+        [Stage.Preflop]: Stage.Flop,
+        [Stage.Flop]: Stage.Turn,
+        [Stage.Turn]: Stage.River,
+        [Stage.River]: Stage.Showdown,
+    };
+    return nextStages[stage];
+}
+
+enum Decision {
+  kCheck = 'x',
+  kBet = 'b',
+  kRaise = 'r',
+  kCall = 'c',
+  kFold = 'f',
+}
+// num tokens, 3 tokens = bet/raise  || 2 tokens = call, check, fold, all in
+interface PlayerAction {
+  text: string;
+  position: Position;
+  decision: Decision;
+  amount: number | null;
+  stage:  Stage;
+}
+
+interface ActionTextToken {
+    position: Position;
+    decision: Decision;
+    amount: number | null;
+}
+
+function parseAction(action: string): ActionTextToken {
+    console.log(action)
+    const tokens = action.split(' ');
+    console.log(tokens)
+    const positionKey = tokens[0];
+    const decisionKey = tokens[1];
+    const amountStr = tokens[2];
+    let decision: Decision | undefined;
+    for (const key in Decision) {
+        if (Decision[key] === decisionKey) {
+            decision = Decision[key];
+            break;
+        }
+    }
+
+    let position: Position | undefined;
+
+    for (const key in Position) {
+        if (Position[key] === positionKey) {
+            position = Position[key];
+            break;
+        }
+    }
+    
+    const amountAsNum = Number(amountStr);
+    return { position, decision, amount: isNaN(amountAsNum) ? 0 : amountAsNum };
+}
+
+function findPlayerAndAddAction() {
+
+}
+
+
+function recordFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
+    let folds = [];
+    // let found = false;
+    for (let player of actionSequence) {
+        if (player == mostRecentAction.position) {
+            if (mostRecentAction.decision == Decision.kFold) {
+                folds.push(player);
+                return folds;
+            }
+            return folds;
+        }
+        folds.push(player);
+    }
+  
+}
+
+function getAutoFolds(actionSequence: Position[], mostRecentAction: PlayerAction): Position[] {
+    let folds = [];
+    for (let player of actionSequence) {
+        if (player == mostRecentAction.position) {
+            return folds;
+        }
+        folds.push(player);
+    }
+    return folds;
+}
+
+function removeFoldsFromActionSequence(array1: string[], array2: string[]): string[] {
+    return array2.filter(element => !array1.includes(element));
+  }
+
+function updateActionSequenceAndFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
+  let folds = getAutoFolds(actionSequence, mostRecentAction);
+  let updatedActionSequence = removeFoldsFromActionSequence(folds, actionSequence)
+  console.log(folds, ' - [ ', updatedActionSequence)
+  return {folds, sequence: [...updatedActionSequence.splice(1), updatedActionSequence[0]]}
+}
