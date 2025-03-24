@@ -1,3 +1,5 @@
+import { Position } from "./types";
+
 export function parseStackSizes(stackString: string): { position: string; stackSize: number }[] {
     if (!stackString) {
         return [];
@@ -17,7 +19,7 @@ export function parseStackSizes(stackString: string): { position: string; stackS
     return stackObjects;
 }
 
-export function moveFirstTwoToEnd(list: string[]): string[] {
+export function moveFirstTwoToEnd(list: string[]): Position[] {
     if (list.length < 2 || list.length > 9) {
       throw new Error("List length must be between 2 and 9 elements.");
     }

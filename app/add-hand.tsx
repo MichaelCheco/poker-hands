@@ -11,12 +11,44 @@ import { numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd } from '@/utils';
 
-// transition state
+// transition state -- DONE
 // cleanup
 // autofold
 // record game state
 // undo
-const initialState = {
+
+export enum DispatchActionType {
+    kSetGameInfo,
+    kTransition,
+    kAddAction,
+    kSetInput,
+    kSetVisibleStage,
+    kReset,
+}
+
+interface GameQueueItem {
+    placeholder: string;
+    shouldTransitionAfterStep: boolean;
+    actionType: ActionType;
+}
+  
+interface InitialState {
+    gameQueue: GameQueueItem[];
+    currentAction: GameQueueItem;
+    handHistory: InitialState[];
+    input: string;
+    position: string;
+    cards: string[];
+    playerActions: PlayerAction[];
+    stage: Stage;
+    stageDisplayed: Stage;
+    hero: string;
+    actionSequence: Position[];
+    pot: number;
+    foldedOutPlayers: any[];
+  }
+
+const initialState: InitialState = {
     gameQueue: [
         {
             placeholder: 'Flop cards',
@@ -58,10 +90,6 @@ const initialState = {
     input: '',
     position: '',
     cards: ['', '', '', '', ''],
-    // preflopAction: [],
-    // flopAction: [],
-    // turnAction: [],
-    // riverAction: [],
     playerActions: [],
     stage: Stage.Preflop,
     stageDisplayed: Stage.Preflop,
@@ -71,41 +99,23 @@ const initialState = {
     foldedOutPlayers: [],
 };
 
-
-        // "UTG", "UTG+1", "LJ", "HJ", "CO", "BTN", "SB", "BB"
-        // LJ r 20, --> {position: LJ, action: r, size: number}
-        // ['UTG', 'UTG+1']
-        // ['HJ', 'CO', 'BTN', 'SB', 'BB', 'LJ']
-function reducer(state, action) {
+function reducer(state: InitialState, action: {type: DispatchActionType, payload: any}) {
     const { currentAction, stage, gameQueue } = state;
-
     switch (action.type) {
-        case 'SET_INPUT':
+        case DispatchActionType.kSetInput:
             return { ...state, input: action.payload.input };
-        case 'ADD_ACTION':
-
-        // [...currVal, lastAction.slice(0, -1)]
-    // return lastAction?.endsWith('.') ? [...currVal, lastAction.slice(0, -1)] : [...currVal, lastAction];
-    //
-        // currentAction.actionType
+        case DispatchActionType.kAddAction:
         const mostRecentActionText = getLastAction(action.payload.input);
         const actionInfo = parseAction(mostRecentActionText);
         const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
-        console.log(playerAction, ' player action')
         const actionArr = state.playerActions;
-        // const mostRecentAction = parseAction(actionArr[actionArr.length - 1]);
-        // const {folds, sequence} = updateActionSequenceAndFolds(state.actionSequence, mostRecentAction);
-        // console.log(updateActionSequenceAndFolds(state.actionSequence, mostRecentAction))
         const newState = { 
             ...state,
             input: action.payload.input,
             playerActions: [...actionArr, playerAction]
-            // foldedOutPlayers: folds,
-            // actionSequence: sequence,
-            // pot: state.pot + mostRecentAction.amount
         }
         return newState;
-        case 'TRANSITION':
+        case DispatchActionType.kTransition:
             const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
             const nextAction = gameQueue[0];
             let propertyToAdd = {}
@@ -127,11 +137,10 @@ function reducer(state, action) {
                 gameQueue: gameQueue.slice(1),
                 currentAction: nextAction,
             };
-            console.log(nextState, ' nextState')
             return nextState;
-        case 'SET_VISIBLE_STAGE':
+        case DispatchActionType.kSetVisibleStage:
             return { ...state, stageDisplayed: action.payload.newStage }
-        case 'SET_GAME_INFO':
+        case DispatchActionType.kSetGameInfo:
             const { actionSequence, potSize, heroPosition } = action.payload;
             return { ...state, actionSequence: moveFirstTwoToEnd(actionSequence), pot: potSize, hero: heroPosition };
         default:
@@ -145,7 +154,7 @@ export default function App() {
     const [state, dispatch] = useReducer(reducer, initialState);
     React.useEffect(() => {
         dispatch({
-            type: 'SET_GAME_INFO',
+            type: DispatchActionType.kSetGameInfo,
             payload: {
                 actionSequence: numPlayersToActionSequenceList[gameInfo.numPlayers],
                 potSize: gameInfo.smallBlind + gameInfo.bigBlind,
@@ -158,11 +167,11 @@ export default function App() {
         const isAddAction = text.endsWith(',');
 
         if (isTransition) {
-            dispatch({ type: 'TRANSITION', payload: { input: text } });
+            dispatch({ type: DispatchActionType.kTransition, payload: { input: text } });
         } else if (isAddAction) {
-            dispatch({ type: 'ADD_ACTION', payload: { input: text } });
+            dispatch({ type: DispatchActionType.kAddAction, payload: { input: text } });
         } else {
-            dispatch({ type: 'SET_INPUT', payload: { input: text } });
+            dispatch({ type: DispatchActionType.kSetInput, payload: { input: text } });
         }
     };
 
@@ -174,7 +183,7 @@ export default function App() {
                 <View style={{ alignItems: 'flex-end' }}><CardRow cards={state.cards} small={true} /></View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
                 {state.stage === Stage.Showdown && (
-                    <Button mode="contained" onPress={() => dispatch({ type: 'RESET' })}>
+                    <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset })}>
                         Reset
                     </Button>
                 )}
@@ -257,7 +266,7 @@ enum Decision {
   kCall = 'c',
   kFold = 'f',
 }
-// num tokens, 3 tokens = bet/raise  || 2 tokens = call, check, fold, all in
+
 interface PlayerAction {
   text: string;
   position: Position;
@@ -307,7 +316,6 @@ function findPlayerAndAddAction() {
 
 function recordFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
     let folds = [];
-    // let found = false;
     for (let player of actionSequence) {
         if (player == mostRecentAction.position) {
             if (mostRecentAction.decision == Decision.kFold) {

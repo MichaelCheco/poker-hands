@@ -1,3 +1,4 @@
+import { DispatchActionType } from '@/app/add-hand';
 import { Stage } from '@/types';
 import * as React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
@@ -9,7 +10,7 @@ const SegmentedActionLists = ({stageDisplayed, dispatch}) => {
                 value={`${stageDisplayed}`}
                 onValueChange={(val) => {
                     const newStage = Number(val)
-                    dispatch({type: 'SET_VISIBLE_STAGE', payload: { newStage }})
+                    dispatch({type: DispatchActionType.kSetVisibleStage, payload: { newStage }})
                 }}
                 density='small'
                 buttons={[
