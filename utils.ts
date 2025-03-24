@@ -16,3 +16,14 @@ export function parseStackSizes(stackString: string): { position: string; stackS
     }
     return stackObjects;
 }
+
+export function moveFirstTwoToEnd(list: string[]): string[] {
+    if (list.length < 2 || list.length > 9) {
+      throw new Error("List length must be between 2 and 9 elements.");
+    }
+  
+    if (list.length === 2) {
+      return list;
+    }
+    return [...list.slice(2), ...list.slice(0, 2)];
+  }
