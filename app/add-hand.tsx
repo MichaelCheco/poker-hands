@@ -21,6 +21,13 @@ import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 // record game state
 // undo
 
+const initialDeck: string[] = [
+    '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', 'Th', 'Jh', 'Qh', 'Kh', 'Ah',
+    '2d', '3d', '4d', '5d', '6d', '7d', '8d', '9d', 'Td', 'Jd', 'Qd', 'Kd', 'Ad',
+    '2c', '3c', '4c', '5c', '6c', '7c', '8c', '9c', 'Tc', 'Jc', 'Qc', 'Kc', 'Ac',
+    '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s', 'Ts', 'Js', 'Qs', 'Ks', 'As'
+];
+
 const initialState: InitialState = {
     gameQueue: [
         {
@@ -68,6 +75,7 @@ const initialState: InitialState = {
     hero: '',
     actionSequence: [],
     pot: 0,
+    deck: initialDeck,
 };
 
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
@@ -97,7 +105,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
 
             if (currentAction.actionType === ActionType.kCard) {
                 const newCards = getCards(state.cards, action.payload.input.slice(0, -1));
-                propertyToAdd = { cards: newCards };
+                propertyToAdd = { cards: newCards, deck: filterNewCardsFromDeck(newCards, state.deck) };
             } else {
                 const mostRecentActionText = getLastAction(action.payload.input);
                 const actionInfo = parseAction(mostRecentActionText);
@@ -128,12 +136,13 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             return { ...state, stageDisplayed: action.payload.newStage };
 
         case DispatchActionType.kSetGameInfo: {
-            const { actionSequence, potSize, heroPosition } = action.payload;
+            const { actionSequence, potSize, heroPosition, hand } = action.payload;
             return {
                 ...state,
                 actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: potSize,
                 hero: heroPosition,
+                deck: filterNewCardsFromDeck(hand, state.deck)
             };
         }
 
@@ -153,6 +162,7 @@ export default function App() {
                 actionSequence: numPlayersToActionSequenceList[gameInfo.numPlayers],
                 potSize: gameInfo.smallBlind + gameInfo.bigBlind,
                 heroPosition: gameInfo.position,
+                hand: gameInfo.hand,
             },
         });
     }, []);
@@ -339,9 +349,15 @@ function removeFoldsFromActionSequence(array1: string[], array2: string[]): stri
     return array2.filter(element => !array1.includes(element));
 }
 
-function updateActionSequenceAndFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
-    let folds = getAutoFolds(actionSequence, mostRecentAction);
-    let updatedActionSequence = removeFoldsFromActionSequence(folds, actionSequence)
-    console.log(folds, ' - [ ', updatedActionSequence)
-    return { folds, sequence: [...updatedActionSequence.splice(1), updatedActionSequence[0]] }
+function filterNewCardsFromDeck(newCards: string|string[], currDeck: string[]): string[] {
+    const cards = typeof newCards === "string" ? extractCards(newCards): newCards;
+    return currDeck.filter(card => !cards.includes(card))
 }
+
+function extractCards(str: string): string[] {
+    const result = [];
+    for (let i = 0; i < str.length; i += 2) {
+      result.push(str.substring(i, i + 2));
+    }
+    return result;
+  }

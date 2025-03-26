@@ -67,7 +67,6 @@ export interface InitialState {
     currentAction: GameQueueItem;
     handHistory: InitialState[];
     input: string;
-    position: string;
     cards: string[];
     playerActions: PlayerAction[];
     stage: Stage;
@@ -75,5 +74,5 @@ export interface InitialState {
     hero: string;
     actionSequence: Position[];
     pot: number;
-    foldedOutPlayers: any[];
+    deck: string[];
 }
