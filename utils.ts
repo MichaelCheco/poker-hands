@@ -21,11 +21,26 @@ export function parseStackSizes(stackString: string): { position: string; stackS
 
 export function moveFirstTwoToEnd(list: string[]): Position[] {
     if (list.length < 2 || list.length > 9) {
-      throw new Error("List length must be between 2 and 9 elements.");
+        throw new Error("List length must be between 2 and 9 elements.");
     }
-  
+
     if (list.length === 2) {
-      return list;
+        return list;
     }
     return [...list.slice(2), ...list.slice(0, 2)];
-  }
+}
+
+export function positionToRank(positionKey: string): number {
+    const positionToRankMap: Record<string, number> = {
+        'SB': 0,
+        'BB': 1,
+        'UTG': 2,
+        'UTG_1': 3,
+        'UTG_2': 4,
+        'LJ': 5,
+        'HJ': 6,
+        'CO': 7,
+        'BTN': 8,
+    }
+    return positionToRankMap[positionKey];
+}

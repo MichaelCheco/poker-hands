@@ -4,47 +4,22 @@ import { Divider, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { ActionType, Position, Stage } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
 import { CardRow } from '@/components/CardsRow';
 import SegmentedActionLists from '@/components/SegmentedActionLists';
 import { numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
-import { moveFirstTwoToEnd } from '@/utils';
+import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 
+// update action sequence, does preflop need to be handled differently than postflop?
+// can i just remove folds list and update actions to include generated actions?
+// what about partial states like an initial raise to 20 and then having to call 60 more when 3!
+// for above these are distinct actions and should be treated as such, action sequence will need
+// to account for dupes
 // autofold
+// when calling preflop, add the raise amount
 // record game state
 // undo
-
-export enum DispatchActionType {
-    kSetGameInfo,
-    kTransition,
-    kAddAction,
-    kSetInput,
-    kSetVisibleStage,
-    kReset,
-}
-
-interface GameQueueItem {
-    placeholder: string;
-    shouldTransitionAfterStep: boolean;
-    actionType: ActionType;
-}
-  
-interface InitialState {
-    gameQueue: GameQueueItem[];
-    currentAction: GameQueueItem;
-    handHistory: InitialState[];
-    input: string;
-    position: string;
-    cards: string[];
-    playerActions: PlayerAction[];
-    stage: Stage;
-    stageDisplayed: Stage;
-    hero: string;
-    actionSequence: Position[];
-    pot: number;
-    foldedOutPlayers: any[];
-  }
 
 const initialState: InitialState = {
     gameQueue: [
@@ -86,7 +61,6 @@ const initialState: InitialState = {
     },
     handHistory: [],
     input: '',
-    position: '',
     cards: ['', '', '', '', ''],
     playerActions: [],
     stage: Stage.Preflop,
@@ -94,69 +68,79 @@ const initialState: InitialState = {
     hero: '',
     actionSequence: [],
     pot: 0,
-    foldedOutPlayers: [],
 };
 
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue } = state;
-  
+
     switch (action.type) {
-      case DispatchActionType.kSetInput:
-        return { ...state, input: action.payload.input };
-  
-      case DispatchActionType.kAddAction: {
-        const mostRecentActionText = getLastAction(action.payload.input);
-        const actionInfo = parseAction(mostRecentActionText);
-        const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
-        return {
-          ...state,
-          input: action.payload.input,
-          playerActions: [...state.playerActions, playerAction],
-        };
-      }
-  
-      case DispatchActionType.kTransition: {
-        const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
-        const nextAction = gameQueue[0];
-        let propertyToAdd: Partial<InitialState> = {};
-  
-        if (currentAction.actionType === ActionType.kCard) {
-          const newCards = getCards(state.cards, action.payload.input.slice(0, -1));
-          propertyToAdd = { cards: newCards };
-        } else {
-          const mostRecentActionText = getLastAction(action.payload.input);
-          const actionInfo = parseAction(mostRecentActionText);
-          const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
-          propertyToAdd = { playerActions: [...state.playerActions, playerAction] };
+        case DispatchActionType.kSetInput:
+            return { ...state, input: action.payload.input };
+
+        case DispatchActionType.kAddAction: {
+            const mostRecentActionText = getLastAction(action.payload.input);
+            const actionInfo = parseAction(mostRecentActionText);
+            const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
+            const newPlayerActions = [...state.playerActions, playerAction];
+
+            return {
+                ...state,
+                input: action.payload.input,
+                playerActions: newPlayerActions,
+            };
         }
-        return {
-          ...state,
-          stage: nextStage,
-          stageDisplayed: nextStage,
-          ...propertyToAdd,
-          input: '',
-          gameQueue: gameQueue.slice(1),
-          currentAction: nextAction,
-        };
-      }
-  
-      case DispatchActionType.kSetVisibleStage:
-        return { ...state, stageDisplayed: action.payload.newStage };
-  
-      case DispatchActionType.kSetGameInfo: {
-        const { actionSequence, potSize, heroPosition } = action.payload;
-        return {
-          ...state,
-          actionSequence: moveFirstTwoToEnd(actionSequence),
-          pot: potSize,
-          hero: heroPosition,
-        };
-      }
-  
-      default:
-        return state;
+
+        case DispatchActionType.kTransition: {
+            const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
+            const nextAction = gameQueue[0];
+            let propertyToAdd: Partial<InitialState> = {};
+
+            if (currentAction.actionType === ActionType.kCard) {
+                const newCards = getCards(state.cards, action.payload.input.slice(0, -1));
+                propertyToAdd = { cards: newCards };
+            } else {
+                const mostRecentActionText = getLastAction(action.payload.input);
+                const actionInfo = parseAction(mostRecentActionText);
+                const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
+                propertyToAdd = { playerActions: [...state.playerActions, playerAction] };
+            }
+
+            const newState: InitialState = {
+                ...state,
+                stage: nextStage,
+                stageDisplayed: nextStage,
+                ...propertyToAdd,
+                input: '',
+                gameQueue: gameQueue.slice(1),
+                currentAction: nextAction,
+            };
+            if (stage === Stage.Preflop) {
+                const updatedPlayerActions = getPlayerActionsWithAutoFolds(newState.actionSequence, newState.playerActions)
+                const updatedActionSequence = getNewActionSequence(updatedPlayerActions);
+                newState.actionSequence = updatedActionSequence;
+                newState.playerActions = updatedPlayerActions;
+            }
+            console.log(newState)
+            return newState;
+        }
+
+        case DispatchActionType.kSetVisibleStage:
+            return { ...state, stageDisplayed: action.payload.newStage };
+
+        case DispatchActionType.kSetGameInfo: {
+            const { actionSequence, potSize, heroPosition } = action.payload;
+            return {
+                ...state,
+                actionSequence: moveFirstTwoToEnd(actionSequence),
+                pot: potSize,
+                hero: heroPosition,
+            };
+        }
+
+        default:
+            return state;
     }
-  }
+}
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
@@ -176,10 +160,10 @@ export default function App() {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
         const type = isTransition
-        ? DispatchActionType.kTransition
-        : isAddAction
-        ? DispatchActionType.kAddAction
-        : DispatchActionType.kSetInput;
+            ? DispatchActionType.kTransition
+            : isAddAction
+                ? DispatchActionType.kAddAction
+                : DispatchActionType.kSetInput;
         dispatch({ type, payload: { input: text } });
     };
 
@@ -232,6 +216,33 @@ const styles = StyleSheet.create({
     },
 });
 
+
+
+function getNewActionSequence(playerActions: PlayerAction[]): Position[] {
+    return playerActions
+        .filter((action) => action.decision !== Decision.kFold)
+        .sort((a, b) => positionToRank(a.position) - positionToRank(b.position))
+        .map(action => action.position);
+}
+
+function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction {
+    return {
+        amount: 0,
+        decision: Decision.kFold,
+        position,
+        shouldHideFromUi: true,
+        text: `${position} f`,
+        stage: Stage.Preflop,
+    };
+}
+
+function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions: PlayerAction[]) {
+    return actionSequence.map((player) => {
+        const found = playerActions.find(action => action.position == player);
+        return found ? found : createPlayerActionForAutoFoldedPlayer(player);
+    })
+}
+
 function getCards(currentCards: string[], newCards: string) {
     const EMPTY_CARD = '';
     let cardsToAdd: string[] = newCards.length > 2 ? [newCards.slice(0, 2), newCards.slice(2, 4), newCards.slice(4)] : [newCards]
@@ -247,13 +258,13 @@ function getCards(currentCards: string[], newCards: string) {
 }
 
 function buildPlayerAction(text: string, actionInfo: ActionTextToken, stage: Stage): PlayerAction {
-    return {text, stage, ...actionInfo};
+    return { text, stage, shouldHideFromUi: false, ...actionInfo };
 }
 
 function getLastAction(newVal: string): string {
     const actions: string[] = newVal.split(',').filter(Boolean);
     const lastAction = actions.pop() as string;
-    const text = lastAction?.endsWith('.') ? lastAction.slice(0, -1): lastAction;
+    const text = lastAction?.endsWith('.') ? lastAction.slice(0, -1) : lastAction;
     return text.trim();
 }
 
@@ -267,32 +278,8 @@ function getNextStage(stage: Stage) {
     return nextStages[stage];
 }
 
-enum Decision {
-  kCheck = 'x',
-  kBet = 'b',
-  kRaise = 'r',
-  kCall = 'c',
-  kFold = 'f',
-}
-
-interface PlayerAction {
-  text: string;
-  position: Position;
-  decision: Decision;
-  amount: number | null;
-  stage:  Stage;
-}
-
-interface ActionTextToken {
-    position: Position;
-    decision: Decision;
-    amount: number | null;
-}
-
 function parseAction(action: string): ActionTextToken {
-    console.log(action)
     const tokens = action.split(' ');
-    console.log(tokens)
     const positionKey = tokens[0];
     const decisionKey = tokens[1];
     const amountStr = tokens[2];
@@ -312,7 +299,7 @@ function parseAction(action: string): ActionTextToken {
             break;
         }
     }
-    
+
     const amountAsNum = Number(amountStr);
     return { position, decision, amount: isNaN(amountAsNum) ? 0 : amountAsNum };
 }
@@ -334,7 +321,7 @@ function recordFolds(actionSequence: Position[], mostRecentAction: PlayerAction)
         }
         folds.push(player);
     }
-  
+
 }
 
 function getAutoFolds(actionSequence: Position[], mostRecentAction: PlayerAction): Position[] {
@@ -350,11 +337,11 @@ function getAutoFolds(actionSequence: Position[], mostRecentAction: PlayerAction
 
 function removeFoldsFromActionSequence(array1: string[], array2: string[]): string[] {
     return array2.filter(element => !array1.includes(element));
-  }
+}
 
 function updateActionSequenceAndFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
-  let folds = getAutoFolds(actionSequence, mostRecentAction);
-  let updatedActionSequence = removeFoldsFromActionSequence(folds, actionSequence)
-  console.log(folds, ' - [ ', updatedActionSequence)
-  return {folds, sequence: [...updatedActionSequence.splice(1), updatedActionSequence[0]]}
+    let folds = getAutoFolds(actionSequence, mostRecentAction);
+    let updatedActionSequence = removeFoldsFromActionSequence(folds, actionSequence)
+    console.log(folds, ' - [ ', updatedActionSequence)
+    return { folds, sequence: [...updatedActionSequence.splice(1), updatedActionSequence[0]] }
 }

@@ -4,11 +4,11 @@ export enum Stage {
     Turn,
     River,
     Showdown,
-  }
+}
 
 export enum ActionType {
-kCard,
-kActionSequence,
+    kCard,
+    kActionSequence,
 }
 
 export enum Position {
@@ -21,4 +21,59 @@ export enum Position {
     HJ = 'HJ',
     CO = 'CO',
     BTN = 'BTN',
+}
+
+export enum DispatchActionType {
+    kSetGameInfo,
+    kTransition,
+    kAddAction,
+    kSetInput,
+    kSetVisibleStage,
+    kReset,
+}
+
+export interface GameQueueItem {
+    placeholder: string;
+    shouldTransitionAfterStep: boolean;
+    actionType: ActionType;
+}
+
+
+export enum Decision {
+    kCheck = 'x',
+    kBet = 'b',
+    kRaise = 'r',
+    kCall = 'c',
+    kFold = 'f',
+}
+
+export interface PlayerAction {
+    text: string;
+    position: Position;
+    decision: Decision;
+    amount: number | null;
+    stage: Stage;
+    shouldHideFromUi: boolean;
+}
+
+export interface ActionTextToken {
+    position: Position;
+    decision: Decision;
+    amount: number | null;
+}
+
+export interface InitialState {
+    gameQueue: GameQueueItem[];
+    currentAction: GameQueueItem;
+    handHistory: InitialState[];
+    input: string;
+    position: string;
+    cards: string[];
+    playerActions: PlayerAction[];
+    stage: Stage;
+    stageDisplayed: Stage;
+    hero: string;
+    actionSequence: Position[];
+    pot: number;
+    foldedOutPlayers: any[];
 }
