@@ -1,5 +1,4 @@
-import { DispatchActionType } from '@/app/add-hand';
-import { Stage } from '@/types';
+import { DispatchActionType, Stage } from '@/types';
 import * as React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import { SegmentedButtons } from 'react-native-paper';

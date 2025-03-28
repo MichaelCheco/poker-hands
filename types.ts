@@ -75,4 +75,5 @@ export interface InitialState {
     actionSequence: Position[];
     pot: number;
     deck: string[];
+    mostRecentBet: number;
 }

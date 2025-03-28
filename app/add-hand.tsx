@@ -1,4 +1,4 @@
-import React, { useReducer } from 'react';
+import React, { useReducer, useRef } from 'react';
 import { View, Button, StyleSheet, ScrollView } from 'react-native';
 import { Divider, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
@@ -6,11 +6,13 @@ import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
 import { CardRow } from '@/components/CardsRow';
-import SegmentedActionLists from '@/components/SegmentedActionLists';
+import SegmentedActionLists from '../components/SegmentedActionLists';
 import { numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 
+
+// TODO - handle backspace bug
 // update action sequence, does preflop need to be handled differently than postflop?
 // can i just remove folds list and update actions to include generated actions?
 // what about partial states like an initial raise to 20 and then having to call 60 more when 3!
@@ -20,6 +22,10 @@ import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 // when calling preflop, add the raise amount
 // record game state
 // undo
+
+// remove blinds from player actions and update slicing logic
+// allow fast inputs for check, fold, and call for postflop
+
 
 const initialDeck: string[] = [
     '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', 'Th', 'Jh', 'Qh', 'Kh', 'Ah',
@@ -76,6 +82,7 @@ const initialState: InitialState = {
     actionSequence: [],
     pot: 0,
     deck: initialDeck,
+    mostRecentBet: 0,
 };
 
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
@@ -99,6 +106,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
         }
 
         case DispatchActionType.kTransition: {
+            const initialStage = stage;
             const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
             const nextAction = gameQueue[0];
             let propertyToAdd: Partial<InitialState> = {};
@@ -122,11 +130,12 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 gameQueue: gameQueue.slice(1),
                 currentAction: nextAction,
             };
+
             if (stage === Stage.Preflop) {
-                const updatedPlayerActions = getPlayerActionsWithAutoFolds(newState.actionSequence, newState.playerActions)
-                const updatedActionSequence = getNewActionSequence(updatedPlayerActions);
-                newState.actionSequence = updatedActionSequence;
-                newState.playerActions = updatedPlayerActions;
+                newState.playerActions = getPlayerActionsWithAutoFolds(newState.actionSequence, newState.playerActions);
+            }
+            if (initialStage != nextStage) {
+                newState.actionSequence = getNewActionSequence(initialStage, newState.playerActions);    
             }
             console.log(newState)
             return newState;
@@ -136,13 +145,15 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             return { ...state, stageDisplayed: action.payload.newStage };
 
         case DispatchActionType.kSetGameInfo: {
-            const { actionSequence, potSize, heroPosition, hand } = action.payload;
+            const { actionSequence, heroPosition, hand, smallBlind, bigBlind } = action.payload;
             return {
                 ...state,
                 actionSequence: moveFirstTwoToEnd(actionSequence),
-                pot: potSize,
+                pot: smallBlind + bigBlind,
                 hero: heroPosition,
-                deck: filterNewCardsFromDeck(hand, state.deck)
+                deck: filterNewCardsFromDeck(hand, state.deck),
+                mostRecentBet: bigBlind,
+                playerActions: []
             };
         }
 
@@ -155,14 +166,16 @@ export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialState);
+    const ref = useRef({smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind});
     React.useEffect(() => {
         dispatch({
             type: DispatchActionType.kSetGameInfo,
             payload: {
                 actionSequence: numPlayersToActionSequenceList[gameInfo.numPlayers],
-                potSize: gameInfo.smallBlind + gameInfo.bigBlind,
                 heroPosition: gameInfo.position,
                 hand: gameInfo.hand,
+                smallBlind: gameInfo.smallBlind,
+                bigBlind: gameInfo.bigBlind,
             },
         });
     }, []);
@@ -226,11 +239,9 @@ const styles = StyleSheet.create({
     },
 });
 
-
-
-function getNewActionSequence(playerActions: PlayerAction[]): Position[] {
+function getNewActionSequence(stage: Stage, playerActions: PlayerAction[]): Position[] {
     return playerActions
-        .filter((action) => action.decision !== Decision.kFold)
+        .filter(action => action.stage === stage).filter((action) => action.decision !== Decision.kFold)
         .sort((a, b) => positionToRank(a.position) - positionToRank(b.position))
         .map(action => action.position);
 }
@@ -246,11 +257,14 @@ function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction
     };
 }
 
+// 0 1 2 3 4 5
+//['UTG', 'UTG+1', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+// //  (4) [{…}, {…}, {…}, {…}]
 function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions: PlayerAction[]) {
     return actionSequence.map((player) => {
         const found = playerActions.find(action => action.position == player);
         return found ? found : createPlayerActionForAutoFoldedPlayer(player);
-    })
+    });
 }
 
 function getCards(currentCards: string[], newCards: string) {
@@ -361,3 +375,20 @@ function extractCards(str: string): string[] {
     }
     return result;
   }
+
+//   {
+//     amount: smallBlind,
+//     decision: Decision.kBet,
+//     position: Position.SB,
+//     shouldHideFromUi: true,
+//     text: `SB posts $${smallBlind}`,
+//     stage: Stage.Preflop,
+// },
+// {
+//     amount: bigBlind,
+//     decision: Decision.kRaise,
+//     position: Position.BB,
+//     shouldHideFromUi: true,
+//     text: `BB posts $${bigBlind}`,
+//     stage: Stage.Preflop,
+// }
