@@ -1,4 +1,4 @@
-import { Position } from "./types";
+import { ActionType, InitialState, Position, Stage } from "./types";
 
 export const playerOptions = [
     { label: '2', value: '2' },
@@ -85,6 +85,63 @@ export const numPlayersToActionSequenceList: Record<number, Position[]> = {
     9: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.UTG_2, Position.LJ, Position.HJ, Position.CO, Position.BTN],
 };
 
+export const initialDeck: string[] = [
+    '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', 'Th', 'Jh', 'Qh', 'Kh', 'Ah',
+    '2d', '3d', '4d', '5d', '6d', '7d', '8d', '9d', 'Td', 'Jd', 'Qd', 'Kd', 'Ad',
+    '2c', '3c', '4c', '5c', '6c', '7c', '8c', '9c', 'Tc', 'Jc', 'Qc', 'Kc', 'Ac',
+    '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s', 'Ts', 'Js', 'Qs', 'Ks', 'As'
+];
+
+export const initialState: InitialState = {
+    gameQueue: [
+        {
+            placeholder: 'Flop cards',
+            shouldTransitionAfterStep: false,
+            actionType: ActionType.kCard,
+        },
+        {
+            placeholder: 'Flop action',
+            shouldTransitionAfterStep: true,
+            actionType: ActionType.kActionSequence,
+        },
+        {
+            placeholder: 'Turn card',
+            shouldTransitionAfterStep: false,
+            actionType: ActionType.kCard,
+        },
+        {
+            placeholder: 'Turn action',
+            shouldTransitionAfterStep: true,
+            actionType: ActionType.kActionSequence,
+        },
+        {
+            placeholder: 'River card',
+            shouldTransitionAfterStep: false,
+            actionType: ActionType.kCard,
+        },
+        {
+            placeholder: 'River action',
+            shouldTransitionAfterStep: true,
+            actionType: ActionType.kActionSequence,
+        },
+    ],
+    currentAction: {
+        placeholder: 'Preflop action',
+        shouldTransitionAfterStep: true,
+        actionType: ActionType.kActionSequence,
+    },
+    handHistory: [],
+    input: '',
+    cards: ['', '', '', '', ''],
+    playerActions: [],
+    stage: Stage.Preflop,
+    stageDisplayed: Stage.Preflop,
+    hero: '',
+    actionSequence: [],
+    pot: 0,
+    deck: initialDeck,
+    mostRecentBet: 0,
+};
 
 
 // utg utg1 utg2 lj hj co btn sb bb

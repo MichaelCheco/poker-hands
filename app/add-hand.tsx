@@ -7,7 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
 import { CardRow } from '@/components/CardsRow';
 import SegmentedActionLists from '../components/SegmentedActionLists';
-import { numPlayersToActionSequenceList } from '@/constants';
+import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 
@@ -26,65 +26,6 @@ import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 // remove blinds from player actions and update slicing logic
 // allow fast inputs for check, fold, and call for postflop
 
-
-const initialDeck: string[] = [
-    '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', 'Th', 'Jh', 'Qh', 'Kh', 'Ah',
-    '2d', '3d', '4d', '5d', '6d', '7d', '8d', '9d', 'Td', 'Jd', 'Qd', 'Kd', 'Ad',
-    '2c', '3c', '4c', '5c', '6c', '7c', '8c', '9c', 'Tc', 'Jc', 'Qc', 'Kc', 'Ac',
-    '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s', 'Ts', 'Js', 'Qs', 'Ks', 'As'
-];
-
-const initialState: InitialState = {
-    gameQueue: [
-        {
-            placeholder: 'Flop cards',
-            shouldTransitionAfterStep: false,
-            actionType: ActionType.kCard,
-        },
-        {
-            placeholder: 'Flop action',
-            shouldTransitionAfterStep: true,
-            actionType: ActionType.kActionSequence,
-        },
-        {
-            placeholder: 'Turn card',
-            shouldTransitionAfterStep: false,
-            actionType: ActionType.kCard,
-        },
-        {
-            placeholder: 'Turn action',
-            shouldTransitionAfterStep: true,
-            actionType: ActionType.kActionSequence,
-        },
-        {
-            placeholder: 'River card',
-            shouldTransitionAfterStep: false,
-            actionType: ActionType.kCard,
-        },
-        {
-            placeholder: 'River action',
-            shouldTransitionAfterStep: true,
-            actionType: ActionType.kActionSequence,
-        },
-    ],
-    currentAction: {
-        placeholder: 'Preflop action',
-        shouldTransitionAfterStep: true,
-        actionType: ActionType.kActionSequence,
-    },
-    handHistory: [],
-    input: '',
-    cards: ['', '', '', '', ''],
-    playerActions: [],
-    stage: Stage.Preflop,
-    stageDisplayed: Stage.Preflop,
-    hero: '',
-    actionSequence: [],
-    pot: 0,
-    deck: initialDeck,
-    mostRecentBet: 0,
-};
-
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue } = state;
 
@@ -92,12 +33,12 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
         case DispatchActionType.kSetInput:
             return { ...state, input: action.payload.input };
 
-        case DispatchActionType.kAddAction: {
+        case DispatchActionType.kAddPreflopAction: {
             const mostRecentActionText = getLastAction(action.payload.input);
-            const actionInfo = parseAction(mostRecentActionText);
-            const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
+            console.log(`recent text: ${mostRecentActionText}`);
+            const actionInfo = parseAction(mostRecentActionText, state.actionSequence[0] || '');
+            const playerAction = buildPlayerAction(actionInfo, stage);
             const newPlayerActions = [...state.playerActions, playerAction];
-
             return {
                 ...state,
                 input: action.payload.input,
@@ -105,6 +46,27 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             };
         }
 
+        case DispatchActionType.kAddPostflopAction: {
+            const mostRecentActionText = getLastAction(action.payload.input);
+            console.log(`recent text: ${mostRecentActionText}`);
+            const playerToAct = state.actionSequence[0];
+            const actionInfo = parseAction(mostRecentActionText, playerToAct);
+            const playerAction = buildPlayerAction(actionInfo, stage);
+            const newPlayerActions = [...state.playerActions, playerAction];
+            const currentActionSequence = state.actionSequence;
+            console.log(playerAction, ' --- kAddPostflopAction')
+            // ['LJ', 'CO', 'BTN'] --> [CO, BTN, LJ]
+            // newState.actionSequence = getNewActionSequence(initialStage, newState.playerActions);
+            // playerAction.decision !== Decision.kFold ? [playerToAct] : []
+            const newActionSequence = [...currentActionSequence.slice(1), ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])];
+            console.log(newActionSequence, ' - - - - - - ', newActionSequence)
+            return {
+                ...state,
+                input: action.payload.input,
+                playerActions: newPlayerActions,
+                actionSequence: newActionSequence,
+            };
+        }
         case DispatchActionType.kTransition: {
             const initialStage = stage;
             const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
@@ -116,8 +78,8 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 propertyToAdd = { cards: newCards, deck: filterNewCardsFromDeck(newCards, state.deck) };
             } else {
                 const mostRecentActionText = getLastAction(action.payload.input);
-                const actionInfo = parseAction(mostRecentActionText);
-                const playerAction = buildPlayerAction(mostRecentActionText, actionInfo, stage);
+                const actionInfo = parseAction(mostRecentActionText, state.actionSequence[0] || '');
+                const playerAction = buildPlayerAction(actionInfo, stage);
                 propertyToAdd = { playerActions: [...state.playerActions, playerAction] };
             }
 
@@ -153,7 +115,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 hero: heroPosition,
                 deck: filterNewCardsFromDeck(hand, state.deck),
                 mostRecentBet: bigBlind,
-                playerActions: []
+                playerActions: [],
             };
         }
 
@@ -182,11 +144,14 @@ export default function App() {
     const handleInputChange = (text: string) => {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
-        const type = isTransition
-            ? DispatchActionType.kTransition
-            : isAddAction
-                ? DispatchActionType.kAddAction
-                : DispatchActionType.kSetInput;
+        let type: DispatchActionType;
+        if (isTransition) {
+            type = DispatchActionType.kTransition;
+        } else if (isAddAction) {
+            type = state.stage === Stage.Preflop ? DispatchActionType.kAddPreflopAction : DispatchActionType.kAddPostflopAction;
+        } else {
+            type = DispatchActionType.kSetInput;
+        }
         dispatch({ type, payload: { input: text } });
     };
 
@@ -281,8 +246,27 @@ function getCards(currentCards: string[], newCards: string) {
     return currentCards
 }
 
-function buildPlayerAction(text: string, actionInfo: ActionTextToken, stage: Stage): PlayerAction {
-    return { text, stage, shouldHideFromUi: false, ...actionInfo };
+function decisionToText(decision: Decision): string {
+    switch (decision) {
+        case Decision.kBet:
+            return 'bets'
+        case Decision.kCall:
+            return 'calls'
+        case Decision.kCheck:
+            return 'checks'
+        case Decision.kFold:
+            return 'folds'
+        case Decision.kRaise:
+            return 'raises'
+    }
+}
+
+function getMeaningfulTextToDisplay(actionInfo: ActionTextToken): string {
+  return `${actionInfo.position} ${decisionToText(actionInfo.decision)} ${actionInfo.amount === 0 ? '' : actionInfo.amount}`;
+}
+
+function buildPlayerAction(actionInfo: ActionTextToken, stage: Stage): PlayerAction {
+    return { text: getMeaningfulTextToDisplay(actionInfo), stage, shouldHideFromUi: false, ...actionInfo };
 }
 
 function getLastAction(newVal: string): string {
@@ -302,11 +286,7 @@ function getNextStage(stage: Stage) {
     return nextStages[stage];
 }
 
-function parseAction(action: string): ActionTextToken {
-    const tokens = action.split(' ');
-    const positionKey = tokens[0];
-    const decisionKey = tokens[1];
-    const amountStr = tokens[2];
+function createActionTextToken(positionKey: string, decisionKey: string, num: number): ActionTextToken {
     let decision: Decision | undefined;
     for (const key in Decision) {
         if (Decision[key] === decisionKey) {
@@ -324,43 +304,22 @@ function parseAction(action: string): ActionTextToken {
         }
     }
 
-    const amountAsNum = Number(amountStr);
-    return { position, decision, amount: isNaN(amountAsNum) ? 0 : amountAsNum };
+    return { position, decision, amount: isNaN(num) ? 0 : num };
 }
 
-function findPlayerAndAddAction() {
-
+function isValidPosition(positionToCheck: string): boolean {
+    return Object.values(Position).includes(positionToCheck);
 }
 
-
-function recordFolds(actionSequence: Position[], mostRecentAction: PlayerAction) {
-    let folds = [];
-    for (let player of actionSequence) {
-        if (player == mostRecentAction.position) {
-            if (mostRecentAction.decision == Decision.kFold) {
-                folds.push(player);
-                return folds;
-            }
-            return folds;
-        }
-        folds.push(player);
+function parseAction(action: string, currentPosition: string): ActionTextToken {
+    if (action.length === 1) {
+        return createActionTextToken(currentPosition, action, 0);    
     }
-
-}
-
-function getAutoFolds(actionSequence: Position[], mostRecentAction: PlayerAction): Position[] {
-    let folds = [];
-    for (let player of actionSequence) {
-        if (player == mostRecentAction.position) {
-            return folds;
-        }
-        folds.push(player);
-    }
-    return folds;
-}
-
-function removeFoldsFromActionSequence(array1: string[], array2: string[]): string[] {
-    return array2.filter(element => !array1.includes(element));
+    const tokens = action.split(' ');
+    const positionKey = tokens[0];
+    const decisionKey = tokens[1];
+    const amountStr = tokens[2];
+    return createActionTextToken(positionKey, decisionKey, Number(amountStr));
 }
 
 function filterNewCardsFromDeck(newCards: string | string[], currDeck: string[]): string[] {
