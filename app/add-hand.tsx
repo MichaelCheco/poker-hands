@@ -135,7 +135,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 newState.playerActions = getPlayerActionsWithAutoFolds(newState.actionSequence, newState.playerActions);
             }
             if (initialStage != nextStage) {
-                newState.actionSequence = getNewActionSequence(initialStage, newState.playerActions);    
+                newState.actionSequence = getNewActionSequence(initialStage, newState.playerActions);
             }
             console.log(newState)
             return newState;
@@ -166,7 +166,7 @@ export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialState);
-    const ref = useRef({smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind});
+    const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
     React.useEffect(() => {
         dispatch({
             type: DispatchActionType.kSetGameInfo,
@@ -363,18 +363,18 @@ function removeFoldsFromActionSequence(array1: string[], array2: string[]): stri
     return array2.filter(element => !array1.includes(element));
 }
 
-function filterNewCardsFromDeck(newCards: string|string[], currDeck: string[]): string[] {
-    const cards = typeof newCards === "string" ? extractCards(newCards): newCards;
+function filterNewCardsFromDeck(newCards: string | string[], currDeck: string[]): string[] {
+    const cards = typeof newCards === "string" ? extractCards(newCards) : newCards;
     return currDeck.filter(card => !cards.includes(card))
 }
 
 function extractCards(str: string): string[] {
     const result = [];
     for (let i = 0; i < str.length; i += 2) {
-      result.push(str.substring(i, i + 2));
+        result.push(str.substring(i, i + 2));
     }
     return result;
-  }
+}
 
 //   {
 //     amount: smallBlind,

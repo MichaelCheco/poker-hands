@@ -9,10 +9,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <Stack>
-      <Stack.Screen name="add-hand" options={{ headerShown: false }} />
-      <Stack.Screen name="index" options={{ headerTitle: "Saved Hands" }}/>
-      {/* other screens */}
-    </Stack>
+        <Stack.Screen name="add-hand" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerTitle: "Saved Hands" }} />
+        {/* other screens */}
+      </Stack>
     </SafeAreaProvider>
   )
 }

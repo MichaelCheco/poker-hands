@@ -15,10 +15,10 @@ const Card = ({ card, small }) => {
   if (!card || card.length < 2) {
     return (
       <View style={styles.smallCard}>
-      <Text style={[styles.smallCardText, { color: 'black' }]}>
-        ?
-      </Text>
-    </View>)
+        <Text style={[styles.smallCardText, { color: 'black' }]}>
+          ?
+        </Text>
+      </View>)
   }
 
   const value = card.slice(0, card.length - 1);
@@ -49,13 +49,13 @@ export const CardRow = ({ cards, small }) => {
   );
 };
 
-const Hand = ({cards}) => {
+const Hand = ({ cards }) => {
 
-  const hand = [cards.slice(0,2) , cards.slice(2, 4)] 
+  const hand = [cards.slice(0, 2), cards.slice(2, 4)]
 
   return (
     <View>
-      <CardRow cards={hand} small={false}/>
+      <CardRow cards={hand} small={false} />
     </View>
   );
 };
