@@ -12,7 +12,7 @@ export default function Index() {
   const containerStyle = {backgroundColor: 'white', padding: 20};
 
   return (
-    <PaperProvider>
+    <PaperProvider theme={{version: 3}}>
       <Portal>
         <Modal visible={visible} onDismiss={hideModal} contentContainerStyle={containerStyle}>
           <PokerHandForm />

@@ -30,7 +30,7 @@ const Card = ({ card, small }) => {
   const b = small ? styles.smallCardText : styles.cardText
   return (
     <View style={a}>
-      <Text style={[b, { color }]}>
+      <Text style={[b, { color, textTransform: 'uppercase' }]}>
         {value}
         {suitSymbol}
       </Text>

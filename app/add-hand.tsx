@@ -1,6 +1,6 @@
 import React, { useReducer, useRef } from 'react';
 import { View, Button, StyleSheet, ScrollView } from 'react-native';
-import { Divider, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
@@ -11,21 +11,6 @@ import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 
-
-// TODO - handle backspace bug
-// update action sequence, does preflop need to be handled differently than postflop?
-// can i just remove folds list and update actions to include generated actions?
-// what about partial states like an initial raise to 20 and then having to call 60 more when 3!
-// for above these are distinct actions and should be treated as such, action sequence will need
-// to account for dupes
-// autofold
-// when calling preflop, add the raise amount
-// record game state
-// undo
-
-// remove blinds from player actions and update slicing logic
-// allow fast inputs for check, fold, and call for postflop
-
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue } = state;
 
@@ -35,7 +20,6 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
 
         case DispatchActionType.kAddPreflopAction: {
             const mostRecentActionText = getLastAction(action.payload.input);
-            console.log(`recent text: ${mostRecentActionText}`);
             const actionInfo = parseAction(mostRecentActionText, state.actionSequence[0] || '');
             const playerAction = buildPlayerAction(actionInfo, stage);
             const newPlayerActions = [...state.playerActions, playerAction];
@@ -48,18 +32,14 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
 
         case DispatchActionType.kAddPostflopAction: {
             const mostRecentActionText = getLastAction(action.payload.input);
-            console.log(`recent text: ${mostRecentActionText}`);
             const playerToAct = state.actionSequence[0];
             const actionInfo = parseAction(mostRecentActionText, playerToAct);
             const playerAction = buildPlayerAction(actionInfo, stage);
             const newPlayerActions = [...state.playerActions, playerAction];
             const currentActionSequence = state.actionSequence;
-            console.log(playerAction, ' --- kAddPostflopAction')
-            // ['LJ', 'CO', 'BTN'] --> [CO, BTN, LJ]
-            // newState.actionSequence = getNewActionSequence(initialStage, newState.playerActions);
-            // playerAction.decision !== Decision.kFold ? [playerToAct] : []
-            const newActionSequence = [...currentActionSequence.slice(1), ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])];
-            console.log(newActionSequence, ' - - - - - - ', newActionSequence)
+            const newActionSequence =
+            [...currentActionSequence.slice(1),
+             ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])];
             return {
                 ...state,
                 input: action.payload.input,
@@ -147,7 +127,8 @@ export default function App() {
         let type: DispatchActionType;
         if (isTransition) {
             type = DispatchActionType.kTransition;
-        } else if (isAddAction) {
+            // Only process commas when we're dealing with an action sequence
+        } else if (isAddAction && state.currentAction.actionType !== ActionType.kCard) {
             type = state.stage === Stage.Preflop ? DispatchActionType.kAddPreflopAction : DispatchActionType.kAddPostflopAction;
         } else {
             type = DispatchActionType.kSetInput;
@@ -160,7 +141,11 @@ export default function App() {
             <ScrollView style={styles.content}>
                 <GameInfo info={gameInfo} />
                 <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch} />
-                <View style={{ alignItems: 'flex-end' }}><CardRow cards={state.cards} small={true} /></View>
+                {/* alignItems: 'flex-end' */}
+                <View style={{ display: 'flex',flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={{alignSelf: 'center', paddingLeft: 4}}>Pot: ${state.pot}</Text>
+                    <CardRow cards={state.cards} small={true} />
+                    </View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
                 {state.stage === Stage.Showdown && (
                     <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
@@ -222,9 +207,6 @@ function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction
     };
 }
 
-// 0 1 2 3 4 5
-//['UTG', 'UTG+1', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB']
-// //  (4) [{…}, {…}, {…}, {…}]
 function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions: PlayerAction[]) {
     return actionSequence.map((player) => {
         const found = playerActions.find(action => action.position == player);
@@ -273,7 +255,7 @@ function getLastAction(newVal: string): string {
     const actions: string[] = newVal.split(',').filter(Boolean);
     const lastAction = actions.pop() as string;
     const text = lastAction?.endsWith('.') ? lastAction.slice(0, -1) : lastAction;
-    return text.trim();
+    return text.trim().toUpperCase();
 }
 
 function getNextStage(stage: Stage) {
@@ -286,40 +268,54 @@ function getNextStage(stage: Stage) {
     return nextStages[stage];
 }
 
-function createActionTextToken(positionKey: string, decisionKey: string, num: number): ActionTextToken {
-    let decision: Decision | undefined;
-    for (const key in Decision) {
-        if (Decision[key] === decisionKey) {
-            decision = Decision[key];
-            break;
-        }
-    }
-
-    let position: Position | undefined;
-
-    for (const key in Position) {
-        if (Position[key] === positionKey) {
-            position = Position[key];
-            break;
-        }
-    }
-
-    return { position, decision, amount: isNaN(num) ? 0 : num };
-}
-
 function isValidPosition(positionToCheck: string): boolean {
     return Object.values(Position).includes(positionToCheck);
 }
 
-function parseAction(action: string, currentPosition: string): ActionTextToken {
-    if (action.length === 1) {
-        return createActionTextToken(currentPosition, action, 0);    
+function isValidPlayerAction(actionToCheck: string): boolean {
+    return Object.values(Decision).includes(actionToCheck);
+}
+
+// ['LJ', 'r', '20']
+// [CO,  c]
+// [b, 50]
+// [x]
+
+function parseActionString(actionString: string, currentPosition: Position): ActionTextToken {
+    const tokens = actionString.split(' ');
+  
+    let position: Position;
+    let decision: Decision|null = null;
+    let amount = 0;
+  
+    let tokenIndex = 0;
+  
+    if (Object.values(Position).includes(tokens[tokenIndex] as Position)) {
+      position = tokens[tokenIndex] as Position;
+      tokenIndex++;
+    } else {
+      position = currentPosition;
     }
-    const tokens = action.split(' ');
-    const positionKey = tokens[0];
-    const decisionKey = tokens[1];
-    const amountStr = tokens[2];
-    return createActionTextToken(positionKey, decisionKey, Number(amountStr));
+  
+    if (tokens[tokenIndex] && Object.values(Decision).includes(tokens[tokenIndex] as Decision)) {
+      decision = tokens[tokenIndex] as Decision;
+      tokenIndex++;
+    }
+  
+    if (tokens[tokenIndex] && !isNaN(parseInt(tokens[tokenIndex], 10))) {
+      amount = parseInt(tokens[tokenIndex], 10);
+      tokenIndex++;
+    }
+  
+    return {
+      position,
+      decision,
+      amount,
+    };
+  }
+
+function parseAction(action: string, currentPosition: string): ActionTextToken {
+    return parseActionString(action, currentPosition as Position);
 }
 
 function filterNewCardsFromDeck(newCards: string | string[], currDeck: string[]): string[] {
@@ -334,20 +330,3 @@ function extractCards(str: string): string[] {
     }
     return result;
 }
-
-//   {
-//     amount: smallBlind,
-//     decision: Decision.kBet,
-//     position: Position.SB,
-//     shouldHideFromUi: true,
-//     text: `SB posts $${smallBlind}`,
-//     stage: Stage.Preflop,
-// },
-// {
-//     amount: bigBlind,
-//     decision: Decision.kRaise,
-//     position: Position.BB,
-//     shouldHideFromUi: true,
-//     text: `BB posts $${bigBlind}`,
-//     stage: Stage.Preflop,
-// }

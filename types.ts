@@ -41,11 +41,11 @@ export interface GameQueueItem {
 
 
 export enum Decision {
-    kCheck = 'x',
-    kBet = 'b',
-    kRaise = 'r',
-    kCall = 'c',
-    kFold = 'f',
+    kCheck = 'X',
+    kBet = 'B',
+    kRaise = 'R',
+    kCall = 'C',
+    kFold = 'F',
 }
 
 export interface PlayerAction {
