@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Appbar, Text } from 'react-native-paper';
-import Hand from './CardsRow';
+import { MyHand } from './Cards';
 
 const GameInfo = ({ info }) => {
   return (
@@ -10,7 +10,7 @@ const GameInfo = ({ info }) => {
         title={`$${info.smallBlind}/$${info.bigBlind} • ${info.location} • ${info.position}`}
         titleStyle={{ fontSize: 18 }}
       />
-      <Hand cards={info.hand} />
+      <MyHand cards={info.hand} />
       {/* <View style={styles.infoContainer}>
         <Text style={styles.infoText}>{info.position}</Text>
         <Text style={styles.bullet}>•</Text>

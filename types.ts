@@ -26,8 +26,7 @@ export enum Position {
 export enum DispatchActionType {
     kSetGameInfo,
     kTransition,
-    kAddPreflopAction,
-    kAddPostflopAction,
+    kAddAction,
     kSetInput,
     kSetVisibleStage,
     kReset,

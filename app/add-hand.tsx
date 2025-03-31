@@ -5,101 +5,187 @@ import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
-import { CardRow } from '@/components/CardsRow';
+import { CommunityCards } from '@/components/Cards';
 import SegmentedActionLists from '../components/SegmentedActionLists';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
-    const { currentAction, stage, gameQueue } = state;
+    const { currentAction, stage, gameQueue, actionSequence, playerActions } = state;
 
     switch (action.type) {
         case DispatchActionType.kSetInput:
             return { ...state, input: action.payload.input };
 
-        case DispatchActionType.kAddPreflopAction: {
+
+        case DispatchActionType.kAddAction: {
             const mostRecentActionText = getLastAction(action.payload.input);
-            const actionInfo = parseAction(mostRecentActionText, state.actionSequence[0] || '');
+            // Player to act is always the first in the current sequence
+            const playerToAct = actionSequence[0];
+            if (!playerToAct) {
+                console.warn("AddAction dispatched but no player is set to act.");
+                return state; // Or handle error appropriately
+            }
+
+            const actionInfo = parseAction(mostRecentActionText, playerToAct);
             const playerAction = buildPlayerAction(actionInfo, stage);
-            const newPlayerActions = [...state.playerActions, playerAction];
+            const newPlayerActions = [...playerActions, playerAction];
+
+            let newActionSequence = [...actionSequence]; // Start with current sequence
+
+            // Post-flop: Update action sequence immediately based on the action
+            if (stage !== Stage.Preflop) {
+                const remainingPlayers = actionSequence.slice(1);
+                const actingPlayer = actionSequence[0];
+                // If the player didn't fold, add them to the end of the *remaining* sequence
+                newActionSequence = [
+                    ...remainingPlayers,
+                    ...(playerAction.decision !== Decision.kFold ? [actingPlayer] : [])
+                ];
+            }
+            // Pre-flop: Action sequence is handled differently, often based on who is left
+            // *after* the betting round, so we don't modify it here per-action.
+            // It gets recalculated during the transition from Preflop.
+
             return {
                 ...state,
-                input: action.payload.input,
+                input: action.payload.input, // Keep the input for multi-action entry
                 playerActions: newPlayerActions,
+                actionSequence: newActionSequence, // Update sequence if post-flop
+                // Note: Pot updates, mostRecentBet updates etc., likely happen here too.
+                // Need to add logic based on playerAction (bet, raise, call amounts)
+                // pot: calculateNewPot(state.pot, playerAction),
+                // mostRecentBet: calculateNewMostRecentBet(state.mostRecentBet, playerAction)
             };
         }
 
-        case DispatchActionType.kAddPostflopAction: {
-            const mostRecentActionText = getLastAction(action.payload.input);
-            const playerToAct = state.actionSequence[0];
-            const actionInfo = parseAction(mostRecentActionText, playerToAct);
-            const playerAction = buildPlayerAction(actionInfo, stage);
-            const newPlayerActions = [...state.playerActions, playerAction];
-            const currentActionSequence = state.actionSequence;
-            const newActionSequence =
-            [...currentActionSequence.slice(1),
-             ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])];
-            return {
-                ...state,
-                input: action.payload.input,
-                playerActions: newPlayerActions,
-                actionSequence: newActionSequence,
-            };
-        }
         case DispatchActionType.kTransition: {
             const initialStage = stage;
             const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
-            const nextAction = gameQueue[0];
-            let propertyToAdd: Partial<InitialState> = {};
+            const nextAction = gameQueue[0]; // Next step in the overall game flow
 
+            let propertyUpdates: Partial<InitialState> = {};
+            let finalPlayerActions = [...playerActions]; // Start with current actions
+            let finalActionSequence = [...actionSequence]; // Start with current sequence
+
+            // --- Process Final Input Before Transition ---
             if (currentAction.actionType === ActionType.kCard) {
-                const newCards = getCards(state.cards, action.payload.input.slice(0, -1));
-                propertyToAdd = { cards: newCards, deck: filterNewCardsFromDeck(newCards, state.deck) };
-            } else {
+                // Handle card input
+                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase(); // Remove trailing '.'
+                const newCards = getCards(state.cards, inputCards);
+                propertyUpdates = {
+                     cards: newCards,
+                     deck: filterNewCardsFromDeck(newCards, state.deck)
+                };
+            } else if (action.payload.input.trim().length > 1) { // Check if there's action input (not just '.')
+                // Handle the last player action input before transitioning
                 const mostRecentActionText = getLastAction(action.payload.input);
-                const actionInfo = parseAction(mostRecentActionText, state.actionSequence[0] || '');
-                const playerAction = buildPlayerAction(actionInfo, stage);
-                propertyToAdd = { playerActions: [...state.playerActions, playerAction] };
-            }
+                const playerToAct = actionSequence[0];
 
-            const newState: InitialState = {
+                if (playerToAct) {
+                    const actionInfo = parseAction(mostRecentActionText, playerToAct);
+                    const playerAction = buildPlayerAction(actionInfo, stage);
+                    finalPlayerActions = [...finalPlayerActions, playerAction]; // Add the final action
+
+                    // Update action sequence if post-flop (mirroring kAddAction logic)
+                    if (stage !== Stage.Preflop) {
+                        const remainingPlayers = actionSequence.slice(1);
+                        finalActionSequence = [
+                            ...remainingPlayers,
+                            ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])
+                        ];
+                    }
+                    // Add pot/bet updates based on playerAction here too
+                    // propertyUpdates.pot = calculateNewPot(state.pot, playerAction);
+                    // propertyUpdates.mostRecentBet = calculateNewMostRecentBet(state.mostRecentBet, playerAction);
+
+                } else {
+                     console.warn("Transition occurred with action input, but no player was set to act.");
+                }
+            }
+            // --- End Processing Final Input ---
+
+
+            // --- Prepare for Next Stage/Step ---
+            const newStateBase: InitialState = {
                 ...state,
+                ...propertyUpdates, // Apply updates from card/action input
+                playerActions: finalPlayerActions, // Use potentially updated actions
+                actionSequence: finalActionSequence, // Use potentially updated sequence
                 stage: nextStage,
                 stageDisplayed: nextStage,
-                ...propertyToAdd,
-                input: '',
+                input: '', // Clear input after transition
                 gameQueue: gameQueue.slice(1),
-                currentAction: nextAction,
+                currentAction: nextAction, // Set the next expected action/input type
             };
 
-            if (stage === Stage.Preflop) {
-                newState.playerActions = getPlayerActionsWithAutoFolds(newState.actionSequence, newState.playerActions);
+            // --- Post-Transition Adjustments ---
+            let finalState = newStateBase;
+
+            // If transitioning *away from* Preflop, apply auto-folds based on the *original* preflop sequence
+            if (initialStage === Stage.Preflop && nextStage !== initialStage) {
+                 // We need the original preflop sequence to determine who folded automatically
+                 // Let's adjust getPlayerActionsWithAutoFolds slightly
+                 const originalPreflopSequence = state.actionSequence; // Sequence before any actions in *this* transition
+                 finalState = {
+                     ...finalState,
+                     playerActions: getPlayerActionsWithAutoFolds(originalPreflopSequence, finalState.playerActions)
+                 };
             }
-            if (initialStage != nextStage) {
-                newState.actionSequence = getNewActionSequence(initialStage, newState.playerActions);
+
+            // If the stage actually changed, recalculate the action sequence for the *new* stage
+            if (initialStage !== nextStage && nextStage !== Stage.Showdown) {
+                // The sequence for the next street starts with players who didn't fold on the *previous* street,
+                // ordered by position (usually SB first post-flop).
+                finalState = {
+                    ...finalState,
+                    actionSequence: getNewActionSequence(initialStage, finalState.playerActions) // Sequence based on who is left from initialStage
+                    // Reset mostRecentBet for the new street? Usually yes.
+                    // mostRecentBet: 0,
+                };
             }
-            console.log(newState)
-            return newState;
+
+            console.log("New state after transition:", finalState);
+            return finalState;
         }
 
+
         case DispatchActionType.kSetVisibleStage:
+             // No change needed here
             return { ...state, stageDisplayed: action.payload.newStage };
 
         case DispatchActionType.kSetGameInfo: {
+            // No change needed here, but ensure moveFirstTwoToEnd is correct for your game logic
             const { actionSequence, heroPosition, hand, smallBlind, bigBlind } = action.payload;
             return {
-                ...state,
-                actionSequence: moveFirstTwoToEnd(actionSequence),
+                ...state, // Preserve deck, cards, etc. from initialState
+                actionSequence: moveFirstTwoToEnd(actionSequence), // This sets the initial preflop order
                 pot: smallBlind + bigBlind,
                 hero: heroPosition,
                 deck: filterNewCardsFromDeck(hand, state.deck),
-                mostRecentBet: bigBlind,
-                playerActions: [],
+                mostRecentBet: bigBlind, // BB is the initial bet to match
+                playerActions: [], // Start fresh
+                stage: Stage.Preflop, // Ensure stage is set correctly
+                stageDisplayed: Stage.Preflop,
+                // Reset other relevant fields?
+                cards: initialState.cards,
+                input: '',
+                // gameQueue should be initialized based on numPlayers/rules
+                // currentAction should be the first action in the queue
             };
         }
 
+        // Add kReset case if needed
+        case DispatchActionType.kReset:
+            // You might want to preserve gameInfo like blinds/position
+            // Re-initialize based on initial setup or a complete reset
+             return { ...initialState /*, potentially keep blinds/position/hero */ };
+
+
         default:
+            // Use exhaustive check helper if desired, or just return state
+            // const _exhaustiveCheck: never = action.type;
             return state;
     }
 }
@@ -125,11 +211,12 @@ export default function App() {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
         let type: DispatchActionType;
+    
         if (isTransition) {
             type = DispatchActionType.kTransition;
-            // Only process commas when we're dealing with an action sequence
         } else if (isAddAction && state.currentAction.actionType !== ActionType.kCard) {
-            type = state.stage === Stage.Preflop ? DispatchActionType.kAddPreflopAction : DispatchActionType.kAddPostflopAction;
+            // Use the new combined action type
+            type = DispatchActionType.kAddAction;
         } else {
             type = DispatchActionType.kSetInput;
         }
@@ -141,11 +228,10 @@ export default function App() {
             <ScrollView style={styles.content}>
                 <GameInfo info={gameInfo} />
                 <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch} />
-                {/* alignItems: 'flex-end' */}
-                <View style={{ display: 'flex',flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{alignSelf: 'center', paddingLeft: 4}}>Pot: ${state.pot}</Text>
-                    <CardRow cards={state.cards} small={true} />
-                    </View>
+                <View style={styles.infoRow}>
+                    <Text style={styles.potText}>Pot: ${state.pot}</Text>
+                    <CommunityCards cards={state.cards} />
+                </View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
                 {state.stage === Stage.Showdown && (
                     <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
@@ -174,6 +260,23 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
+    },
+    infoRow: {
+        flexDirection: 'row', // Arrange items side-by-side
+        justifyContent: 'space-between', // Pushes Pot left, Cards right
+        alignItems: 'center', // Vertically align items in the middle of the row
+        paddingHorizontal: 16, // Add horizontal padding to the container
+        paddingVertical: 8, // Add some vertical padding
+        marginBottom: 8, // Add space below this row, before the ActionList
+        // Optional: Add a background color for debugging layout
+        // backgroundColor: '#eee',
+    },
+    potText: {
+        fontSize: 16, // Slightly larger font size
+        fontWeight: '500', // Medium weight for emphasis
+        color: '#333', // Darker text color
+        // alignSelf: 'center' is no longer needed due to alignItems: 'center' on parent
+        // paddingLeft: 4 is replaced by paddingHorizontal on the parent View
     },
     inputContainer: {
         position: 'absolute',
@@ -213,6 +316,20 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
         return found ? found : createPlayerActionForAutoFoldedPlayer(player);
     });
 }
+
+// This version assumes playerActions already contains actions from the completed preflop round
+// function getPlayerActionsWithAutoFolds(originalPreflopSequence: Position[], completedPlayerActions: PlayerAction[]): PlayerAction[] {
+//     const finalActions = [...completedPlayerActions]; // Copy existing actions
+//     const actedPositions = new Set(completedPlayerActions.filter(a => a.stage === Stage.Preflop).map(a => a.position));
+
+//     for (const position of originalPreflopSequence) {
+//         if (!actedPositions.has(position)) {
+//             // If a player in the original sequence didn't act preflop, add an auto-fold
+//             finalActions.push(createPlayerActionForAutoFoldedPlayer(position));
+//         }
+//     }
+//     return finalActions;
+// }
 
 function getCards(currentCards: string[], newCards: string) {
     const EMPTY_CARD = '';
