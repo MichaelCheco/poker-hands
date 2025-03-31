@@ -20,7 +20,7 @@ export enum Position {
     LJ = 'LJ',
     HJ = 'HJ',
     CO = 'CO',
-    BTN = 'BTN',
+    BU = 'BU',
 }
 
 export enum DispatchActionType {
@@ -51,7 +51,7 @@ export interface PlayerAction {
     text: string;
     position: Position;
     decision: Decision;
-    amount: number | null;
+    amount: number;
     stage: Stage;
     shouldHideFromUi: boolean;
 }
@@ -59,7 +59,7 @@ export interface PlayerAction {
 export interface ActionTextToken {
     position: Position;
     decision: Decision;
-    amount: number | null;
+    amount: number;
 }
 
 export interface InitialState {
@@ -75,5 +75,7 @@ export interface InitialState {
     actionSequence: Position[];
     pot: number;
     deck: string[];
+    betsThisStreet: { [key in Position]?: number };
+    currentBetFacing: number;
     mostRecentBet: number;
 }

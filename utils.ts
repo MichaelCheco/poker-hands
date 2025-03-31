@@ -40,7 +40,7 @@ export function positionToRank(positionKey: string): number {
         'LJ': 5,
         'HJ': 6,
         'CO': 7,
-        'BTN': 8,
+        'BU': 8,
     }
     return positionToRankMap[positionKey];
 }

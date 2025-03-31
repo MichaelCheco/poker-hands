@@ -19,20 +19,20 @@ export const positionMapping: Record<number, { label: string; value: Position }[
     3: [
       { label: Position.SB, value: Position.SB },
       { label: Position.BB, value: Position.BB },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
     4: [
       { label: Position.SB, value: Position.SB },
       { label: Position.BB, value: Position.BB },
       { label: Position.CO, value: Position.CO },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
     5: [
       { label: Position.SB, value: Position.SB },
       { label: Position.BB, value: Position.BB },
       { label: Position.UTG, value: Position.UTG },
       { label: Position.CO, value: Position.CO },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
     6: [
       { label: Position.SB, value: Position.SB },
@@ -40,7 +40,7 @@ export const positionMapping: Record<number, { label: string; value: Position }[
       { label: Position.UTG, value: Position.UTG },
       { label: Position.HJ, value: Position.HJ },
       { label: Position.CO, value: Position.CO },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
     7: [
       { label: Position.SB, value: Position.SB },
@@ -49,7 +49,7 @@ export const positionMapping: Record<number, { label: string; value: Position }[
       { label: Position.LJ, value: Position.LJ },
       { label: Position.HJ, value: Position.HJ },
       { label: Position.CO, value: Position.CO },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
     8: [
       { label: Position.SB, value: Position.SB },
@@ -59,7 +59,7 @@ export const positionMapping: Record<number, { label: string; value: Position }[
       { label: Position.LJ, value: Position.LJ },
       { label: Position.HJ, value: Position.HJ },
       { label: Position.CO, value: Position.CO },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
     9: [
       { label: Position.SB, value: Position.SB },
@@ -70,19 +70,19 @@ export const positionMapping: Record<number, { label: string; value: Position }[
       { label: Position.LJ, value: Position.LJ },
       { label: Position.HJ, value: Position.HJ },
       { label: Position.CO, value: Position.CO },
-      { label: Position.BTN, value: Position.BTN },
+      { label: Position.BU, value: Position.BU },
     ],
   };
 
 export const numPlayersToActionSequenceList: Record<number, Position[]> = {
     2: [Position.SB, Position.BB],
-    3: [Position.SB, Position.BB, Position.BTN],
-    4: [Position.SB, Position.BB, Position.CO, Position.BTN],
-    5: [Position.SB, Position.BB, Position.UTG, Position.CO, Position.BTN],
-    6: [Position.SB, Position.BB, Position.UTG, Position.HJ, Position.CO, Position.BTN],
-    7: [Position.SB, Position.BB, Position.UTG, Position.LJ, Position.HJ, Position.CO, Position.BTN],
-    8: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.LJ, Position.HJ, Position.CO, Position.BTN],
-    9: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.UTG_2, Position.LJ, Position.HJ, Position.CO, Position.BTN],
+    3: [Position.SB, Position.BB, Position.BU],
+    4: [Position.SB, Position.BB, Position.CO, Position.BU],
+    5: [Position.SB, Position.BB, Position.UTG, Position.CO, Position.BU],
+    6: [Position.SB, Position.BB, Position.UTG, Position.HJ, Position.CO, Position.BU],
+    7: [Position.SB, Position.BB, Position.UTG, Position.LJ, Position.HJ, Position.CO, Position.BU],
+    8: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.LJ, Position.HJ, Position.CO, Position.BU],
+    9: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.UTG_2, Position.LJ, Position.HJ, Position.CO, Position.BU],
 };
 
 export const initialDeck: string[] = [
@@ -140,8 +140,10 @@ export const initialState: InitialState = {
     actionSequence: [],
     pot: 0,
     deck: initialDeck,
+    betsThisStreet: {},
+    currentBetFacing: 0,
     mostRecentBet: 0,
 };
 
 
-// utg utg1 utg2 lj hj co btn sb bb
+// utg utg1 utg2 lj hj co BU sb bb
