@@ -11,6 +11,7 @@ import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 import { determinePokerWinnerManual, PokerPlayerInput } from '@/hand-evaluator';
+import { useTheme } from 'react-native-paper';
 
 function calculateNewPot(pot: number, playerAction: PlayerAction): number {
     if (playerAction.amount === 0) {
@@ -298,8 +299,12 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
     }
 }
 
+
+// PRE POT SPR EFF ?
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
+    const theme = useTheme();
+    console.log(theme, ' tt')
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
@@ -332,7 +337,7 @@ export default function App() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={{...styles.container, backgroundColor: theme.colors.myOwnColor}}>
             <ScrollView style={styles.content}>
                 <GameInfo info={gameInfo} />
                 <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch} />

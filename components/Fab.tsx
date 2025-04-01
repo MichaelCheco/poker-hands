@@ -1,15 +1,18 @@
 import * as React from 'react';
 import { StyleSheet } from 'react-native';
-import { FAB } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { FAB, useTheme } from 'react-native-paper';
 
-const Fab = ({ onPress }) => (
-    <FAB
+const Fab = ({ onPress }) => {
+    const theme = useTheme();
+    return (
+        <FAB
         icon="plus"
-        style={styles.fab}
+        color="#FFF"
+        style={{...styles.fab, backgroundColor: theme.colors.fabButton}}
         onPress={onPress}
     />
-);
+    )
+};
 
 const styles = StyleSheet.create({
     fab: {

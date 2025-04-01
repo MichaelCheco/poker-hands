@@ -3,7 +3,7 @@ import { StyleSheet, ScrollView } from 'react-native';
 import { useForm, Controller, FieldValues } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as Yup from 'yup';
-import { TextInput, Button, HelperText } from 'react-native-paper';
+import { TextInput, Button, HelperText, useTheme } from 'react-native-paper';
 import { Dropdown } from 'react-native-paper-dropdown';
 import { useRouter } from 'expo-router';
 import { playerOptions, positionMapping } from '@/constants';
@@ -33,6 +33,7 @@ function PokerHandForm() {
         defaultValues: { smallBlind: 2, bigBlind: 5, location: '', numPlayers: 8, position: '', hand: '' },
     });
     const router = useRouter();
+    const theme = useTheme();
 
     const numPlayers = watch('numPlayers');
     const onSubmit = (data) => {
@@ -171,7 +172,7 @@ function PokerHandForm() {
                 )}
                 name="hand"
             />
-            <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={styles.button}>
+            <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{...styles.button, backgroundColor: theme.colors.primary}}>
                 Start
             </Button>
         </ScrollView>
