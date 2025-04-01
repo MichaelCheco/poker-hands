@@ -10,7 +10,8 @@ const theme = {
   colors: {
     ...DefaultTheme.colors,
     myOwnColor: '#FFF',
-    primary: '#48AEFF',
+    // primary: '#48AEFF',
+    primary: '#7D7D7D',
     // background: '#0059EC',
     primaryContainer: '#0059EC',
     fabButton: '#48AEFF'

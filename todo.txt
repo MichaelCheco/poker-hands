@@ -1,0 +1,18 @@
+TODO:
+* CLEANUP
+* PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
+* Improve UI for displaying winning hand
+* Basic SavedHandRow component
+* Basic view of Saved Hand
+* Translate Player Actions into hand history
+* Save Hand that doesn't reach showdown
+* Supabase + watermelon offline first approach
+* Pick colors
+* Investigate swiping to navigate streets
+* Validation
+* Collect other TODOs and place them here
+* Stack sizes design
+* Handle All ins
+* consider allowing more flexible input (all, jams?)
+* Testflight
+* KeyboardAvoidingView

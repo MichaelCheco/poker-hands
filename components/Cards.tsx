@@ -70,8 +70,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Center text vertically
     elevation: 1, // Subtle shadow on Android
     shadowColor: '#000', // Subtle shadow on iOS
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 1, height: 2 },
+    shadowOpacity: 0.2,
     shadowRadius: 1,
   },
   cardText: {
@@ -87,10 +87,6 @@ const styles = StyleSheet.create({
      color: '#757575', // Darker grey text
    }
 });
-
-// --- Example Usage ---
-// import { View } from 'react-native';
-// import { Card } from './Card'; // Assuming Card.tsx is in the same directory
 
 export const MyHand = ({cards}: {cards: string}) => {
   const [firstCard, secondCard] = [cards.slice(0, 2), cards.slice(2)];
@@ -110,12 +106,3 @@ export const CommunityCards = ({cards}: {cards: string[]}) => {
     </View>
   )
 }
-// (
-//     <View style={{ flexDirection: 'row', padding: 10 }}>
-//         <Card card="Td" style={{ backgroundColor: 'lightblue' }} /> // Example style override
-//         <Card card="9c" />
-//         <Card card="2s" />
-//         <Card card={null} /> // Example of an empty card placeholder
-//         <Card card="Qh" textStyle={{ fontSize: 24 }} /> // Example text style override
-//     </View>
-// );
