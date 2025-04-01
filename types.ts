@@ -30,6 +30,7 @@ export enum DispatchActionType {
     kSetInput,
     kSetVisibleStage,
     kReset,
+    kUndo,
 }
 
 export interface GameQueueItem {

@@ -1,6 +1,6 @@
 import React, { useReducer, useRef } from 'react';
-import { View, Button, StyleSheet, ScrollView } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Button, Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
@@ -77,10 +77,24 @@ function getUpdatedBettingInfo(
     return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
 }
 
+// [initialState, add action, add action 2]
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue, actionSequence, playerActions } = state;
 
     switch (action.type) {
+        case DispatchActionType.kUndo:
+            if (state.handHistory.length === 1) {
+                console.log('returning early')
+                return state;
+            }
+            // [initialState, add action, add action 2]
+            state.handHistory.pop();
+            // [initialState, add action]
+            return state.handHistory[state.handHistory.length - 1]; // -> add action
+            // newState.handHistory = [...state.handHistory];
+            // console.log(newState, ' newState')
+            // return newState;
+
         case DispatchActionType.kSetInput:
             return { ...state, input: action.payload.input };
 
@@ -129,7 +143,10 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 },
                 currentBetFacing: newCurrentBetFacing,
             };
-            console.log(addActionState, ' state after add ');
+            addActionState.handHistory = [...addActionState.handHistory, {...addActionState}];
+            // console.log(addActionState.handHistory, ' addActionState.handHistory')
+            // console.log(addActionState, ' state after add ');
+
             return addActionState;
         }
 
@@ -165,7 +182,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 playerAction.amount = amountToAdd;
                 playerAction.text = getMeaningfulTextToDisplay(playerAction);
                 finalPlayerActions = [...finalPlayerActions, playerAction]; // Add the final action
-                console.log(finalPlayerActions, ' finalPlayerActions')
+                // console.log(finalPlayerActions, ' finalPlayerActions')
                 // Update action sequence if post-flop (mirroring kAddAction logic)
                 if (stage !== Stage.Preflop) {
                     const remainingPlayers = actionSequence.slice(1);
@@ -233,6 +250,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             }
 
             console.log("New state after transition:", finalState);
+            finalState.handHistory = [...finalState.handHistory, {...finalState}];
             return finalState;
         }
 
@@ -244,7 +262,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
         case DispatchActionType.kSetGameInfo: {
             // No change needed here, but ensure moveFirstTwoToEnd is correct for your game logic
             const { actionSequence, heroPosition, hand, smallBlind, bigBlind } = action.payload;
-            return {
+            const initialGameState = {
                 ...state, // Preserve deck, cards, etc. from initialState
                 actionSequence: moveFirstTwoToEnd(actionSequence), // This sets the initial preflop order
                 pot: smallBlind + bigBlind,
@@ -261,6 +279,8 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 // gameQueue should be initialized based on numPlayers/rules
                 // currentAction should be the first action in the queue
             };
+            initialGameState.handHistory = [{...initialGameState}];
+            return initialGameState;
         }
 
         // Add kReset case if needed
@@ -328,13 +348,22 @@ export default function App() {
             </ScrollView>
 
             <View style={styles.inputContainer}>
+                    {/* onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })}
+                    mode="outlined" // Style preference: outlined, text, contained
+                    style={styles.undoButton}
+                    // disabled={!canUndo} // Disable if nothing to undo
+                    compact // Reduces padding, making it smaller
+                > */}
+                {/* </Button> */}
                 <TextInput
                     mode="outlined"
                     label={state.currentAction.placeholder}
                     onChangeText={handleInputChange}
                     value={state.input}
-                    style={styles.input}
+                    style={styles.input} // Input now uses flex: 1
                     autoFocus
+                    right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })}/>}
+
                 />
             </View>
         </View>
@@ -365,17 +394,47 @@ const styles = StyleSheet.create({
         // alignSelf: 'center' is no longer needed due to alignItems: 'center' on parent
         // paddingLeft: 4 is replaced by paddingHorizontal on the parent View
     },
+    // inputContainer: {
+    //     position: 'absolute',
+    //     bottom: 0,
+    //     left: 0,
+    //     right: 0,
+    //     padding: 16,
+    //     backgroundColor: 'white',
+    // },
+    // input: {
+    //     alignSelf: 'center',
+    //     width: '90%',
+    // },
     inputContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: 16,
+        // Removed position: absolute for simplicity unless strictly needed
+        // If kept absolute, ensure content has paddingBottom
+        paddingHorizontal: 16,
+        paddingVertical: 8, // Maybe slightly less vertical padding
         backgroundColor: 'white',
+        flexDirection: 'row', // Arrange input and button horizontally
+        alignItems: 'stretch',
+
+        borderTopWidth: 1, // Add a separator line
+        borderTopColor: '#e0e0e0',
     },
     input: {
-        alignSelf: 'center',
-        width: '90%',
+        flex: 1, // Take up available horizontal space
+        marginRight: 8, // Add space between input and button
+        height: 56,
+
+        // Removed alignSelf and width
+    },
+    undoButton: {
+        borderRadius: 4,
+        height: 56,
+        position: 'relative',
+        top: 6,
+        justifyContent: 'center', // Helps ensure icon stays centered vertically in the stretched button
+
+        marginRight: 8, // Space is handled by input's marginRight
+        // Button size is controlled by 'compact' and icon size
+        // minWidth: 'auto', // May not be needed
     },
 });
 
@@ -496,14 +555,6 @@ function getNextStage(stage: Stage) {
         [Stage.River]: Stage.Showdown,
     };
     return nextStages[stage];
-}
-
-function isValidPosition(positionToCheck: string): boolean {
-    return Object.values(Position).includes(positionToCheck);
-}
-
-function isValidPlayerAction(actionToCheck: string): boolean {
-    return Object.values(Decision).includes(actionToCheck);
 }
 
 function parseActionString(actionString: string, currentPosition: Position): ActionTextToken {
