@@ -1,6 +1,6 @@
 import React, { useReducer, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
@@ -13,73 +13,6 @@ import { moveFirstTwoToEnd, positionToRank } from '@/utils';
 import { determinePokerWinnerManual, PokerPlayerInput } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 
-function calculateNewPot(pot: number, playerAction: PlayerAction): number {
-    if (playerAction.amount === 0) {
-        return pot;
-    }
-
-    if (playerAction.decision === Decision.kCheck || playerAction.decision === Decision.kFold) {
-        console.warn("Amount should only be included if player bets or raises.");
-    }
-
-    return pot + (playerAction.amount || 0);
-}
-
-function calculateNewMostRecentBet(mostRecentBet: number, playerAction: PlayerAction): number {
-    return (playerAction.decision === Decision.kBet || playerAction.decision === Decision.kRaise) ? playerAction.amount : mostRecentBet;
-
-}
-
-function getUpdatedBettingInfo(
-    betsThisStreet: { [key in Position]?: number },
-    currentBetFacing: number, playerAction: PlayerAction) {
-    const actingPlayer = playerAction.position;
-    const alreadyBet = betsThisStreet[actingPlayer] || 0; // How much player already bet this street
-
-    let amountToAdd = 0; // How much is ACTUALLY added to the pot by THIS action
-    let newPlayerBetTotal = alreadyBet; // Player's new total bet this street
-    let newCurrentBetFacing = currentBetFacing; // The bet level facing others
-
-    switch (playerAction.decision) {
-        case Decision.kBet:
-            // Assumes first bet on the street, 'alreadyBet' should be 0
-            amountToAdd = playerAction.amount;
-            newPlayerBetTotal = playerAction.amount;
-            newCurrentBetFacing = playerAction.amount;
-            break;
-
-        case Decision.kRaise:
-            // Amount to add is the raise amount MINUS what was already bet
-            // Example: Raise to 60, already bet 20. Add 40.
-            amountToAdd = playerAction.amount - alreadyBet;
-            newPlayerBetTotal = playerAction.amount; // Their total commitment is now the raise amount
-            newCurrentBetFacing = playerAction.amount; // This sets the new bet level
-            break;
-
-        case Decision.kCall:
-            // Amount to add is the current bet level MINUS what was already bet
-            // Example: Facing 60, already bet 20. Add 40.
-            amountToAdd = currentBetFacing - alreadyBet;
-            // Ensure amountToAdd isn't negative if something went wrong
-            amountToAdd = Math.max(0, amountToAdd);
-            // Handle all-ins: if amountToAdd > player's remaining stack, adjust amountToAdd
-            // amountToAdd = Math.min(amountToAdd, playerStack); // <-- Need player stack info here!
-
-            newPlayerBetTotal = alreadyBet + amountToAdd; // Their total commitment matches the facing bet
-            // newCurrentBetFacing does not change on a call
-            break;
-
-        case Decision.kCheck:
-        case Decision.kFold:
-            amountToAdd = 0;
-            // newPlayerBetTotal doesn't change
-            // newCurrentBetFacing doesn't change
-            break;
-    }
-    return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
-}
-
-// [initialState, add action, add action 2]
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue, actionSequence, playerActions } = state;
 
@@ -94,7 +27,6 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
         case DispatchActionType.kSetInput:
             return { ...state, input: action.payload.input };
 
-
         case DispatchActionType.kAddAction: {
             const mostRecentActionText = getLastAction(action.payload.input);
             // Player to act is always the first in the current sequence
@@ -108,16 +40,13 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             const actingPlayer = playerAction.position;
             // Calculate betting information updates (if applicable) based on new player action
             const {amountToAdd, newPlayerBetTotal, newCurrentBetFacing} = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
-            // console.log(`amountToAdd: ${amountToAdd}, newPlayerBetTotal: ${newPlayerBetTotal}, newCurrentBetFacing: ${newCurrentBetFacing}`)
-            // Ues betting information to populate `amount` and `text` on player action.
+            // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = amountToAdd;
             playerAction.text = getMeaningfulTextToDisplay(playerAction);
-            // Post-flop: Update action sequence immediately based on the action
-            let newActionSequence = [...actionSequence]; // Start with current sequence
+            let newActionSequence = [...actionSequence];
 
             if (stage !== Stage.Preflop) {
                 const remainingPlayers = actionSequence.slice(1);
-                // const actingPlayer = actionSequence[0];
                 // If the player didn't fold, add them to the end of the remaining sequence
                 newActionSequence = [
                     ...remainingPlayers,
@@ -129,9 +58,9 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             // It gets recalculated during the transition from Preflop.
             const addActionState = {
                 ...state,
-                input: action.payload.input, // Keep the input for multi-action entry
+                input: action.payload.input,
                 playerActions: newPlayerActions,
-                actionSequence: newActionSequence, // Update sequence if post-flop
+                actionSequence: newActionSequence,
                 pot: state.pot + amountToAdd,
                 betsThisStreet: {
                     ...state.betsThisStreet,
@@ -140,43 +69,38 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 currentBetFacing: newCurrentBetFacing,
             };
             addActionState.handHistory = [...addActionState.handHistory, {...addActionState}];
-            // console.log(addActionState.handHistory, ' addActionState.handHistory')
-            // console.log(addActionState, ' state after add ');
-
             return addActionState;
         }
 
         case DispatchActionType.kTransition: {
             const initialStage = stage;
             const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
-            const nextAction = gameQueue[0]; // Next step in the overall game flow
+            // Next step in the overall game flow
+            const nextAction = gameQueue[0];
 
             let propertyUpdates: Partial<InitialState> = {};
-            let finalPlayerActions = [...playerActions]; // Start with current actions
-            let finalActionSequence = [...actionSequence]; // Start with current sequence
+            let finalPlayerActions = [...playerActions];
+            let finalActionSequence = [...actionSequence];
             let amountToAdd = 0;
             let newPlayerBetTotal = 0; 
             let newCurrentBetFacing = 0;
-            // --- Process Final Input Before Transition ---
             if (currentAction.actionType === ActionType.kCommunityCard) {
-                // Handle card input
-                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase(); // Remove trailing '.'
+                // Remove trailing '.'
+                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const newCards = getCards(state.cards, inputCards);
                 propertyUpdates = {
                     cards: newCards,
                     deck: filterNewCardsFromDeck(newCards, state.deck)
                 };
             }  else if (currentAction.actionType === ActionType.kVillainCards) {
-                // PokerPlayerInput
-                console.log(state.actionSequence, ' actionnn')
                 let villains = state.actionSequence.filter(v => v !== state.hero);
-                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase(); // Remove trailing '.'
+                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const villainCards = getVillainCards(inputCards, villains);
-                console.table(villainCards);
                 propertyUpdates.villainCards = villainCards;
                 const result = determinePokerWinnerManual(villainCards, state.cards.map((c) => `${c[0]}${c[1].toLowerCase()}`));
                 propertyUpdates.showdown = JSON.stringify(result);
-            } else if (action.payload.input.trim().length > 1) { // Check if there's action input (not just '.')
+                // Check if there's action input
+            } else if (action.payload.input.trim().length > 1) {
                 // Handle the last player action input before transitioning
                 const mostRecentActionText = getLastAction(action.payload.input);
                 const playerToAct = actionSequence[0];
@@ -187,8 +111,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 const {amountToAdd, newPlayerBetTotal, newCurrentBetFacing} = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
                 playerAction.amount = amountToAdd;
                 playerAction.text = getMeaningfulTextToDisplay(playerAction);
-                finalPlayerActions = [...finalPlayerActions, playerAction]; // Add the final action
-                // console.log(finalPlayerActions, ' finalPlayerActions')
+                finalPlayerActions = [...finalPlayerActions, playerAction];
                 // Update action sequence if post-flop (mirroring kAddAction logic)
                 if (stage !== Stage.Preflop) {
                     const remainingPlayers = actionSequence.slice(1);
@@ -218,31 +141,22 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 currentAction: nextAction,
             };
 
-            // --- Post-Transition Adjustments ---
             let finalState = newStateBase;
 
             // If transitioning *away from* Preflop, apply auto-folds based on the *original* preflop sequence
             if (initialStage === Stage.Preflop && nextStage !== initialStage) {
-                // We need the original preflop sequence to determine who folded automatically
-                // Let's adjust getPlayerActionsWithAutoFolds slightly
-                const originalPreflopSequence = state.actionSequence; // Sequence before any actions in *this* transition
+                const originalPreflopSequence = state.actionSequence;
                 finalState = {
                     ...finalState,
                     playerActions: getPlayerActionsWithAutoFolds(originalPreflopSequence, finalState.playerActions)
                 };
             }
-            // TODO
-            // FILTER players with multiple actions that include a fold from action sequence
 
             // If the stage actually changed, recalculate the action sequence for the *new* stage
             if (initialStage !== nextStage && nextStage !== Stage.Showdown) {
-                // The sequence for the next street starts with players who didn't fold on the *previous* street,
-                // ordered by position (usually SB first post-flop).
                 finalState = {
                     ...finalState,
-                    actionSequence: getNewActionSequence(initialStage, finalState.playerActions), // Sequence based on who is left from initialStage
-                    // Reset mostRecentBet for the new street? Usually yes.
-                    // mostRecentBet: 0,
+                    actionSequence: getNewActionSequence(initialStage, finalState.playerActions),
                     betsThisStreet: {},
                     currentBetFacing: 0,
                 };
@@ -251,60 +165,45 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             if (finalState.gameQueue.length === 0) {
 
             }
-            console.log("New state after transition:", finalState);
+            console.log("New state: ", finalState);
             finalState.handHistory = [...finalState.handHistory, {...finalState}];
             return finalState;
         }
 
 
         case DispatchActionType.kSetVisibleStage:
-            // No change needed here
             return { ...state, stageDisplayed: action.payload.newStage };
 
         case DispatchActionType.kSetGameInfo: {
-            // No change needed here, but ensure moveFirstTwoToEnd is correct for your game logic
             const { actionSequence, heroPosition, hand, smallBlind, bigBlind } = action.payload;
             const initialGameState = {
-                ...state, // Preserve deck, cards, etc. from initialState
-                actionSequence: moveFirstTwoToEnd(actionSequence), // This sets the initial preflop order
+                ...state,
+                actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: smallBlind + bigBlind,
                 hero: heroPosition,
                 deck: filterNewCardsFromDeck(hand, state.deck),
-                playerActions: [], // Start fresh
-                stage: Stage.Preflop, // Ensure stage is set correctly
+                playerActions: [],
+                stage: Stage.Preflop,
                 stageDisplayed: Stage.Preflop,
-                // Reset other relevant fields?
                 cards: initialState.cards,
                 input: '',
                 betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
                 currentBetFacing: bigBlind,
-                // gameQueue should be initialized based on numPlayers/rules
-                // currentAction should be the first action in the queue
             };
             initialGameState.handHistory = [{...initialGameState}];
             return initialGameState;
         }
-
-        // Add kReset case if needed
         case DispatchActionType.kReset:
-            // You might want to preserve gameInfo like blinds/position
-            // Re-initialize based on initial setup or a complete reset
-            return { ...initialState /*, potentially keep blinds/position/hero */ };
-
-
+            return { ...initialState };
         default:
-            // Use exhaustive check helper if desired, or just return state
-            // const _exhaustiveCheck: never = action.type;
             return state;
     }
 }
 
 
-// PRE POT SPR EFF ?
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const theme = useTheme();
-    console.log(theme, ' tt')
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
@@ -328,7 +227,6 @@ export default function App() {
         if (isTransition) {
             type = DispatchActionType.kTransition;
         } else if (isAddAction && state.currentAction.actionType !== ActionType.kCommunityCard) {
-            // Use the new combined action type
             type = DispatchActionType.kAddAction;
         } else {
             type = DispatchActionType.kSetInput;
@@ -350,12 +248,8 @@ export default function App() {
                     <Text>
                         {state.showdown}
                     </Text>
-                    // <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
-                    //     Reset
-                    // </Button>
                 )}
             </ScrollView>
-
             {state.stage !== Stage.Showdown && <View style={styles.inputContainer}>
                 <TextInput
                     mode="outlined"
@@ -380,54 +274,94 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     infoRow: {
-        flexDirection: 'row', // Arrange items side-by-side
-        justifyContent: 'space-between', // Pushes Pot left, Cards right
-        alignItems: 'center', // Vertically align items in the middle of the row
-        paddingHorizontal: 12, // Add horizontal padding to the container
-        paddingVertical: 4, // Add some vertical padding
-        marginBottom: 4, // Add space below this row, before the ActionList
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        marginBottom: 4,
     },
     potText: {
-        fontSize: 16, // Slightly larger font size
-        fontWeight: '500', // Medium weight for emphasis
-        color: '#333', // Darker text color
-        // alignSelf: 'center' is no longer needed due to alignItems: 'center' on parent
-        // paddingLeft: 4 is replaced by paddingHorizontal on the parent View
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#333',
     },
     inputContainer: {
         paddingHorizontal: 16,
-        paddingVertical: 8, // Maybe slightly less vertical padding
+        paddingVertical: 8,
         backgroundColor: 'white',
-        flexDirection: 'row', // Arrange input and button horizontally
+        flexDirection: 'row',
         alignItems: 'stretch',
 
-        borderTopWidth: 1, // Add a separator line
+        borderTopWidth: 1,
         borderTopColor: '#e0e0e0',
     },
     input: {
-        flex: 1, // Take up available horizontal space
-        marginRight: 8, // Add space between input and button
+        flex: 1,
+        marginRight: 8,
         height: 56,
-
-        // Removed alignSelf and width
     },
     undoButton: {
         borderRadius: 4,
         height: 56,
         position: 'relative',
         top: 6,
-        justifyContent: 'center', // Helps ensure icon stays centered vertically in the stretched button
-
-        marginRight: 8, // Space is handled by input's marginRight
-        // Button size is controlled by 'compact' and icon size
-        // minWidth: 'auto', // May not be needed
+        justifyContent: 'center',
+        marginRight: 8,
     },
 });
 
+function getUpdatedBettingInfo(
+    betsThisStreet: { [key in Position]?: number },
+    currentBetFacing: number, playerAction: PlayerAction) {
+    const actingPlayer = playerAction.position;
+    // How much player already bet this street
+    const alreadyBet = betsThisStreet[actingPlayer] || 0;
+    // How much is ACTUALLY added to the pot by THIS action
+    let amountToAdd = 0;
+    // Player's new total bet this street
+    let newPlayerBetTotal = alreadyBet;
+     // The bet level facing others
+    let newCurrentBetFacing = currentBetFacing;
 
-// TODO - handle preflop situation where a player has acted and needs to make an additional action
-// for ex: LJ limps, bu raises
-// in this case we need the LJ to call, fold, or raise
+    switch (playerAction.decision) {
+        case Decision.kBet:
+            // Assumes first bet on the street, 'alreadyBet' should be 0
+            amountToAdd = playerAction.amount;
+            newPlayerBetTotal = playerAction.amount;
+            newCurrentBetFacing = playerAction.amount;
+            break;
+
+        case Decision.kRaise:
+            // Amount to add is the raise amount MINUS what was already bet
+            // Example: Raise to 60, already bet 20. Add 40.
+            amountToAdd = playerAction.amount - alreadyBet;
+            // Their total commitment is now the raise amount
+            newPlayerBetTotal = playerAction.amount;
+            // This sets the new bet level
+            newCurrentBetFacing = playerAction.amount;
+            break;
+
+        case Decision.kCall:
+            // Amount to add is the current bet level MINUS what was already bet
+            // Example: Facing 60, already bet 20. Add 40.
+            amountToAdd = currentBetFacing - alreadyBet;
+            // Ensure amountToAdd isn't negative if something went wrong
+            amountToAdd = Math.max(0, amountToAdd);
+            // Handle all-ins: if amountToAdd > player's remaining stack, adjust amountToAdd
+            // amountToAdd = Math.min(amountToAdd, playerStack); // <-- Need player stack info here!
+
+            // Their total commitment matches the facing bet
+            newPlayerBetTotal = alreadyBet + amountToAdd;
+            break;
+
+        case Decision.kCheck:
+        case Decision.kFold:
+            amountToAdd = 0;
+            break;
+    }
+    return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
+}
 
 /**
  * Calculates the sequence of players for the *next* betting round based on actions from the completed stage.
@@ -461,7 +395,7 @@ function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction
         stage: Stage.Preflop,
     };
 }
-// [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.LJ, Position.HJ, Position.CO, Position.BU]
+
 function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions: PlayerAction[]) {
     let index = -1;
     const newSequence = actionSequence.map((player) => {
@@ -475,13 +409,8 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
     return newSequence;
 }
 
-// TODO only show showdown text on river tab
-// TODO hands that don't go to showdown
-// TODO hands with folds on early streets
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
-    
     let hands = cards.split(",");
-    console.log(cards, ' -- ', hands)
     let output = []
     for (let i = 0; i < villains.length; i++) {
         let currHand = hands[i];
@@ -525,19 +454,12 @@ function decisionToText(decision: Decision): string {
     }
 }
 
-// TODO: 1. betting raising logic to accurately track pot size.
-// TODO: 2. add undo logic and button
-// TODO: 3. add showdown to river state
-// TODO: 4. add stack sizes/effective stacks
-// TODO: 5.
-
 function getMeaningfulTextToDisplay(action: PlayerAction): string {
     let text = decisionToText(action.decision);
     if (action.amount !== 0) {
         text += ` $${action.amount}`;
     }
     return text;
-    //   return `${decisionToText(action.decision)} ${action.amount === 0 ? '' : action.amount}`;
 }
 
 function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage): PlayerAction {

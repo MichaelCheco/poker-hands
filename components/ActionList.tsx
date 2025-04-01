@@ -8,10 +8,9 @@ export default function ActionList({ stage, actionList }: { stage: Stage, action
     return (
         <List.Section>
             {filteredActions.map((item, index) => (
-                // <List.Item key={index} title={item.text} style={{ padding: 0 }} />
                 <List.Item
-                key={`${item.stage}-${item.position}-${index}`} // More robust key
-                title={item.text} // e.g., "checks", "bets 50"
+                key={`${item.stage}-${item.position}-${index}`}
+                title={item.text}
                 titleStyle={styles.actionText}
                 left={() => <Text style={styles.actionPosition}>{item.position}</Text>}
                 style={styles.actionItem}
@@ -22,23 +21,21 @@ export default function ActionList({ stage, actionList }: { stage: Stage, action
 }
 const styles = StyleSheet.create({
     actionItem: {
-        paddingVertical: 4, // Adjust spacing
+        paddingVertical: 4,
         paddingLeft: 2,
         paddingInlineStart: 0,
         paddingInline: 0,
         padding: 0,
-        // backgroundColor: index % 2 === 0 ? '#f8f8f8' : 'white' // Optional: Zebra striping
     },
     actionPosition: {
         fontWeight: 'bold',
         marginLeft: 8,
-        minWidth: 24, // Ensure consistent alignment
-        textAlign: 'center', // Center position text
-        alignSelf: 'center', // Center vertically
-        color: '#555', // Example color
+        minWidth: 24,
+        textAlign: 'center',
+        alignSelf: 'center',
+        color: '#555',
     },
     actionText: {
-        fontSize: 14, // Adjust size
+        fontSize: 14,
     },
-    // ... other styles
 });

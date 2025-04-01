@@ -2,6 +2,7 @@ import { DispatchActionType, Stage } from '@/types';
 import * as React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import { SegmentedButtons } from 'react-native-paper';
+
 const SegmentedActionLists = ({ stageDisplayed, dispatch }) => {
     return (
         <SafeAreaView style={styles.container}>

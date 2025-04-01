@@ -10,7 +10,7 @@ import { playerOptions, positionMapping } from '@/constants';
 
 const handFormValidationSchema = Yup.object().shape({
     smallBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number'),
-    bigBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number').moreThan(Yup.ref('smallBlind'), 'Must be > small blind'),
+    bigBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number').min(Yup.ref('smallBlind'), 'Must be >= small blind'),
     location: Yup.string().required('Required'),
     numPlayers: Yup.number().required('Required').integer('Must be an integer').min(2, 'Min 2').max(9, 'Max 9').typeError('Must be a number'),
     position: Yup.string().required('Required'),
@@ -37,7 +37,6 @@ function PokerHandForm() {
 
     const numPlayers = watch('numPlayers');
     const onSubmit = (data) => {
-        console.log(data)
         router.push({
             pathname: '/add-hand',
             params: {
@@ -80,7 +79,6 @@ function PokerHandForm() {
                 )}
                 name="smallBlind"
             />
-
             <Controller
                 control={control}
                 render={({ field: { onChange, onBlur, value } }) => (
@@ -100,7 +98,6 @@ function PokerHandForm() {
                 )}
                 name="bigBlind"
             />
-
             <Controller
                 control={control}
                 render={({ field: { onChange, onBlur, value } }) => (
@@ -119,7 +116,6 @@ function PokerHandForm() {
                 )}
                 name="location"
             />
-
             <Controller
                 control={control}
                 render={({ field: { onChange, value } }) => (
@@ -131,7 +127,6 @@ function PokerHandForm() {
                             options={playerOptions}
                             onSelect={onChange}
                         />
-
                         {errors.numPlayers && <HelperText type="error" visible={!!errors.numPlayers}>{errors.numPlayers.message}</HelperText>}
                     </>
                 )}
@@ -150,7 +145,6 @@ function PokerHandForm() {
                         />
                         {errors.position && <HelperText type="error" visible={!!errors.position}> {errors.position.message}</HelperText>}
                     </>
-
                 )}
                 name="position"
             />

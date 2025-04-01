@@ -1,18 +1,14 @@
 import { Stack } from "expo-router";
-import { MD3LightTheme as DefaultTheme,PaperProvider } from 'react-native-paper';
+import { MD3LightTheme as DefaultTheme, PaperProvider } from 'react-native-paper';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 const theme = {
   ...DefaultTheme,
-  // Specify custom property
-  myOwnProperty: true,
-  // Specify custom property in nested object
   colors: {
     ...DefaultTheme.colors,
     myOwnColor: '#FFF',
-    // primary: '#48AEFF',
     primary: '#7D7D7D',
-    // background: '#0059EC',
     primaryContainer: '#0059EC',
     fabButton: '#48AEFF'
   },
@@ -24,7 +20,6 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="add-hand" options={{ headerShown: false }} />
         <Stack.Screen name="index" options={{ headerTitle: "Saved Hands" }} />
-        {/* other screens */}
       </Stack>
       </PaperProvider>
     </SafeAreaProvider>

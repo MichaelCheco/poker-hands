@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Appbar, Text } from 'react-native-paper';
+import { Appbar } from 'react-native-paper';
 import { MyHand } from './Cards';
 
 const GameInfo = ({ info }) => {
@@ -11,29 +10,8 @@ const GameInfo = ({ info }) => {
         titleStyle={{ fontSize: 18 }}
       />
       <MyHand cards={info.hand} />
-      {/* <View style={styles.infoContainer}>
-        <Text style={styles.infoText}>{info.position}</Text>
-        <Text style={styles.bullet}>•</Text>
-        <Hand cards={info.hand} />
-      </View> */}
     </Appbar.Header>
   );
 };
-
-const styles = StyleSheet.create({
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoText: {
-    fontSize: 22,
-    position: 'relative',
-    top: 0.3,
-  },
-  bullet: {
-    marginHorizontal: 6,
-    fontSize: 22,
-  },
-});
 
 export default GameInfo;

@@ -1,5 +1,4 @@
 TODO:
-* CLEANUP
 * PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
 * Improve UI for displaying winning hand
 * Basic SavedHandRow component
@@ -16,3 +15,6 @@ TODO:
 * consider allowing more flexible input (all, jams?)
 * Testflight
 * KeyboardAvoidingView
+* Only show showdown text on river tab
+* hands that don't go to showdown
+* hands with folds on early streets
