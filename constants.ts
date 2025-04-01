@@ -97,7 +97,7 @@ export const initialState: InitialState = {
         {
             placeholder: 'Flop cards',
             shouldTransitionAfterStep: false,
-            actionType: ActionType.kCard,
+            actionType: ActionType.kCommunityCard,
         },
         {
             placeholder: 'Flop action',
@@ -107,7 +107,7 @@ export const initialState: InitialState = {
         {
             placeholder: 'Turn card',
             shouldTransitionAfterStep: false,
-            actionType: ActionType.kCard,
+            actionType: ActionType.kCommunityCard,
         },
         {
             placeholder: 'Turn action',
@@ -117,13 +117,18 @@ export const initialState: InitialState = {
         {
             placeholder: 'River card',
             shouldTransitionAfterStep: false,
-            actionType: ActionType.kCard,
+            actionType: ActionType.kCommunityCard,
         },
         {
             placeholder: 'River action',
-            shouldTransitionAfterStep: true,
+            shouldTransitionAfterStep: false,
             actionType: ActionType.kActionSequence,
         },
+        {
+          placeholder: "Villain's cards",
+          shouldTransitionAfterStep: true,
+          actionType: ActionType.kVillainCards,
+      },
     ],
     currentAction: {
         placeholder: 'Preflop action',
@@ -143,7 +148,7 @@ export const initialState: InitialState = {
     betsThisStreet: {},
     currentBetFacing: 0,
     mostRecentBet: 0,
+    villainCards: {},
+    showdown: '',
 };
 
-
-// utg utg1 utg2 lj hj co BU sb bb

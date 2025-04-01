@@ -7,8 +7,9 @@ export enum Stage {
 }
 
 export enum ActionType {
-    kCard,
+    kCommunityCard,
     kActionSequence,
+    kVillainCards,
 }
 
 export enum Position {
@@ -79,4 +80,6 @@ export interface InitialState {
     betsThisStreet: { [key in Position]?: number };
     currentBetFacing: number;
     mostRecentBet: number;
+    villainCards: any;
+    showdown: any;
 }

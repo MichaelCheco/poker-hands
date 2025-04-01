@@ -10,6 +10,7 @@ import SegmentedActionLists from '../components/SegmentedActionLists';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { moveFirstTwoToEnd, positionToRank } from '@/utils';
+import { determinePokerWinnerManual, PokerPlayerInput } from '@/hand-evaluator';
 
 function calculateNewPot(pot: number, playerAction: PlayerAction): number {
     if (playerAction.amount === 0) {
@@ -84,16 +85,10 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
     switch (action.type) {
         case DispatchActionType.kUndo:
             if (state.handHistory.length === 1) {
-                console.log('returning early')
                 return state;
             }
-            // [initialState, add action, add action 2]
             state.handHistory.pop();
-            // [initialState, add action]
-            return state.handHistory[state.handHistory.length - 1]; // -> add action
-            // newState.handHistory = [...state.handHistory];
-            // console.log(newState, ' newState')
-            // return newState;
+            return state.handHistory[state.handHistory.length - 1];
 
         case DispatchActionType.kSetInput:
             return { ...state, input: action.payload.input };
@@ -162,7 +157,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             let newPlayerBetTotal = 0; 
             let newCurrentBetFacing = 0;
             // --- Process Final Input Before Transition ---
-            if (currentAction.actionType === ActionType.kCard) {
+            if (currentAction.actionType === ActionType.kCommunityCard) {
                 // Handle card input
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase(); // Remove trailing '.'
                 const newCards = getCards(state.cards, inputCards);
@@ -170,6 +165,16 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                     cards: newCards,
                     deck: filterNewCardsFromDeck(newCards, state.deck)
                 };
+            }  else if (currentAction.actionType === ActionType.kVillainCards) {
+                // PokerPlayerInput
+                console.log(state.actionSequence, ' actionnn')
+                let villains = state.actionSequence.filter(v => v !== state.hero);
+                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase(); // Remove trailing '.'
+                const villainCards = getVillainCards(inputCards, villains);
+                console.table(villainCards);
+                propertyUpdates.villainCards = villainCards;
+                const result = determinePokerWinnerManual(villainCards, state.cards.map((c) => `${c[0]}${c[1].toLowerCase()}`));
+                propertyUpdates.showdown = JSON.stringify(result);
             } else if (action.payload.input.trim().length > 1) { // Check if there's action input (not just '.')
                 // Handle the last player action input before transitioning
                 const mostRecentActionText = getLastAction(action.payload.input);
@@ -198,25 +203,18 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 };
                 propertyUpdates.currentBetFacing = newCurrentBetFacing;
 
-                    // Add pot/bet updates based on playerAction here too
-                    // propertyUpdates.pot = calculateNewPot(state.pot, playerAction);
-                    // propertyUpdates.mostRecentBet = calculateNewMostRecentBet(state.mostRecentBet, playerAction);
             }
-            // --- End Processing Final Input ---
 
-            console.log(`amountToAdd: ${amountToAdd}, newPlayerBetTotal: ${newPlayerBetTotal}, newCurrentBetFacing: ${newCurrentBetFacing}`)
-
-            // --- Prepare for Next Stage/Step ---
             const newStateBase: InitialState = {
                 ...state,
-                ...propertyUpdates, // Apply updates from card/action input
-                playerActions: finalPlayerActions, // Use potentially updated actions
-                actionSequence: finalActionSequence, // Use potentially updated sequence
+                ...propertyUpdates,
+                playerActions: finalPlayerActions,
+                actionSequence: finalActionSequence,
                 stage: nextStage,
                 stageDisplayed: nextStage,
-                input: '', // Clear input after transition
+                input: '',
                 gameQueue: gameQueue.slice(1),
-                currentAction: nextAction, // Set the next expected action/input type
+                currentAction: nextAction,
             };
 
             // --- Post-Transition Adjustments ---
@@ -249,6 +247,9 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 };
             }
 
+            if (finalState.gameQueue.length === 0) {
+
+            }
             console.log("New state after transition:", finalState);
             finalState.handHistory = [...finalState.handHistory, {...finalState}];
             return finalState;
@@ -321,7 +322,7 @@ export default function App() {
 
         if (isTransition) {
             type = DispatchActionType.kTransition;
-        } else if (isAddAction && state.currentAction.actionType !== ActionType.kCard) {
+        } else if (isAddAction && state.currentAction.actionType !== ActionType.kCommunityCard) {
             // Use the new combined action type
             type = DispatchActionType.kAddAction;
         } else {
@@ -341,31 +342,27 @@ export default function App() {
                 </View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
                 {state.stage === Stage.Showdown && (
-                    <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
-                        Reset
-                    </Button>
+                    <Text>
+                        {state.showdown}
+                    </Text>
+                    // <Button mode="contained" onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
+                    //     Reset
+                    // </Button>
                 )}
             </ScrollView>
 
-            <View style={styles.inputContainer}>
-                    {/* onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })}
-                    mode="outlined" // Style preference: outlined, text, contained
-                    style={styles.undoButton}
-                    // disabled={!canUndo} // Disable if nothing to undo
-                    compact // Reduces padding, making it smaller
-                > */}
-                {/* </Button> */}
+            {state.stage !== Stage.Showdown && <View style={styles.inputContainer}>
                 <TextInput
                     mode="outlined"
                     label={state.currentAction.placeholder}
                     onChangeText={handleInputChange}
                     value={state.input}
-                    style={styles.input} // Input now uses flex: 1
+                    style={styles.input}
                     autoFocus
                     right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })}/>}
 
                 />
-            </View>
+            </View>}
         </View>
     );
 }
@@ -384,8 +381,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12, // Add horizontal padding to the container
         paddingVertical: 4, // Add some vertical padding
         marginBottom: 4, // Add space below this row, before the ActionList
-        // Optional: Add a background color for debugging layout
-        // backgroundColor: '#eee',
     },
     potText: {
         fontSize: 16, // Slightly larger font size
@@ -394,21 +389,7 @@ const styles = StyleSheet.create({
         // alignSelf: 'center' is no longer needed due to alignItems: 'center' on parent
         // paddingLeft: 4 is replaced by paddingHorizontal on the parent View
     },
-    // inputContainer: {
-    //     position: 'absolute',
-    //     bottom: 0,
-    //     left: 0,
-    //     right: 0,
-    //     padding: 16,
-    //     backgroundColor: 'white',
-    // },
-    // input: {
-    //     alignSelf: 'center',
-    //     width: '90%',
-    // },
     inputContainer: {
-        // Removed position: absolute for simplicity unless strictly needed
-        // If kept absolute, ensure content has paddingBottom
         paddingHorizontal: 16,
         paddingVertical: 8, // Maybe slightly less vertical padding
         backgroundColor: 'white',
@@ -459,7 +440,6 @@ function getNewActionSequence(stage: Stage, playerActions: PlayerAction[]): Posi
         .filter(action => action.stage === stage && action.decision !== Decision.kFold);
     const filteredActiveActions = activeActions.filter(a => !foldedOutPlayers.includes(a.position));
     const positions = filteredActiveActions.map(action => action.position);
-    console.log(positions, ' positions')
     const uniquePositions = positions.filter((position, index, self) =>
         self.indexOf(position) === index
     );
@@ -488,6 +468,27 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
         return [...newSequence, ...playerActions.slice(index+1)];
     }
     return newSequence;
+}
+
+// TODO only show showdown text on river tab
+// TODO hands that don't go to showdown
+// TODO hands with folds on early streets
+function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
+    
+    let hands = cards.split(",");
+    console.log(cards, ' -- ', hands)
+    let output = []
+    for (let i = 0; i < villains.length; i++) {
+        let currHand = hands[i];
+        let splitCards = [currHand.slice(0, 2), currHand.slice(2)];
+        splitCards[0][1] = splitCards[0][1].toLowerCase();
+        splitCards[1][1] = splitCards[1][1].toLowerCase();
+
+        output[i] = {
+            holeCards: splitCards, 
+            playerId: villains[i]};
+    }
+    return output;
 }
 
 function getCards(currentCards: string[], newCards: string) {
@@ -526,7 +527,6 @@ function decisionToText(decision: Decision): string {
 // TODO: 5.
 
 function getMeaningfulTextToDisplay(action: PlayerAction): string {
-    console.log(action)
     let text = decisionToText(action.decision);
     if (action.amount !== 0) {
         text += ` $${action.amount}`;
