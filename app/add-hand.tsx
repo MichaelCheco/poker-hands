@@ -12,6 +12,8 @@ import { PokerFormData } from '@/components/PokerHandForm';
 import { formatCommunityCards, moveFirstTwoToEnd, positionToRank, transFormCardsToFormattedString } from '@/utils';
 import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
+import PokerHandHistory from '@/components/HandHistory';
+import Showdown from '@/components/Showdown';
 
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
     const { currentAction, stage, gameQueue, actionSequence, playerActions } = state;
@@ -253,30 +255,7 @@ export default function App() {
                 </View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
                 {state.stage === Stage.Showdown && state.stageDisplayed === Stage.Showdown && (
-                    <List.Section>
-                        {state.villainCards.map((villain, index) => (
-                            <List.Item
-                                contentStyle={{ flexGrow: 0 }}
-                                key={`${villain.playerId}-${villain.holeCards.join('')}-${index}`}
-                                title={`shows`}
-                                titleStyle={styles.actionText}
-                                left={() => <Text style={styles.actionPosition}>{villain.playerId}</Text>}
-                                right={() => <MyHand cards={villain.holeCards.join('')} />}
-                                style={{ ...styles.actionItem }}
-                            />
-                        ))}
-                        {/* <List.Item key={'combo'}
-                            title={``}
-                            titleStyle={styles.actionText}
-                            left={() => <Text style={styles.actionPosition}>Combination</Text>}
-                            right={() => <CommunityCards cards={state.showdown.combination} />}
-                            style={{ ...styles.actionItem, flexGrow: 0 }} /> */}
-                        <List.Item key={'showdown'}
-                            title={`wins with ${state.showdown.text}`}
-                            titleStyle={styles.actionText}
-                            left={() => <Text style={styles.actionPosition}>{state.showdown.winner}</Text>}
-                            style={{ ...styles.actionItem, flexGrow: 0 }} />
-                    </List.Section>
+                   <Showdown playerActions={state.playerActions} showdown={state.showdown} villainCards={state.villainCards}/>
                 )}
             </ScrollView>
             {state.stage !== Stage.Showdown && <View style={styles.inputContainer}>
@@ -302,16 +281,6 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-    },
-    actionText: {
-        fontSize: 14,
-    },
-    actionItem: {
-        paddingVertical: 4,
-        paddingLeft: 2,
-        paddingInlineStart: 0,
-        paddingInline: 0,
-        padding: 0,
     },
     infoRow: {
         flexDirection: 'row',
@@ -347,14 +316,6 @@ const styles = StyleSheet.create({
         top: 6,
         justifyContent: 'center',
         marginRight: 8,
-    },
-    actionPosition: {
-        fontWeight: 'bold',
-        marginLeft: 8,
-        minWidth: 24,
-        textAlign: 'center',
-        alignSelf: 'center',
-        color: '#555',
     },
 });
 

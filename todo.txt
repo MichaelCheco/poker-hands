@@ -1,3 +1,9 @@
+TODO ACTION LOG:
+* Experiment with icons
+* support all in and stack size
+* add 
+
+
 TODO:
 * PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
 * Improve UI for displaying winning hand
