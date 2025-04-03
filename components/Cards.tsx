@@ -73,28 +73,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyCard: {
-     backgroundColor: '#E0E0E0',
+    backgroundColor: '#E0E0E0',
   },
-   emptyCardText: {
-     color: '#757575',
-   }
+  emptyCardText: {
+    color: '#757575',
+  }
 });
 
-export const MyHand = ({cards}: {cards: string}) => {
+export const MyHand = ({ cards }: { cards: string }) => {
   const formattedCards = transFormCardsToFormattedString(cards);
   return (
-  <View style={{ flexDirection: 'row', padding: 10 }}>
-    <Card card={formattedCards.substring(0, 2)} />
-    <Card card={formattedCards.substring(2)} />
-  </View>
-)};
+    <View style={{ flexDirection: 'row', padding: 10 }}>
+      <Card card={formattedCards.substring(0, 2)} />
+      <Card card={formattedCards.substring(2)} />
+    </View>
+  )
+};
 
-export const CommunityCards = ({cards}: {cards: string[]}) => {
+export const CommunityCards = ({ cards }: { cards: string[] }) => {
   return (
     <View style={{ flexDirection: 'row', padding: 8 }}>
-    {cards.map((card, i) => (
+      {cards.map((card, i) => (
         <Card card={card} key={i} />
-    ))}
+      ))}
     </View>
   )
 }

@@ -2,7 +2,7 @@
 
 type Suit = 's' | 'h' | 'd' | 'c';
 type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14; // 10=T, 11=J, 12=Q, 13=K, 14=A
-type RankChar = '2'|'3'|'4'|'5'|'6'|'7'|'8'|'9'|'T'|'J'|'Q'|'K'|'A';
+type RankChar = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'T' | 'J' | 'Q' | 'K' | 'A';
 
 interface ParsedCard {
     rank: Rank;
@@ -123,7 +123,7 @@ function evaluate5Cards(hand5Str: string[]): HandEvaluation | null {
     // General case: ranks are sequential
     let isStraight = true;
     for (let i = 0; i < 4; i++) {
-        if (ranks[i] !== ranks[i+1] + 1) {
+        if (ranks[i] !== ranks[i + 1] + 1) {
             isStraight = false;
             break;
         }
@@ -238,20 +238,18 @@ export function determinePokerWinnerManual(
     players: PokerPlayerInput[],
     communityCardsStr: string[]
 ): WinnerInfo | null {
-    console.log(players, 'pla')
-    console.log(communityCardsStr, 'communityCardsStr')
     if (!players || players.length === 0) {
         console.error("No players provided.");
         return null;
     }
-     // Community cards can be 3, 4, or 5. Need at least 3.
+    // Community cards can be 3, 4, or 5. Need at least 3.
     if (!communityCardsStr || communityCardsStr.length < 3) {
-       console.error("Not enough community cards (minimum 3 required).");
-       return null;
+        console.error("Not enough community cards (minimum 3 required).");
+        return null;
     }
 
     const communityCards = parseCards(communityCardsStr);
-    if(communityCards.length !== communityCardsStr.length){
+    if (communityCards.length !== communityCardsStr.length) {
         console.error("Invalid community cards detected.");
         return null; // Stop if any community card was invalid
     }
@@ -259,17 +257,17 @@ export function determinePokerWinnerManual(
 
     const evaluatedPlayers: PlayerEvaluationResult[] = players.map(player => {
         const holeCards = parseCards(player.holeCards);
-         if (holeCards.length !== player.holeCards.length || holeCards.length !== 2) {
-             console.error(`Invalid hole cards for player ${player.playerId}`);
-              // You might want to exclude this player or handle this case differently
-             return { ...player, bestEvaluation: null, best5Cards: [] };
-         }
+        if (holeCards.length !== player.holeCards.length || holeCards.length !== 2) {
+            console.error(`Invalid hole cards for player ${player.playerId}`);
+            // You might want to exclude this player or handle this case differently
+            return { ...player, bestEvaluation: null, best5Cards: [] };
+        }
 
 
         const availableCardsStr = [...player.holeCards, ...communityCardsStr];
         // Ensure we only try to combine if we have at least 5 cards total
         if (availableCardsStr.length < 5) {
-             return { ...player, bestEvaluation: null, best5Cards: [] };
+            return { ...player, bestEvaluation: null, best5Cards: [] };
         }
 
         // Generate all 5-card combinations from the player's available cards
@@ -297,10 +295,10 @@ export function determinePokerWinnerManual(
     }).filter(p => p.bestEvaluation !== null); // Filter out players whose hands failed evaluation
 
 
-     if (evaluatedPlayers.length === 0) {
-         console.error("No valid hands could be evaluated.");
-         return null;
-     }
+    if (evaluatedPlayers.length === 0) {
+        console.error("No valid hands could be evaluated.");
+        return null;
+    }
 
     // Sort players by their best hand evaluation (descending)
     evaluatedPlayers.sort((a, b) => compareEvaluations(b.bestEvaluation!, a.bestEvaluation!));

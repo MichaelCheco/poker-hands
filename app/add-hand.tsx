@@ -93,13 +93,10 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                     deck: filterNewCardsFromDeck(newCards, state.deck)
                 };
             } else if (currentAction.actionType === ActionType.kVillainCards) {
-                console.log(action.payload, ' payload')
                 let villains = state.actionSequence.filter(v => v !== state.hero.position);
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                console.log(inputCards, ' inputCards')
                 const villainCards = getVillainCards(inputCards, villains);
                 propertyUpdates.villainCards = villainCards;
-                // ${result.winners.map(w => w.playerId).join(', ')} wins with 
 
                 const result = determinePokerWinnerManual(
                     [...villainCards,
@@ -267,7 +264,7 @@ dsv shows a K♣, A♥. */}
                     <List.Section>
                         {state.villainCards.map((villain, index) => (
                             <List.Item
-                                contentStyle={{flexGrow: 0}}
+                                contentStyle={{ flexGrow: 0 }}
                                 key={`${villain.playerId}-${villain.holeCards.join('')}-${index}`}
                                 title={`shows`}
                                 titleStyle={styles.actionText}
@@ -470,7 +467,6 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
     let hands = cards.split(",").map(h => transFormCardsToFormattedString(h));
     let output = []
-    console.log(cards, ' input --+-- transformed ', hands);
     for (let i = 0; i < villains.length; i++) {
         let currHand = hands[i];
         let splitCards = [currHand.slice(0, 2), currHand.slice(2)];

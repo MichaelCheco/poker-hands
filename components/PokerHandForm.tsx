@@ -166,7 +166,7 @@ function PokerHandForm() {
                 )}
                 name="hand"
             />
-            <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{...styles.button, backgroundColor: theme.colors.primary}}>
+            <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, backgroundColor: theme.colors.primary }}>
                 Start
             </Button>
         </ScrollView>

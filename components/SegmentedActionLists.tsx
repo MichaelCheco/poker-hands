@@ -3,6 +3,22 @@ import * as React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import { SegmentedButtons } from 'react-native-paper';
 
+const defaultButtonProps = {
+    uncheckedColor: "#0000009C",
+    value: `${Stage.Preflop}`,
+    style: { 'borderRadius': 0, backgroundColor: 'none', borderColor: 'rgb(202, 196, 208)' },
+    checkedColor: '#000000E8',
+}
+
+function getValueForLabel(label: string) {
+    const values = { 'PRE': Stage.Preflop, 'FLOP': Stage.Flop, 'TURN': Stage.Turn, 'RIVER': Stage.River }
+    return values[label];
+}
+
+function getButtonProps(label: string) {
+    return { ...defaultButtonProps, label, value: getValueForLabel(label) };
+}
+
 const SegmentedActionLists = ({ stageDisplayed, dispatch }) => {
     return (
         <SafeAreaView style={styles.container}>
@@ -14,38 +30,10 @@ const SegmentedActionLists = ({ stageDisplayed, dispatch }) => {
                 }}
                 density='small'
                 buttons={[
-                    {
-                        uncheckedColor: "#0000009C",
-                        value: `${Stage.Preflop}`,
-                        label: 'PRE',
-                        style: { 'borderRadius': 0, backgroundColor: 'none', borderColor: 'rgb(202, 196, 208)' },
-                        checkedColor: '#000000E8',
-                    },
-                    {
-                        value: `${Stage.Flop}`,
-                        uncheckedColor: "#0000009C",
-                        label: 'FLOP',
-                        style: { 'borderRadius': 0, backgroundColor: 'none', borderColor: 'rgb(202, 196, 208)' },
-
-                        checkedColor: '#000000E8',
-                    },
-                    {
-                        value: `${Stage.Turn}`,
-                        uncheckedColor: "#0000009C",
-                        label: 'TURN',
-                        style: { 'borderRadius': 0, backgroundColor: 'none', borderColor: 'rgb(202, 196, 208)' },
-
-                        checkedColor: '#000000E8',
-                    },
-                    {
-                        value: `${Stage.River}`,
-                        uncheckedColor: "#0000009C",
-                        label: 'RIVER',
-                        style: { 'borderRadius': 0, backgroundColor: 'none', borderColor: 'rgb(202, 196, 208)' },
-
-                        checkedColor: '#000000E8',
-
-                    },
+                    getButtonProps('PRE'),
+                    getButtonProps('FLOP'),
+                    getButtonProps('TURN'),
+                    getButtonProps('RIVER'),
                 ]}
             />
         </SafeAreaView>

@@ -9,12 +9,12 @@ export default function ActionList({ stage, actionList }: { stage: Stage, action
         <List.Section>
             {filteredActions.map((item, index) => (
                 <List.Item
-                key={`${item.stage}-${item.position}-${index}`}
-                title={item.text}
-                titleStyle={styles.actionText}
-                left={() => <Text style={styles.actionPosition}>{item.position}</Text>}
-                style={styles.actionItem}
-            />
+                    key={`${item.stage}-${item.position}-${index}`}
+                    title={item.text}
+                    titleStyle={styles.actionText}
+                    left={() => <Text style={styles.actionPosition}>{item.position}</Text>}
+                    style={styles.actionItem}
+                />
             ))}
         </List.Section>
     );

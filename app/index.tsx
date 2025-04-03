@@ -11,7 +11,7 @@ export default function Index() {
   return (
     <PaperProvider theme={theme}>
       <Portal>
-        <Modal visible={visible} onDismiss={() => setVisible(false)} contentContainerStyle={{padding: 20}}>
+        <Modal visible={visible} onDismiss={() => setVisible(false)} contentContainerStyle={{ padding: 20 }}>
           <PokerHandForm />
         </Modal>
       </Portal>

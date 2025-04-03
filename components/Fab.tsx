@@ -6,11 +6,11 @@ const Fab = ({ onPress }) => {
     const theme = useTheme();
     return (
         <FAB
-        icon="plus"
-        color="#FFF"
-        style={{...styles.fab, backgroundColor: theme.colors.fabButton}}
-        onPress={onPress}
-    />
+            icon="plus"
+            color="#FFF"
+            style={{ ...styles.fab, backgroundColor: theme.colors.fabButton }}
+            onPress={onPress}
+        />
     )
 };
 

@@ -17,10 +17,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
-      <Stack>
-        <Stack.Screen name="add-hand" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ headerTitle: "Saved Hands" }} />
-      </Stack>
+        <Stack>
+          <Stack.Screen name="add-hand" options={{ headerShown: false }} />
+          <Stack.Screen name="index" options={{ headerTitle: "Saved Hands" }} />
+        </Stack>
       </PaperProvider>
     </SafeAreaProvider>
   )
