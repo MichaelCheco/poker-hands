@@ -238,6 +238,8 @@ export function determinePokerWinnerManual(
     players: PokerPlayerInput[],
     communityCardsStr: string[]
 ): WinnerInfo | null {
+    console.log(players, 'pla')
+    console.log(communityCardsStr, 'communityCardsStr')
     if (!players || players.length === 0) {
         console.error("No players provided.");
         return null;

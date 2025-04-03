@@ -1,16 +1,16 @@
 import React, { useReducer, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { List, Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
-import { CommunityCards } from '@/components/Cards';
+import { CommunityCards, MyHand } from '@/components/Cards';
 import SegmentedActionLists from '../components/SegmentedActionLists';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
-import { moveFirstTwoToEnd, positionToRank } from '@/utils';
-import { determinePokerWinnerManual, PokerPlayerInput } from '@/hand-evaluator';
+import { formatCommunityCards, moveFirstTwoToEnd, positionToRank, transFormCardsToFormattedString } from '@/utils';
+import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 
 function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
@@ -39,7 +39,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
 
             const actingPlayer = playerAction.position;
             // Calculate betting information updates (if applicable) based on new player action
-            const {amountToAdd, newPlayerBetTotal, newCurrentBetFacing} = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
+            const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = amountToAdd;
             playerAction.text = getMeaningfulTextToDisplay(playerAction);
@@ -68,7 +68,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 },
                 currentBetFacing: newCurrentBetFacing,
             };
-            addActionState.handHistory = [...addActionState.handHistory, {...addActionState}];
+            addActionState.handHistory = [...addActionState.handHistory, { ...addActionState }];
             return addActionState;
         }
 
@@ -82,7 +82,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             let finalPlayerActions = [...playerActions];
             let finalActionSequence = [...actionSequence];
             let amountToAdd = 0;
-            let newPlayerBetTotal = 0; 
+            let newPlayerBetTotal = 0;
             let newCurrentBetFacing = 0;
             if (currentAction.actionType === ActionType.kCommunityCard) {
                 // Remove trailing '.'
@@ -92,13 +92,24 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                     cards: newCards,
                     deck: filterNewCardsFromDeck(newCards, state.deck)
                 };
-            }  else if (currentAction.actionType === ActionType.kVillainCards) {
-                let villains = state.actionSequence.filter(v => v !== state.hero);
+            } else if (currentAction.actionType === ActionType.kVillainCards) {
+                console.log(action.payload, ' payload')
+                let villains = state.actionSequence.filter(v => v !== state.hero.position);
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
+                console.log(inputCards, ' inputCards')
                 const villainCards = getVillainCards(inputCards, villains);
                 propertyUpdates.villainCards = villainCards;
-                const result = determinePokerWinnerManual(villainCards, state.cards.map((c) => `${c[0]}${c[1].toLowerCase()}`));
-                propertyUpdates.showdown = JSON.stringify(result);
+                // ${result.winners.map(w => w.playerId).join(', ')} wins with 
+
+                const result = determinePokerWinnerManual(
+                    [...villainCards,
+                    {
+                        playerId: state.hero.position,
+                        holeCards: [state.hero.hand.slice(0, 2), state.hero.hand.slice(2)]
+                    }],
+                    formatCommunityCards(state.cards)) as WinnerInfo;
+                // TODO
+                propertyUpdates.showdown = { combination: result.bestHandCards.sort(), text: result.winningHandDescription, winner: `${result.winners.map(w => w.playerId)[0]}` };
                 // Check if there's action input
             } else if (action.payload.input.trim().length > 1) {
                 // Handle the last player action input before transitioning
@@ -108,7 +119,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 const actionInfo = parseAction(mostRecentActionText, playerToAct);
                 const playerAction = buildBasePlayerAction(actionInfo, stage);
                 const actingPlayer = playerAction.position;
-                const {amountToAdd, newPlayerBetTotal, newCurrentBetFacing} = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
+                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
                 playerAction.amount = amountToAdd;
                 playerAction.text = getMeaningfulTextToDisplay(playerAction);
                 finalPlayerActions = [...finalPlayerActions, playerAction];
@@ -166,7 +177,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
 
             }
             console.log("New state: ", finalState);
-            finalState.handHistory = [...finalState.handHistory, {...finalState}];
+            finalState.handHistory = [...finalState.handHistory, { ...finalState }];
             return finalState;
         }
 
@@ -180,7 +191,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 ...state,
                 actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: smallBlind + bigBlind,
-                hero: heroPosition,
+                hero: { position: heroPosition, hand },
                 deck: filterNewCardsFromDeck(hand, state.deck),
                 playerActions: [],
                 stage: Stage.Preflop,
@@ -190,7 +201,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
                 currentBetFacing: bigBlind,
             };
-            initialGameState.handHistory = [{...initialGameState}];
+            initialGameState.handHistory = [{ ...initialGameState }];
             return initialGameState;
         }
         case DispatchActionType.kReset:
@@ -235,7 +246,7 @@ export default function App() {
     };
 
     return (
-        <View style={{...styles.container, backgroundColor: theme.colors.myOwnColor}}>
+        <View style={{ ...styles.container, backgroundColor: theme.colors.myOwnColor }}>
             <ScrollView style={styles.content}>
                 <GameInfo info={gameInfo} />
                 <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch} />
@@ -244,10 +255,39 @@ export default function App() {
                     <CommunityCards cards={state.cards} />
                 </View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
-                {state.stage === Stage.Showdown && (
-                    <Text>
-                        {state.showdown}
-                    </Text>
+
+                {/* joy shows a 9♦, 10♣.
+
+22:48
+dsv collected 1000 from pot with Pair, 4's (combination: 4♣, 4♠, A♥, K♣, J♦)
+
+22:48
+dsv shows a K♣, A♥. */}
+                {state.stage === Stage.Showdown && state.stageDisplayed === Stage.Showdown && (
+                    <List.Section>
+                        {state.villainCards.map((villain, index) => (
+                            <List.Item
+                                contentStyle={{flexGrow: 0}}
+                                key={`${villain.playerId}-${villain.holeCards.join('')}-${index}`}
+                                title={`shows`}
+                                titleStyle={styles.actionText}
+                                left={() => <Text style={styles.actionPosition}>{villain.playerId}</Text>}
+                                right={() => <MyHand cards={villain.holeCards.join('')} />}
+                                style={{ ...styles.actionItem }}
+                            />
+                        ))}
+                        {/* <List.Item key={'combo'}
+                            title={``}
+                            titleStyle={styles.actionText}
+                            left={() => <Text style={styles.actionPosition}>Combination</Text>}
+                            right={() => <CommunityCards cards={state.showdown.combination} />}
+                            style={{ ...styles.actionItem, flexGrow: 0 }} /> */}
+                        <List.Item key={'showdown'}
+                            title={`wins with ${state.showdown.text}`}
+                            titleStyle={styles.actionText}
+                            left={() => <Text style={styles.actionPosition}>{state.showdown.winner}</Text>}
+                            style={{ ...styles.actionItem, flexGrow: 0 }} />
+                    </List.Section>
                 )}
             </ScrollView>
             {state.stage !== Stage.Showdown && <View style={styles.inputContainer}>
@@ -258,7 +298,7 @@ export default function App() {
                     value={state.input}
                     style={styles.input}
                     autoFocus
-                    right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })}/>}
+                    right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })} />}
 
                 />
             </View>}
@@ -272,6 +312,16 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
+    },
+    actionText: {
+        fontSize: 14,
+    },
+    actionItem: {
+        paddingVertical: 4,
+        paddingLeft: 2,
+        paddingInlineStart: 0,
+        paddingInline: 0,
+        padding: 0,
     },
     infoRow: {
         flexDirection: 'row',
@@ -309,6 +359,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginRight: 8,
     },
+    actionPosition: {
+        fontWeight: 'bold',
+        marginLeft: 8,
+        minWidth: 24,
+        textAlign: 'center',
+        alignSelf: 'center',
+        color: '#555',
+    },
 });
 
 function getUpdatedBettingInfo(
@@ -321,7 +379,7 @@ function getUpdatedBettingInfo(
     let amountToAdd = 0;
     // Player's new total bet this street
     let newPlayerBetTotal = alreadyBet;
-     // The bet level facing others
+    // The bet level facing others
     let newCurrentBetFacing = currentBetFacing;
 
     switch (playerAction.decision) {
@@ -404,23 +462,22 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
         return foundIndex !== -1 ? playerActions[foundIndex] : createPlayerActionForAutoFoldedPlayer(player);
     });
     if (index !== playerActions.length - 1) {
-        return [...newSequence, ...playerActions.slice(index+1)];
+        return [...newSequence, ...playerActions.slice(index + 1)];
     }
     return newSequence;
 }
 
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
-    let hands = cards.split(",");
+    let hands = cards.split(",").map(h => transFormCardsToFormattedString(h));
     let output = []
+    console.log(cards, ' input --+-- transformed ', hands);
     for (let i = 0; i < villains.length; i++) {
         let currHand = hands[i];
         let splitCards = [currHand.slice(0, 2), currHand.slice(2)];
-        splitCards[0][1] = splitCards[0][1].toLowerCase();
-        splitCards[1][1] = splitCards[1][1].toLowerCase();
-
         output[i] = {
-            holeCards: splitCards, 
-            playerId: villains[i]};
+            holeCards: splitCards,
+            playerId: villains[i]
+        };
     }
     return output;
 }
@@ -463,7 +520,7 @@ function getMeaningfulTextToDisplay(action: PlayerAction): string {
 }
 
 function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage): PlayerAction {
-    const action: PlayerAction = { text: '',  stage, shouldHideFromUi: false, ...actionInfo };
+    const action: PlayerAction = { text: '', stage, shouldHideFromUi: false, ...actionInfo };
     return action;
 }
 

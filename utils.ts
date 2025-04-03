@@ -19,6 +19,14 @@ export function parseStackSizes(stackString: string): { position: string; stackS
     return stackObjects;
 }
 
+export function transFormCardsToFormattedString(cards: string): string {
+    return cards.split('').map((c, i) => i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()).join('');
+}
+
+export function formatCommunityCards(cards: string[]): string[] {
+    return cards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}`);
+}
+
 export function moveFirstTwoToEnd(list: string[]): Position[] {
     if (list.length < 2 || list.length > 9) {
         throw new Error("List length must be between 2 and 9 elements.");

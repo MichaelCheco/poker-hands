@@ -1,3 +1,4 @@
+import { transFormCardsToFormattedString } from '@/utils';
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 1, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1,
   },
@@ -80,11 +81,11 @@ const styles = StyleSheet.create({
 });
 
 export const MyHand = ({cards}: {cards: string}) => {
-  const [firstCard, secondCard] = [cards.slice(0, 2), cards.slice(2)];
+  const formattedCards = transFormCardsToFormattedString(cards);
   return (
   <View style={{ flexDirection: 'row', padding: 10 }}>
-    <Card card={firstCard} />
-    <Card card={secondCard} />
+    <Card card={formattedCards.substring(0, 2)} />
+    <Card card={formattedCards.substring(2)} />
   </View>
 )};
 

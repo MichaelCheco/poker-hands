@@ -73,7 +73,7 @@ export interface InitialState {
     playerActions: PlayerAction[];
     stage: Stage;
     stageDisplayed: Stage;
-    hero: string;
+    hero: {position: string, hand: string};
     actionSequence: Position[];
     pot: number;
     deck: string[];
@@ -81,5 +81,9 @@ export interface InitialState {
     currentBetFacing: number;
     mostRecentBet: number;
     villainCards: any;
-    showdown: any;
+    showdown: {text: string, winner: string, combination: string[]};
 }
+
+// hero's cards are not being checked at showdown.
+// investigate how current state.hero is used (if all) and consider using an
+// object to group cards + position for hero

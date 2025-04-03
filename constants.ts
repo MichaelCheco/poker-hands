@@ -141,7 +141,7 @@ export const initialState: InitialState = {
     playerActions: [],
     stage: Stage.Preflop,
     stageDisplayed: Stage.Preflop,
-    hero: '',
+    hero: {position: '', hand: ''},
     actionSequence: [],
     pot: 0,
     deck: initialDeck,
@@ -149,6 +149,6 @@ export const initialState: InitialState = {
     currentBetFacing: 0,
     mostRecentBet: 0,
     villainCards: {},
-    showdown: '',
+    showdown: {text: '', winner: '', combination: []},
 };
 

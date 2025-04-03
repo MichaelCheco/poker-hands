@@ -1,6 +1,8 @@
 TODO:
 * PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
 * Improve UI for displaying winning hand
+* HERO must be in preflop action sequence
+* Use Paper.HelperText for error display
 * Basic SavedHandRow component
 * Basic view of Saved Hand
 * Translate Player Actions into hand history
@@ -12,9 +14,12 @@ TODO:
 * Collect other TODOs and place them here
 * Stack sizes design
 * Handle All ins
-* consider allowing more flexible input (all, jams?)
+* allow more flexible input (all, jams?)
 * Testflight
 * KeyboardAvoidingView
 * Only show showdown text on river tab
 * hands that don't go to showdown
 * hands with folds on early streets
+* Form small blind empty causes error
+* Handle multiple winners for a pot
+* Location text truncation
