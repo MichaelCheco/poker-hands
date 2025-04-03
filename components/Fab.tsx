@@ -8,7 +8,7 @@ const Fab = ({ onPress }) => {
         <FAB
             icon="plus"
             color="#FFF"
-            style={{ ...styles.fab, backgroundColor: theme.colors.fabButton }}
+            style={{ ...styles.fab, backgroundColor: theme.button.backgroundColor }}
             onPress={onPress}
         />
     )

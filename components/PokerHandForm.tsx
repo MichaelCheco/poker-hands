@@ -67,11 +67,18 @@ function PokerHandForm() {
                         <TextInput
                             label="Small Blind"
                             onBlur={onBlur}
-                            onChangeText={(text) => onChange(text === '' ? 0 : Number(text))}
+                            onChangeText={(text) => {
+                                const num = Number(text);
+                                if (isNaN(num)) {
+                                    return;
+                                }
+                                return onChange(text === '' ? 0 : num);
+                            }}
                             value={String(value)}
                             keyboardType="numeric"
                             mode="outlined"
                             style={styles.input}
+                            activeOutlineColor='#000000'
                             error={!!errors.smallBlind}
                         />
                         {errors.smallBlind && <HelperText type="error" visible={!!errors.smallBlind}>{errors.smallBlind.message}</HelperText>}
@@ -86,11 +93,18 @@ function PokerHandForm() {
                         <TextInput
                             label="Big Blind"
                             onBlur={onBlur}
-                            onChangeText={(text) => onChange(text === '' ? 0 : Number(text))}
+                            onChangeText={(text) => {
+                                const num = Number(text);
+                                if (isNaN(num)) {
+                                    return;
+                                }
+                                return onChange(text === '' ? 0 : num);
+                            }}
                             value={String(value)}
                             keyboardType="numeric"
                             mode="outlined"
                             style={styles.input}
+                            activeOutlineColor='#000000'
                             error={!!errors.bigBlind}
                         />
                         {errors.bigBlind && <HelperText type="error" visible={!!errors.bigBlind}>{errors.bigBlind.message}</HelperText>}
@@ -109,6 +123,7 @@ function PokerHandForm() {
                             value={value}
                             mode="outlined"
                             style={styles.input}
+                            activeOutlineColor='#000000'
                             error={!!errors.smallBlind}
                         />
                         {errors.smallBlind && <HelperText type="error" visible={!!errors.location}>{errors.location.message}</HelperText>}
@@ -121,7 +136,7 @@ function PokerHandForm() {
                 render={({ field: { onChange, value } }) => (
                     <>
                         <Dropdown
-                            label="Number of Players"
+                            label="Players"
                             mode="outlined"
                             value={String(value)}
                             options={playerOptions}
@@ -159,14 +174,15 @@ function PokerHandForm() {
                             value={value}
                             mode="outlined"
                             style={styles.input}
+                            activeOutlineColor='#000000'
                             error={!!errors.relevantStacks}
                         />
-                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.hand}>{errors.hand.message}</HelperText>}
+                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.hand}>{errors?.hand.message}</HelperText>}
                     </>
                 )}
                 name="hand"
             />
-            <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, backgroundColor: theme.colors.primary }}>
+            <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
             </Button>
         </ScrollView>
@@ -181,7 +197,10 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     button: {
-        marginTop: 10,
+        marginTop: 8,
+        borderRadius: 4,
+        minHeight: 40,
+        padding: 2
     }
 });
 

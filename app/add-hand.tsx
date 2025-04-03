@@ -243,7 +243,7 @@ export default function App() {
     };
 
     return (
-        <View style={{ ...styles.container, backgroundColor: theme.colors.myOwnColor }}>
+        <View style={{ ...styles.container, backgroundColor: '#FFF' }}>
             <ScrollView style={styles.content}>
                 <GameInfo info={gameInfo} />
                 <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch} />
@@ -252,14 +252,6 @@ export default function App() {
                     <CommunityCards cards={state.cards} />
                 </View>
                 <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
-
-                {/* joy shows a 9♦, 10♣.
-
-22:48
-dsv collected 1000 from pot with Pair, 4's (combination: 4♣, 4♠, A♥, K♣, J♦)
-
-22:48
-dsv shows a K♣, A♥. */}
                 {state.stage === Stage.Showdown && state.stageDisplayed === Stage.Showdown && (
                     <List.Section>
                         {state.villainCards.map((villain, index) => (
@@ -295,6 +287,7 @@ dsv shows a K♣, A♥. */}
                     value={state.input}
                     style={styles.input}
                     autoFocus
+                    activeOutlineColor='#000000'
                     right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })} />}
 
                 />
@@ -339,7 +332,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         flexDirection: 'row',
         alignItems: 'stretch',
-
         borderTopWidth: 1,
         borderTopColor: '#e0e0e0',
     },
@@ -446,7 +438,7 @@ function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction
         decision: Decision.kFold,
         position,
         shouldHideFromUi: true,
-        text: `${position} f`,
+        text: `${position} folds`,
         stage: Stage.Preflop,
     };
 }

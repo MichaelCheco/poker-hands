@@ -7,7 +7,7 @@ const defaultButtonProps = {
     uncheckedColor: "#0000009C",
     value: `${Stage.Preflop}`,
     style: { 'borderRadius': 0, backgroundColor: 'none', borderColor: 'rgb(202, 196, 208)' },
-    checkedColor: '#000000E8',
+    checkedColor: '#000000',
 }
 
 function getValueForLabel(label: string) {

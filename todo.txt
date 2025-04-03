@@ -1,7 +1,6 @@
 TODO:
 * PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
 * Improve UI for displaying winning hand
-* HERO must be in preflop action sequence
 * Use Paper.HelperText for error display
 * Basic SavedHandRow component
 * Basic view of Saved Hand
@@ -10,16 +9,15 @@ TODO:
 * Supabase + watermelon offline first approach
 * Pick colors
 * Investigate swiping to navigate streets
-* Validation
-* Collect other TODOs and place them here
 * Stack sizes design
 * Handle All ins
 * allow more flexible input (all, jams?)
 * Testflight
 * KeyboardAvoidingView
-* Only show showdown text on river tab
 * hands that don't go to showdown
 * hands with folds on early streets
-* Form small blind empty causes error
 * Handle multiple winners for a pot
 * Location text truncation
+* logo idea - white diagonal line across intersecting (???), black background
+VALIDATION TODOS:
+* Hero must be in preflop action sequence
