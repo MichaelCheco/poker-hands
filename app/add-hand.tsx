@@ -1,54 +1,75 @@
 import React, { useReducer, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { List, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
-import { CommunityCards, MyHand } from '@/components/Cards';
+import { CommunityCards } from '@/components/Cards';
 import SegmentedActionLists from '../components/SegmentedActionLists';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
-import { formatCommunityCards, moveFirstTwoToEnd, positionToRank, transFormCardsToFormattedString } from '@/utils';
+import { formatCommunityCards, getInitialGameState, moveFirstTwoToEnd, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
 import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
-import PokerHandHistory from '@/components/HandHistory';
 import Showdown from '@/components/Showdown';
+import { ImmutableStack } from '@/ImmutableStack';
 
-function reducer(state: InitialState, action: { type: DispatchActionType; payload: any }): InitialState {
-    const { currentAction, stage, gameQueue, actionSequence, playerActions } = state;
+// Define the overall state shape for your reducer/context
+interface GameAppState {
+    current: InitialState; // The current state of the game
+    history: ImmutableStack<InitialState>; // The stack holding previous states
+}
 
+function removeAfterLastComma(input: string): string {
+    const lastIndex = input.lastIndexOf(",");
+    return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
+  }
+
+function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
         case DispatchActionType.kUndo:
-            if (state.handHistory.length === 1) {
-                return state;
-            }
-            state.handHistory.pop();
-            return state.handHistory[state.handHistory.length - 1];
-
+            console.log(state, ' state before undo')
+            const {stack: updatedHistory, value: previousState} = state.history.pop();
+                return {
+                    current: {...previousState as InitialState, input: removeAfterLastComma(previousState?.input || '')}, // Revert current game state
+                    history: updatedHistory,
+                };
         case DispatchActionType.kSetInput:
-            return { ...state, input: action.payload.input };
+            return {
+                current: {...state.current, input: action.payload.input},
+                history: state.history,
+            };
 
         case DispatchActionType.kAddAction: {
+            const currentState = state.current;
             const mostRecentActionText = getLastAction(action.payload.input);
             // Player to act is always the first in the current sequence
-            const playerToAct = actionSequence[0];
-            // Convert user input into action tokens.
+            const playerToAct = state.current.actionSequence[0];
             const actionInfo = parseAction(mostRecentActionText, playerToAct);
-            const playerAction = buildBasePlayerAction(actionInfo, stage);
+            const playerAction = buildBasePlayerAction(actionInfo, state.current.stage);
+            // attempt at handling input after undo
+            if (state.current.playerActions.some(ac => ac.id === playerAction.id)) {
+                return {
+                    current: {...state.current, input: action.payload.input},
+                    history: state.history,
+                };
+            }
             // Add new action to list of player actions
-            const newPlayerActions = [...playerActions, playerAction];
+            const newPlayerActions = [...state.current.playerActions, playerAction];
 
             const actingPlayer = playerAction.position;
             // Calculate betting information updates (if applicable) based on new player action
-            const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
+            const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
-            playerAction.amount = amountToAdd;
-            playerAction.text = getMeaningfulTextToDisplay(playerAction);
-            let newActionSequence = [...actionSequence];
+            playerAction.amount = newPlayerBetTotal;
+            let numBets = state.current.playerActions.filter(a => a.stage === state.current.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
+            numBets = state.current.stage === Stage.Preflop ? numBets + 1 : numBets;
+            playerAction.text = getMeaningfulTextToDisplay(playerAction, numBets, state.current.stage);
+            let newActionSequence = [...state.current.actionSequence];
 
-            if (stage !== Stage.Preflop) {
-                const remainingPlayers = actionSequence.slice(1);
+            if (state.current.stage !== Stage.Preflop) {
+                const remainingPlayers = state.current.actionSequence.slice(1);
                 // If the player didn't fold, add them to the end of the remaining sequence
                 newActionSequence = [
                     ...remainingPlayers,
@@ -58,44 +79,50 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             // Pre-flop: Action sequence is handled differently, often based on who is left
             // *after* the betting round, so we don't modify it here per-action.
             // It gets recalculated during the transition from Preflop.
-            const addActionState = {
-                ...state,
+            const addActionState: InitialState = {
+                ...state.current,
                 input: action.payload.input,
                 playerActions: newPlayerActions,
                 actionSequence: newActionSequence,
-                pot: state.pot + amountToAdd,
+                pot: state.current.pot + amountToAdd,
                 betsThisStreet: {
-                    ...state.betsThisStreet,
+                    ...state.current.betsThisStreet,
                     [actingPlayer]: newPlayerBetTotal,
                 },
                 currentBetFacing: newCurrentBetFacing,
             };
-            addActionState.handHistory = [...addActionState.handHistory, { ...addActionState }];
-            return addActionState;
+            const newHistory = state.history.push(currentState);
+            const newStateAfterAdd = {
+                current: addActionState,
+                history: newHistory,
+            };
+            console.log('newStateAfterAdd ', newStateAfterAdd);
+            return newStateAfterAdd;
         }
 
         case DispatchActionType.kTransition: {
-            const initialStage = stage;
-            const nextStage = currentAction.shouldTransitionAfterStep ? getNextStage(stage) : stage;
+            const currentState = state.current;
+            const initialStage = state.current.stage;
+            const nextStage = state.current.currentAction.shouldTransitionAfterStep ? getNextStage(state.current.stage) : state.current.stage;
             // Next step in the overall game flow
-            const nextAction = gameQueue[0];
+            const nextAction = state.current.gameQueue[0];
 
             let propertyUpdates: Partial<InitialState> = {};
-            let finalPlayerActions = [...playerActions];
-            let finalActionSequence = [...actionSequence];
+            let finalPlayerActions = [...state.current.playerActions];
+            let finalActionSequence = [...state.current.actionSequence];
             let amountToAdd = 0;
             let newPlayerBetTotal = 0;
             let newCurrentBetFacing = 0;
-            if (currentAction.actionType === ActionType.kCommunityCard) {
+            if (state.current.currentAction.actionType === ActionType.kCommunityCard) {
                 // Remove trailing '.'
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                const newCards = getCards(state.cards, inputCards);
+                const newCards = getCards(state.current.cards, inputCards);
                 propertyUpdates = {
                     cards: newCards,
-                    deck: filterNewCardsFromDeck(newCards, state.deck)
+                    deck: filterNewCardsFromDeck(newCards, state.current.deck)
                 };
-            } else if (currentAction.actionType === ActionType.kVillainCards) {
-                let villains = state.actionSequence.filter(v => v !== state.hero.position);
+            } else if (state.current.currentAction.actionType === ActionType.kVillainCards) {
+                let villains = state.current.actionSequence.filter(v => v !== state.current.hero.position);
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const villainCards = getVillainCards(inputCards, villains);
                 propertyUpdates.villainCards = villainCards;
@@ -103,36 +130,38 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 const result = determinePokerWinnerManual(
                     [...villainCards,
                     {
-                        playerId: state.hero.position,
-                        holeCards: [state.hero.hand.slice(0, 2), state.hero.hand.slice(2)]
+                        playerId: state.current.hero.position,
+                        holeCards: [state.current.hero.hand.slice(0, 2), state.current.hero.hand.slice(2)]
                     }],
-                    formatCommunityCards(state.cards)) as WinnerInfo;
+                    formatCommunityCards(state.current.cards)) as WinnerInfo;
                 // TODO
                 propertyUpdates.showdown = { combination: result.bestHandCards.sort(), text: result.winningHandDescription, winner: `${result.winners.map(w => w.playerId)[0]}` };
                 // Check if there's action input
             } else if (action.payload.input.trim().length > 1) {
                 // Handle the last player action input before transitioning
                 const mostRecentActionText = getLastAction(action.payload.input);
-                const playerToAct = actionSequence[0];
+                const playerToAct = state.current.actionSequence[0];
 
                 const actionInfo = parseAction(mostRecentActionText, playerToAct);
-                const playerAction = buildBasePlayerAction(actionInfo, stage);
+                const playerAction = buildBasePlayerAction(actionInfo, state.current.stage);
                 const actingPlayer = playerAction.position;
-                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.betsThisStreet, state.currentBetFacing, playerAction);
-                playerAction.amount = amountToAdd;
-                playerAction.text = getMeaningfulTextToDisplay(playerAction);
+                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, playerAction);
+                playerAction.amount = newPlayerBetTotal;
+                let numBets = state.current.playerActions.filter(a => a.stage === state.current.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
+                numBets = initialStage === Stage.Preflop ? numBets + 1 : numBets;
+                playerAction.text = getMeaningfulTextToDisplay(playerAction, numBets, initialStage);
                 finalPlayerActions = [...finalPlayerActions, playerAction];
                 // Update action sequence if post-flop (mirroring kAddAction logic)
-                if (stage !== Stage.Preflop) {
-                    const remainingPlayers = actionSequence.slice(1);
+                if (state.current.stage !== Stage.Preflop) {
+                    const remainingPlayers = state.current.actionSequence.slice(1);
                     finalActionSequence = [
                         ...remainingPlayers,
                         ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])
                     ];
                 }
-                propertyUpdates.pot = state.pot + amountToAdd;
+                propertyUpdates.pot = state.current.pot + amountToAdd;
                 propertyUpdates.betsThisStreet = {
-                    ...state.betsThisStreet,
+                    ...state.current.betsThisStreet,
                     [actingPlayer]: newPlayerBetTotal,
                 };
                 propertyUpdates.currentBetFacing = newCurrentBetFacing;
@@ -140,14 +169,14 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
             }
 
             const newStateBase: InitialState = {
-                ...state,
+                ...state.current,
                 ...propertyUpdates,
                 playerActions: finalPlayerActions,
                 actionSequence: finalActionSequence,
                 stage: nextStage,
                 stageDisplayed: nextStage,
                 input: '',
-                gameQueue: gameQueue.slice(1),
+                gameQueue: state.current.gameQueue.slice(1),
                 currentAction: nextAction,
             };
 
@@ -155,7 +184,7 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
 
             // If transitioning *away from* Preflop, apply auto-folds based on the *original* preflop sequence
             if (initialStage === Stage.Preflop && nextStage !== initialStage) {
-                const originalPreflopSequence = state.actionSequence;
+                const originalPreflopSequence = state.current.actionSequence;
                 finalState = {
                     ...finalState,
                     playerActions: getPlayerActionsWithAutoFolds(originalPreflopSequence, finalState.playerActions)
@@ -172,26 +201,31 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 };
             }
 
-            if (finalState.gameQueue.length === 0) {
-
-            }
             console.log("New state: ", finalState);
-            finalState.handHistory = [...finalState.handHistory, { ...finalState }];
-            return finalState;
+            const newHistory = state.history.push(currentState);
+            const newTransitionState = {
+                current: {...finalState},
+                history: newHistory,
+            }
+            console.log('newTransitionState ', newTransitionState);
+            return newTransitionState;
         }
 
 
         case DispatchActionType.kSetVisibleStage:
-            return { ...state, stageDisplayed: action.payload.newStage };
+            return {
+                current: {...state.current, stageDisplayed: action.payload.newStage},
+                history: state.history,
+            };
 
         case DispatchActionType.kSetGameInfo: {
-            const { actionSequence, heroPosition, hand, smallBlind, bigBlind } = action.payload;
-            const initialGameState = {
-                ...state,
+            const { actionSequence, heroPosition, hand, smallBlind, bigBlind, relevantStacks } = action.payload;
+            const initialGameState: InitialState = {
+                ...state.current,
                 actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: smallBlind + bigBlind,
                 hero: { position: heroPosition, hand },
-                deck: filterNewCardsFromDeck(hand, state.deck),
+                deck: filterNewCardsFromDeck(hand, state.current.deck),
                 playerActions: [],
                 stage: Stage.Preflop,
                 stageDisplayed: Stage.Preflop,
@@ -199,23 +233,32 @@ function reducer(state: InitialState, action: { type: DispatchActionType; payloa
                 input: '',
                 betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
                 currentBetFacing: bigBlind,
+                stacks: parseStackSizes(relevantStacks),
             };
-            initialGameState.handHistory = [{ ...initialGameState }];
-            return initialGameState;
+            const gameInfoStateInitial = {
+                current: {...initialGameState},
+                history: state.history,
+            };
+            console.log('gameInfoStateInitial ', gameInfoStateInitial);
+            return gameInfoStateInitial;
         }
         case DispatchActionType.kReset:
-            return { ...initialState };
+            return { ...initialAppState };
         default:
             return state;
     }
 }
 
+const initialAppState: GameAppState = {
+    current: getInitialGameState(),
+    history: ImmutableStack.create<InitialState>([getInitialGameState()]),
+};
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const theme = useTheme();
     const gameInfo: PokerFormData = JSON.parse(data);
-    const [state, dispatch] = useReducer(reducer, initialState);
+    const [state, dispatch] = useReducer(reducer, initialAppState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
     React.useEffect(() => {
         dispatch({
@@ -226,17 +269,21 @@ export default function App() {
                 hand: gameInfo.hand,
                 smallBlind: gameInfo.smallBlind,
                 bigBlind: gameInfo.bigBlind,
+                relevantStacks: gameInfo.relevantStacks,
             },
         });
     }, []);
     const handleInputChange = (text: string) => {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
+        // if (isAddAction) {
+        //     console.log(`${text} -- ${text[text.length - 1]}`);
+        // }
         let type: DispatchActionType;
 
         if (isTransition) {
             type = DispatchActionType.kTransition;
-        } else if (isAddAction && state.currentAction.actionType !== ActionType.kCommunityCard) {
+        } else if (isAddAction && state.current.currentAction.actionType !== ActionType.kCommunityCard) {
             type = DispatchActionType.kAddAction;
         } else {
             type = DispatchActionType.kSetInput;
@@ -248,27 +295,26 @@ export default function App() {
         <View style={{ ...styles.container, backgroundColor: '#FFF' }}>
             <ScrollView style={styles.content}>
                 <GameInfo info={gameInfo} />
-                <SegmentedActionLists stageDisplayed={state.stageDisplayed} dispatch={dispatch} />
+                <SegmentedActionLists stageDisplayed={state.current.stageDisplayed} dispatch={dispatch} />
                 <View style={styles.infoRow}>
-                    <Text style={styles.potText}>Pot: ${state.pot}</Text>
-                    <CommunityCards cards={state.cards} />
+                    <Text style={styles.potText}>Pot: ${state.current.pot}</Text>
+                    <CommunityCards cards={state.current.cards} />
                 </View>
-                <ActionList stage={state.stageDisplayed} actionList={state.playerActions} />
-                {state.stage === Stage.Showdown && state.stageDisplayed === Stage.Showdown && (
-                   <Showdown playerActions={state.playerActions} showdown={state.showdown} villainCards={state.villainCards}/>
+                {state.current.playerActions.length > 0 && <ActionList stage={state.current.stageDisplayed} actionList={state.current.playerActions} heroPosition={state.current.hero.position} />}
+                {state.current.stage === Stage.Showdown && state.current.stageDisplayed === Stage.Showdown && (
+                    <Showdown playerActions={state.current.playerActions} showdown={state.current.showdown} villainCards={state.current.villainCards} />
                 )}
             </ScrollView>
-            {state.stage !== Stage.Showdown && <View style={styles.inputContainer}>
+            {state.current.stage !== Stage.Showdown && <View style={styles.inputContainer}>
                 <TextInput
                     mode="outlined"
-                    label={state.currentAction.placeholder}
+                    label={state.current.currentAction.placeholder}
                     onChangeText={handleInputChange}
-                    value={state.input}
+                    value={state.current.input}
                     style={styles.input}
                     autoFocus
                     activeOutlineColor='#000000'
                     right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })} />}
-
                 />
             </View>}
         </View>
@@ -445,31 +491,37 @@ function getCards(currentCards: string[], newCards: string) {
     return currentCards
 }
 
-function decisionToText(decision: Decision): string {
-    switch (decision) {
+function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: number, stage: Stage): string {
+    const amountStr = `$${action.amount}`;
+    if (numBetsThisStreet === 1 && stage === Stage.Preflop) {
+        return `opens to ${amountStr}`;
+    }
+    switch (action.decision) {
         case Decision.kBet:
-            return 'bets'
+            return `bets ${amountStr}`
         case Decision.kCall:
             return 'calls'
         case Decision.kCheck:
             return 'checks'
         case Decision.kFold:
             return 'folds'
-        case Decision.kRaise:
-            return 'raises'
+        case Decision.kRaise: {
+            if (numBetsThisStreet === 1) {
+                return `raises to ${amountStr}`;
+            }
+            return `${++numBetsThisStreet}-bets to ${amountStr}`;
+        }
     }
 }
 
-function getMeaningfulTextToDisplay(action: PlayerAction): string {
-    let text = decisionToText(action.decision);
-    if (action.amount !== 0) {
-        text += ` $${action.amount}`;
-    }
-    return text;
+
+function getIdForPlayerAction(action: PlayerAction): string {
+    return `${action.position}-${action.decision}-${action.amount}-${action.stage}`;
 }
 
 function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage): PlayerAction {
-    const action: PlayerAction = { text: '', stage, shouldHideFromUi: false, ...actionInfo };
+    const action: PlayerAction = { text: '', stage, shouldHideFromUi: false, ...actionInfo, id: '' };
+    action.id = getIdForPlayerAction(action);
     return action;
 }
 
@@ -492,7 +544,6 @@ function getNextStage(stage: Stage) {
 
 function parseActionString(actionString: string, currentPosition: Position): ActionTextToken {
     const tokens = actionString.split(' ');
-
     let position: Position;
     let decision: Decision | null = null;
     let amount = 0;

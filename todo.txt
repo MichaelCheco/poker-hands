@@ -4,6 +4,8 @@ TODO ACTION LOG:
 * add 
 
 
+* structuredClone? useCallback?
+* TODO handle backspace undo, two cases one with a space and one without, maybe i can combine them
 TODO:
 * PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
 * Improve UI for displaying winning hand
@@ -27,3 +29,4 @@ TODO:
 * logo idea - white diagonal line across intersecting (???), black background
 VALIDATION TODOS:
 * Hero must be in preflop action sequence
+* what if a user selects text in middle of string, highlights it and deletes it

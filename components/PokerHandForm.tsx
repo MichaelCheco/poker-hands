@@ -15,6 +15,21 @@ const handFormValidationSchema = Yup.object().shape({
     numPlayers: Yup.number().required('Required').integer('Must be an integer').min(2, 'Min 2').max(9, 'Max 9').typeError('Must be a number'),
     position: Yup.string().required('Required'),
     hand: Yup.string().required("Required"),
+    relevantStacks: Yup.string().required('Required').test(
+        'contains-position',
+        'Stack size for selected position is missing',
+        (value, context) => {
+    
+            const selectedPosition = context.parent.position;
+            if (!selectedPosition || !value) {
+                return true;
+            }
+    
+            // Check if the string contains the selected position (case-insensitive)
+            const regex = new RegExp(`${selectedPosition}\\s*\\d+`, 'i');
+            return regex.test(value);
+        }
+    ),
 });
 
 export interface PokerFormData extends FieldValues {
@@ -22,7 +37,7 @@ export interface PokerFormData extends FieldValues {
     bigBlind: number;
     numPlayers: number;
     position: string;
-    // relevantStacks: string;
+    relevantStacks: string;
     location: string;
     hand: string;
 }
@@ -30,7 +45,7 @@ export interface PokerFormData extends FieldValues {
 function PokerHandForm() {
     const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<PokerFormData>({
         resolver: yupResolver(handFormValidationSchema),
-        defaultValues: { smallBlind: 5, bigBlind: 5, location: '', numPlayers: 6, position: '', hand: '' },
+        defaultValues: { smallBlind: 5, bigBlind: 5, location: '', numPlayers: 6, position: '', hand: '', relevantStacks: '', },
     });
     const router = useRouter();
     const theme = useTheme();
@@ -182,6 +197,25 @@ function PokerHandForm() {
                 )}
                 name="hand"
             />
+            <Controller
+                control={control}
+                render={({ field: { onChange, onBlur, value } }) => (
+                    <>
+                        <TextInput
+                            label="Relevant Stack Sizes (e.g., CO 725, BU 1000)"
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            value={value}
+                            mode="outlined"
+                            style={styles.input}
+                            activeOutlineColor='#000000'
+                            error={!!errors.relevantStacks}
+                        />
+                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.relevantStacks}>{errors.relevantStacks.message}</HelperText>}
+                    </>
+                )}
+                name="relevantStacks"
+            />
             <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
             </Button>
@@ -205,38 +239,3 @@ const styles = StyleSheet.create({
 });
 
 export default PokerHandForm;
-
-// TODO
-/* <Controller
-    control={control}
-    render={({ field: { onChange, onBlur, value } }) => (
-        <>
-            <TextInput
-                label="Relevant Stack Sizes (e.g., CO 725, BTN 1000)"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                mode="outlined"
-                style={styles.input}
-                error={!!errors.relevantStacks}
-            />
-            {errors.relevantStacks && <HelperText type="error" visible={!!errors.relevantStacks}>{errors.relevantStacks.message}</HelperText>}
-        </>
-    )}
-    name="relevantStacks"
-/> */
-// relevantStacks: Yup.string().required('Required').test(
-//     'contains-position',
-//     'Stack size for selected position is missing',
-//     (value, context) => {
-
-//         const selectedPosition = context.parent.position;
-//         if (!selectedPosition || !value) {
-//             return true;
-//         }
-
-//         // Check if the string contains the selected position (case-insensitive)
-//         const regex = new RegExp(`${selectedPosition}\\s*\\d+`, 'i');
-//         return regex.test(value);
-//     }
-// ),

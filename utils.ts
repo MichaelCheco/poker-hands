@@ -1,18 +1,19 @@
-import { Position } from "./types";
+import { initialState } from "./constants";
+import { InitialState, Position } from "./types";
 
-export function parseStackSizes(stackString: string): { position: string; stackSize: number }[] {
+export function parseStackSizes(stackString: string) {
     if (!stackString) {
         return [];
     }
-    const stackObjects: { position: string; stackSize: number }[] = [];
+    const stackObjects = {};
     const stackEntries = stackString.split(',').map(entry => entry.trim());
     for (const entry of stackEntries) {
         const match = entry.match(/^([a-zA-Z]+)\s+(\d+)$/);
         if (match) {
             const position = match[1].toUpperCase();
-            const stackSize = parseInt(match[2], 10);
-            if (!isNaN(stackSize)) {
-                stackObjects.push({ position, stackSize });
+            const size = parseInt(match[2], 10);
+            if (!isNaN(size)) {
+                stackObjects[position] = size;
             }
         }
     }
@@ -52,3 +53,8 @@ export function positionToRank(positionKey: string): number {
     }
     return positionToRankMap[positionKey];
 }
+
+
+export const getInitialGameState = (): InitialState => {
+    return initialState;
+};

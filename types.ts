@@ -56,6 +56,7 @@ export interface PlayerAction {
     amount: number;
     stage: Stage;
     shouldHideFromUi: boolean;
+    id: string;
 }
 
 export interface ActionTextToken {
@@ -67,7 +68,6 @@ export interface ActionTextToken {
 export interface InitialState {
     gameQueue: GameQueueItem[];
     currentAction: GameQueueItem;
-    handHistory: InitialState[];
     input: string;
     cards: string[];
     playerActions: PlayerAction[];
@@ -78,6 +78,7 @@ export interface InitialState {
     pot: number;
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
+    stacks: { [key in Position]?: number  };
     currentBetFacing: number;
     mostRecentBet: number;
     villainCards: any;
