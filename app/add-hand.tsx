@@ -30,6 +30,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
     switch (action.type) {
         case DispatchActionType.kUndo:
             console.log(state, ' state before undo')
+            if (state.history.size === 1) {
+                return state;
+            }
             const {stack: updatedHistory, value: previousState} = state.history.pop();
                 return {
                     current: {...previousState as InitialState, input: removeAfterLastComma(previousState?.input || '')}, // Revert current game state
