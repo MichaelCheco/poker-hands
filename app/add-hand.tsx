@@ -9,7 +9,7 @@ import { CommunityCards } from '@/components/Cards';
 import SegmentedActionLists from '../components/SegmentedActionLists';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
-import { formatCommunityCards, getInitialGameState, moveFirstTwoToEnd, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
+import { formatCommunityCards, getInitialGameState, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
 import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
@@ -249,12 +249,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
         case DispatchActionType.kSetGameInfo: {
             const { actionSequence, heroPosition, hand, smallBlind, bigBlind, relevantStacks } = action.payload;
+            const upperCasedHand = hand.toUpperCase();
             const initialGameState: InitialState = {
                 ...state.current,
                 actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: smallBlind + bigBlind,
-                hero: { position: heroPosition, hand },
-                deck: filterNewCardsFromDeck(hand, state.current.deck),
+                hero: { position: heroPosition, hand: parsePokerHandString(upperCasedHand) },
+                deck: filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), state.current.deck),
                 playerActions: [],
                 stage: Stage.Preflop,
                 stageDisplayed: Stage.Preflop,
@@ -512,7 +513,7 @@ function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] 
 
 function getCards(currentCards: string[], currentDeck: string[], newCards: string) {
     const EMPTY_CARD = '';
-    let cardsToAdd: string[] = newCards.length > 2 ? [newCards.slice(0, 2), newCards.slice(2, 4), newCards.slice(4)] : [newCards]
+    let cardsToAdd: string[] = newCards.length > 2 ? parseFlopString(newCards) : [newCards]
     for (let i = 0; i < currentCards.length; i++) {
         if (currentCards[i] === EMPTY_CARD) {
             currentCards[i] = getSuitForCard(cardsToAdd.shift() as string, currentDeck);

@@ -81,11 +81,10 @@ const styles = StyleSheet.create({
 });
 
 export const MyHand = ({ cards }: { cards: string }) => {
-  const formattedCards = transFormCardsToFormattedString(cards);
   return (
     <View style={{ flexDirection: 'row', padding: 10 }}>
-      <Card card={formattedCards.substring(0, 2)} />
-      <Card card={formattedCards.substring(2)} />
+      <Card card={cards.substring(0, 2)} />
+      <Card card={cards.substring(2)} />
     </View>
   )
 };
