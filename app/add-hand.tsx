@@ -42,8 +42,6 @@ function isRecordedAction(playerActions: PlayerAction[], text: string, playerToA
     const actionInfo = parseAction(actionText, playerToAct);
     const playerAction = buildBasePlayerAction(actionInfo, stage);
     const result = playerActions.some(ac => ac.id === playerAction.id)
-    console.log(playerAction, playerActions)
-    console.log(result, ' res')
     return result;
 }
 
@@ -79,14 +77,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const playerAction = buildBasePlayerAction(actionInfo, state.current.stage);
             // attempt at handling input after undo
             if (state.current.playerActions.some(ac => ac.id === playerAction.id)) {
-                console.log(`
-                    id matched for input: ${mostRecentActionText}
-                    `)
+                console.log(`id matched for input: ${mostRecentActionText}`)
                 return {
                     current: {...state.current, input: action.payload.input},
                     history: state.history,
                 };
             }
+
             // Add new action to list of player actions
             const newPlayerActions = [...state.current.playerActions, playerAction];
 
@@ -148,7 +145,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             if (state.current.currentAction.actionType === ActionType.kCommunityCard) {
                 // Remove trailing '.'
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                const newCards = getCards(state.current.cards, inputCards);
+                const newCards = getCards(state.current.cards, state.current.deck, inputCards);
                 propertyUpdates = {
                     cards: newCards,
                     deck: filterNewCardsFromDeck(newCards, state.current.deck)
@@ -239,7 +236,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: {...finalState},
                 history: newHistory,
             }
-            // console.log('newTransitionState ', newTransitionState);
+            console.log('newTransitionState ', newTransitionState);
             return newTransitionState;
         }
 
@@ -513,12 +510,12 @@ function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] 
     return output;
 }
 
-function getCards(currentCards: string[], newCards: string) {
+function getCards(currentCards: string[], currentDeck: string[], newCards: string) {
     const EMPTY_CARD = '';
     let cardsToAdd: string[] = newCards.length > 2 ? [newCards.slice(0, 2), newCards.slice(2, 4), newCards.slice(4)] : [newCards]
     for (let i = 0; i < currentCards.length; i++) {
         if (currentCards[i] === EMPTY_CARD) {
-            currentCards[i] = cardsToAdd.shift() as string;
+            currentCards[i] = getSuitForCard(cardsToAdd.shift() as string, currentDeck);
             if (cardsToAdd.length === 0) {
                 return currentCards;
             }
@@ -550,6 +547,24 @@ function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: num
     }
 }
 
+
+function getRandomIndex(arrayLen: number): number {
+    return Math.floor(Math.random() * arrayLen);
+  }
+
+function getSuitForCard(card: string, currDeck: string[]): string {
+    if (card.length !== 2) {
+        console.error("Invalid card: ", card);
+        return '';
+    }
+
+    if (card.charAt(1) !== "X") {
+        return card;
+    }
+
+    let cardsInDeck = currDeck.filter(c => c.charAt(0) === card.charAt(0));
+    return cardsInDeck[getRandomIndex(cardsInDeck.length)]
+}
 
 function getIdForPlayerAction(action: PlayerAction): string {
     return `${action.position}-${action.decision}-${action.amount}-${action.stage}`;
@@ -615,7 +630,7 @@ function parseAction(action: string, currentPosition: string): ActionTextToken {
 }
 
 function filterNewCardsFromDeck(newCards: string | string[], currDeck: string[]): string[] {
-    const cards = typeof newCards === "string" ? extractCards(newCards) : newCards;
+    const cards = typeof newCards === "string" ? extractCards(newCards.toUpperCase()) : newCards;
     return currDeck.filter(card => !cards.includes(card))
 }
 

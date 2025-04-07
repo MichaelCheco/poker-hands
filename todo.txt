@@ -9,7 +9,7 @@ TODO ACTION LOG:
 * support all in and stack size
 * add 
 
-
+* Add RemoveTrailingPunctuation helper
 * structuredClone? useCallback?
 * TODO handle backspace undo, two cases one with a space and one without, maybe i can combine them
 TODO:
