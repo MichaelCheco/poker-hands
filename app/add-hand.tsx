@@ -1,4 +1,4 @@
-import React, { useReducer, useRef } from 'react';
+import React, { useReducer, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
@@ -15,21 +15,47 @@ import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import { ImmutableStack } from '@/ImmutableStack';
 
+
+//
+
+/**
+ * deletion can be an update, not necessarily an undo
+ * 
+ * 
+ */
 // Define the overall state shape for your reducer/context
 interface GameAppState {
     current: InitialState; // The current state of the game
     history: ImmutableStack<InitialState>; // The stack holding previous states
 }
 
+
+// co r 5,
 function removeAfterLastComma(input: string): string {
     const lastIndex = input.lastIndexOf(",");
     return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
   }
 
+function isRecordedAction(playerActions: PlayerAction[], text: string, playerToAct: string, stage: Stage): boolean {
+    console.log(`text in act ${text}`)
+    const actionText = getLastAction(text.endsWith('.') ? text.slice(0, -1) : text);
+    const actionInfo = parseAction(actionText, playerToAct);
+    const playerAction = buildBasePlayerAction(actionInfo, stage);
+    const result = playerActions.some(ac => ac.id === playerAction.id)
+    console.log(playerAction, playerActions)
+    console.log(result, ' res')
+    return result;
+}
+
+function shouldTriggerUndo(text: string, currState: InitialState): boolean {
+    const isAddAction = text.endsWith(',');
+    return (isAddAction || `${text},` === currState.input) && isRecordedAction(currState.playerActions, text, currState.actionSequence[0] || '', currState.stage);
+}
+
 function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
         case DispatchActionType.kUndo:
-            console.log(state, ' state before undo')
+            // console.log(state, ' state before undo')
             if (state.history.size === 1) {
                 return state;
             }
@@ -53,6 +79,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const playerAction = buildBasePlayerAction(actionInfo, state.current.stage);
             // attempt at handling input after undo
             if (state.current.playerActions.some(ac => ac.id === playerAction.id)) {
+                console.log(`
+                    id matched for input: ${mostRecentActionText}
+                    `)
                 return {
                     current: {...state.current, input: action.payload.input},
                     history: state.history,
@@ -99,7 +128,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: addActionState,
                 history: newHistory,
             };
-            console.log('newStateAfterAdd ', newStateAfterAdd);
+            // console.log('newStateAfterAdd ', newStateAfterAdd);
             return newStateAfterAdd;
         }
 
@@ -204,13 +233,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 };
             }
 
-            console.log("New state: ", finalState);
+            // console.log("New state: ", finalState);
             const newHistory = state.history.push(currentState);
             const newTransitionState = {
                 current: {...finalState},
                 history: newHistory,
             }
-            console.log('newTransitionState ', newTransitionState);
+            // console.log('newTransitionState ', newTransitionState);
             return newTransitionState;
         }
 
@@ -242,7 +271,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: {...initialGameState},
                 history: state.history,
             };
-            console.log('gameInfoStateInitial ', gameInfoStateInitial);
+            // console.log('gameInfoStateInitial ', gameInfoStateInitial);
             return gameInfoStateInitial;
         }
         case DispatchActionType.kReset:
@@ -260,6 +289,7 @@ const initialAppState: GameAppState = {
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const theme = useTheme();
+    const [logging, setLogging] = useState(false)
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialAppState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
@@ -279,8 +309,11 @@ export default function App() {
     const handleInputChange = (text: string) => {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
-        // if (isAddAction) {
-        //     console.log(`${text} -- ${text[text.length - 1]}`);
+        // post flop undo might be trickire with position inference
+        // 
+        // if (shouldTriggerUndo(text, state.current)) {
+        //     dispatch({ type: DispatchActionType.kUndo, payload: {} });
+        //     return;
         // }
         let type: DispatchActionType;
 
@@ -300,7 +333,7 @@ export default function App() {
                 <GameInfo info={gameInfo} />
                 <SegmentedActionLists stageDisplayed={state.current.stageDisplayed} dispatch={dispatch} />
                 <View style={styles.infoRow}>
-                    <Text style={styles.potText}>Pot: ${state.current.pot}</Text>
+                    <Text style={styles.potText} onPress={() => setLogging(true)}>Pot: ${state.current.pot}</Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
                 {state.current.playerActions.length > 0 && <ActionList stage={state.current.stageDisplayed} actionList={state.current.playerActions} heroPosition={state.current.hero.position} />}
