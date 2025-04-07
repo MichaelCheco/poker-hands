@@ -1,3 +1,9 @@
+CURRENT TODOS:
+* Support random suit for card
+* Support AJss / 745xhh notation
+* Scrollable, sticky action list
+
+
 TODO ACTION LOG:
 * Experiment with icons
 * support all in and stack size
