@@ -1,12 +1,11 @@
 import React, { useReducer, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView,  KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, InitialState, PlayerAction, Position, Stage } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage } from '@/types';
 import { CommunityCards } from '@/components/Cards';
-import SegmentedActionLists from '../components/SegmentedActionLists';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { formatCommunityCards, getInitialGameState, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
@@ -14,30 +13,19 @@ import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import { ImmutableStack } from '@/ImmutableStack';
+import { useSafeAreaInsets, SafeAreaView} from 'react-native-safe-area-context'; // 1. Import the hook
 
-
-//
-
-/**
- * deletion can be an update, not necessarily an undo
- * 
- * 
- */
-// Define the overall state shape for your reducer/context
 interface GameAppState {
-    current: InitialState; // The current state of the game
-    history: ImmutableStack<InitialState>; // The stack holding previous states
+    current: GameState; // The current state of the game
+    history: ImmutableStack<GameState>; // The stack holding previous states
 }
 
-
-// co r 5,
 function removeAfterLastComma(input: string): string {
     const lastIndex = input.lastIndexOf(",");
     return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
   }
 
 function isRecordedAction(playerActions: PlayerAction[], text: string, playerToAct: string, stage: Stage): boolean {
-    console.log(`text in act ${text}`)
     const actionText = getLastAction(text.endsWith('.') ? text.slice(0, -1) : text);
     const actionInfo = parseAction(actionText, playerToAct);
     const playerAction = buildBasePlayerAction(actionInfo, stage);
@@ -45,7 +33,7 @@ function isRecordedAction(playerActions: PlayerAction[], text: string, playerToA
     return result;
 }
 
-function shouldTriggerUndo(text: string, currState: InitialState): boolean {
+function shouldTriggerUndo(text: string, currState: GameState): boolean {
     const isAddAction = text.endsWith(',');
     return (isAddAction || `${text},` === currState.input) && isRecordedAction(currState.playerActions, text, currState.actionSequence[0] || '', currState.stage);
 }
@@ -59,7 +47,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             }
             const {stack: updatedHistory, value: previousState} = state.history.pop();
                 return {
-                    current: {...previousState as InitialState, input: removeAfterLastComma(previousState?.input || '')}, // Revert current game state
+                    current: {...previousState as GameState, input: removeAfterLastComma(previousState?.input || '')}, // Revert current game state
                     history: updatedHistory,
                 };
         case DispatchActionType.kSetInput:
@@ -108,7 +96,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             // Pre-flop: Action sequence is handled differently, often based on who is left
             // *after* the betting round, so we don't modify it here per-action.
             // It gets recalculated during the transition from Preflop.
-            const addActionState: InitialState = {
+            const addActionState: GameState = {
                 ...state.current,
                 input: action.payload.input,
                 playerActions: newPlayerActions,
@@ -125,7 +113,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: addActionState,
                 history: newHistory,
             };
-            // console.log('newStateAfterAdd ', newStateAfterAdd);
             return newStateAfterAdd;
         }
 
@@ -136,14 +123,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             // Next step in the overall game flow
             const nextAction = state.current.gameQueue[0];
 
-            let propertyUpdates: Partial<InitialState> = {};
+            let propertyUpdates: Partial<GameState> = {};
             let finalPlayerActions = [...state.current.playerActions];
             let finalActionSequence = [...state.current.actionSequence];
             let amountToAdd = 0;
             let newPlayerBetTotal = 0;
             let newCurrentBetFacing = 0;
             if (state.current.currentAction.actionType === ActionType.kCommunityCard) {
-                // Remove trailing '.'
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const newCards = getCards(state.current.cards, state.current.deck, inputCards);
                 propertyUpdates = {
@@ -197,7 +183,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
             }
 
-            const newStateBase: InitialState = {
+            const newStateBase: GameState = {
                 ...state.current,
                 ...propertyUpdates,
                 playerActions: finalPlayerActions,
@@ -230,7 +216,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 };
             }
 
-            // console.log("New state: ", finalState);
             const newHistory = state.history.push(currentState);
             const newTransitionState = {
                 current: {...finalState},
@@ -250,7 +235,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
         case DispatchActionType.kSetGameInfo: {
             const { actionSequence, heroPosition, hand, smallBlind, bigBlind, relevantStacks } = action.payload;
             const upperCasedHand = hand.toUpperCase();
-            const initialGameState: InitialState = {
+            const initialGameState: GameState = {
                 ...state.current,
                 actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: smallBlind + bigBlind,
@@ -269,7 +254,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: {...initialGameState},
                 history: state.history,
             };
-            // console.log('gameInfoStateInitial ', gameInfoStateInitial);
             return gameInfoStateInitial;
         }
         case DispatchActionType.kReset:
@@ -281,7 +265,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
 const initialAppState: GameAppState = {
     current: getInitialGameState(),
-    history: ImmutableStack.create<InitialState>([getInitialGameState()]),
+    history: ImmutableStack.create<GameState>([getInitialGameState()]),
 };
 
 export default function App() {
@@ -291,6 +275,10 @@ export default function App() {
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialAppState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
+    const scrollViewRef = useRef<ScrollView>(null);
+    const baseInputPaddingBottom = Platform.OS === 'ios' ? 8 : 12;
+    const insets = useSafeAreaInsets(); // 2. Get safe area insets
+
     React.useEffect(() => {
         dispatch({
             type: DispatchActionType.kSetGameInfo,
@@ -307,12 +295,6 @@ export default function App() {
     const handleInputChange = (text: string) => {
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
-        // post flop undo might be trickire with position inference
-        // 
-        // if (shouldTriggerUndo(text, state.current)) {
-        //     dispatch({ type: DispatchActionType.kUndo, payload: {} });
-        //     return;
-        // }
         let type: DispatchActionType;
 
         if (isTransition) {
@@ -324,33 +306,82 @@ export default function App() {
         }
         dispatch({ type, payload: { input: text } });
     };
-
+    const handleInputFocus = () => {
+        // Scroll to the end when the input is focused
+        // Use setTimeout to allow keyboard animation to potentially finish
+        setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 200);
+    };
+    const handleUndo = () => {
+        dispatch({ type: DispatchActionType.kUndo, payload: {} });
+        // Optionally blur input after undo if desired
+        // textInputRef.current?.blur();
+   };
     return (
-        <View style={{ ...styles.container, backgroundColor: '#FFF' }}>
-            <ScrollView style={styles.content}>
-                <GameInfo info={gameInfo} />
-                <SegmentedActionLists stageDisplayed={state.current.stageDisplayed} dispatch={dispatch} />
-                <View style={styles.infoRow}>
-                    <Text style={styles.potText} onPress={() => setLogging(true)}>Pot: ${state.current.pot}</Text>
-                    <CommunityCards cards={state.current.cards} />
-                </View>
-                {state.current.playerActions.length > 0 && <ActionList stage={state.current.stageDisplayed} actionList={state.current.playerActions} heroPosition={state.current.hero.position} />}
-                {state.current.stage === Stage.Showdown && state.current.stageDisplayed === Stage.Showdown && (
-                    <Showdown playerActions={state.current.playerActions} showdown={state.current.showdown} villainCards={state.current.villainCards} />
+        // Outermost View provides background and flex setup
+        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardAvoidingContainer}
+                // Adjust offset if you have a header above this screen component
+                // keyboardVerticalOffset={HEADER_HEIGHT}
+            >
+                {/* ScrollView now takes up available space within KAV */}
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={styles.content}
+                    contentContainerStyle={styles.contentContainer} // Add padding inside if needed
+                    keyboardShouldPersistTaps="handled" // Good practice
+                >
+                    <GameInfo info={gameInfo} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.potText} onPress={() => setLogging(true)}>Pot: ${state.current.pot}</Text>
+                        <CommunityCards cards={state.current.cards} />
+                    </View>
+
+                    {/* ActionList should now scroll correctly */}
+                    {state.current.playerActions.length > 0 && (
+                        <ActionList
+                            stage={state.current.stageDisplayed}
+                            actionList={state.current.playerActions}
+                            heroPosition={state.current.hero.position}
+                        />
+                    )}
+
+                    {state.current.stage === Stage.Showdown && state.current.stageDisplayed === Stage.Showdown && state.current.showdown && (
+                        <Showdown
+                            playerActions={state.current.playerActions}
+                            showdown={state.current.showdown}
+                            villainCards={state.current.villainCards}
+                        />
+                    )}
+                </ScrollView>
+
+                {/* Input container remains visually at the bottom, pushed by KAV */}
+                {state.current.stage !== Stage.Showdown && (
+                    <SafeAreaView style={[
+                        styles.inputContainer
+                        // { paddingBottom: baseInputPaddingBottom + insets.bottom }
+                        // We add the safe area bottom inset to our base padding
+                        // This ensures the container itself respects the safe area,
+                        // lifting the TextInput inside it above the home indicator.
+                    ]}>
+                        <TextInput
+                            mode="outlined"
+                            label={state.current.currentAction?.placeholder || 'Enter action'} // Handle case where currentAction might be null/undefined initially
+                            onChangeText={handleInputChange}
+                            value={state.current.input}
+                            style={styles.input}
+                            autoFocus
+                            activeOutlineColor='#000000'
+                            onFocus={handleInputFocus} // Add the onFocus handler
+                            right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={false} />} // Added forceTextInputFocus=false
+                        />
+                        {/* Removed separate undo button View */}
+                    </SafeAreaView>
                 )}
-            </ScrollView>
-            {state.current.stage !== Stage.Showdown && <View style={styles.inputContainer}>
-                <TextInput
-                    mode="outlined"
-                    label={state.current.currentAction.placeholder}
-                    onChangeText={handleInputChange}
-                    value={state.current.input}
-                    style={styles.input}
-                    autoFocus
-                    activeOutlineColor='#000000'
-                    right={<TextInput.Icon icon="undo-variant" onPress={() => dispatch({ type: DispatchActionType.kUndo, payload: {} })} />}
-                />
-            </View>}
+            </KeyboardAvoidingView>
         </View>
     );
 }
@@ -359,8 +390,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    content: {
+    keyboardAvoidingContainer: { // KAV needs flex: 1 to manage space
         flex: 1,
+        
+    },
+    content: {
+        flex: 1, // Allows ScrollView to grow/shrink within KAV
+        // backgroundColor:'lightblue' // For debugging layout
+    },
+    contentContainer: { // Use for padding *inside* the scrollable area
+        paddingBottom: 10, // Example padding at the very bottom of scroll content
     },
     infoRow: {
         flexDirection: 'row',
@@ -373,30 +412,26 @@ const styles = StyleSheet.create({
     potText: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#333',
+        color: '#333', // Adjust color based on theme if needed
     },
     inputContainer: {
+        // This view no longer needs absolute positioning.
+        // It sits *after* the ScrollView within the KAV's flex layout.
         paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: 'white',
+        paddingVertical: 0, // Add padding top/bottom as needed
+        paddingBottom: Platform.OS === 'ios' ? 6 : 12, // Adjust bottom padding if needed below input
+        // backgroundColor: 'blue', // Use theme.colors.background?
         flexDirection: 'row',
-        alignItems: 'stretch',
-        borderTopWidth: 1,
-        borderTopColor: '#e0e0e0',
+        alignItems: 'center', // Center items vertically if needed (adjust from stretch)
+        // borderTopWidth: 1,
+        // borderTopColor: '#e0e0e0', // Use theme color?
     },
     input: {
-        flex: 1,
-        marginRight: 8,
-        height: 56,
+        flex: 1, // Take available horizontal space
+        // marginRight: 8, // Only needed if there was a separate button
+        // height: 56, // Let the input determine its height based on mode/content unless fixed height needed
     },
-    undoButton: {
-        borderRadius: 4,
-        height: 56,
-        position: 'relative',
-        top: 6,
-        justifyContent: 'center',
-        marginRight: 8,
-    },
+    // Removed undoButton style as icon is part of TextInput
 });
 
 function getUpdatedBettingInfo(
@@ -499,6 +534,7 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
 
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
     let hands = cards.split(",").map(h => transFormCardsToFormattedString(h));
+    console.log('villain hands ', hands)
     let output = []
     for (let i = 0; i < villains.length; i++) {
         let currHand = hands[i];
@@ -549,21 +585,23 @@ function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: num
 }
 
 
+// Used to pick a random suit for a card (Ax).
 function getRandomIndex(arrayLen: number): number {
     return Math.floor(Math.random() * arrayLen);
-  }
+}
 
+const cardHasDefinedSuit = (card: string) => card.charAt(1) !== "X";
 function getSuitForCard(card: string, currDeck: string[]): string {
     if (card.length !== 2) {
         console.error("Invalid card: ", card);
         return '';
     }
 
-    if (card.charAt(1) !== "X") {
+    if (cardHasDefinedSuit(card)) {
         return card;
     }
 
-    let cardsInDeck = currDeck.filter(c => c.charAt(0) === card.charAt(0));
+    const cardsInDeck = currDeck.filter(c => c.charAt(0) === card.charAt(0));
     return cardsInDeck[getRandomIndex(cardsInDeck.length)]
 }
 
@@ -590,6 +628,7 @@ function getNextStage(stage: Stage) {
         [Stage.Flop]: Stage.Turn,
         [Stage.Turn]: Stage.River,
         [Stage.River]: Stage.Showdown,
+        [Stage.Showdown]: Stage.Showdown,
     };
     return nextStages[stage];
 }
@@ -597,7 +636,8 @@ function getNextStage(stage: Stage) {
 function parseActionString(actionString: string, currentPosition: Position): ActionTextToken {
     const tokens = actionString.split(' ');
     let position: Position;
-    let decision: Decision | null = null;
+    // todo remove this default value
+    let decision: Decision = Decision.kCheck;
     let amount = 0;
 
     let tokenIndex = 0;
@@ -620,8 +660,8 @@ function parseActionString(actionString: string, currentPosition: Position): Act
     }
 
     return {
-        position,
         decision,
+        position,
         amount,
     };
 }

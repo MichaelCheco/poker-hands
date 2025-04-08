@@ -91,7 +91,7 @@ export const MyHand = ({ cards }: { cards: string }) => {
 
 export const CommunityCards = ({ cards }: { cards: string[] }) => {
   return (
-    <View style={{ flexDirection: 'row', padding: 8 }}>
+    <View style={{ flexDirection: 'row', padding: 8, paddingRight: 4 }}>
       {cards.map((card, i) => (
         <Card card={card} key={i} />
       ))}

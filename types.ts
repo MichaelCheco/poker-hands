@@ -65,7 +65,7 @@ export interface ActionTextToken {
     amount: number;
 }
 
-export interface InitialState {
+export interface GameState {
     gameQueue: GameQueueItem[];
     currentAction: GameQueueItem;
     input: string;

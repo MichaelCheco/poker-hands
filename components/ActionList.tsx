@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { List, Text } from 'react-native-paper';
 // item.position === heroPosition ? 'HERO' : item.position
 export default function ActionList({ stage, actionList, heroPosition }: { stage: Stage, actionList: PlayerAction[], heroPosition: string; }) {
-    const filteredActions = actionList.filter(action => action.stage === stage && !action.shouldHideFromUi);
+    const filteredActions = actionList.filter(action => !action.shouldHideFromUi);
     return (
         <List.Section>
             {filteredActions.map((item, index) => (
