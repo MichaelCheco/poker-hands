@@ -135,15 +135,14 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             let newCurrentBetFacing = 0;
             if (state.current.currentAction.actionType === ActionType.kCommunityCard) {
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                const newCards = getCards(state.current.cards, state.current.deck, inputCards);
+                const newCards = getCards(state.current.cards, [...state.current.deck], inputCards);
                 propertyUpdates = {
-                    cards: newCards,
-                    deck: filterNewCardsFromDeck(newCards, state.current.deck)
+                    cards: [...newCards],
+                    deck: [...filterNewCardsFromDeck(newCards, [...state.current.deck])]
                 };
             } else if (state.current.currentAction.actionType === ActionType.kVillainCards) {
                 let villains = state.current.actionSequence.filter(v => v !== state.current.hero.position);
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                console.log(inputCards, ' ippp')
                 const villainCards = getVillainCards(inputCards, villains);
                 const showdownHands = [{
                     playerId: state.current.hero.position,
@@ -167,6 +166,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
                 const actionInfo = parseAction(mostRecentActionText, playerToAct);
                 const playerAction = buildBasePlayerAction(actionInfo, state.current.stage);
+                playerAction.isLastActionForStage = initialStage !== nextStage;
                 const actingPlayer = playerAction.position;
                 const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, playerAction);
                 playerAction.amount = newPlayerBetTotal;
@@ -219,6 +219,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     ...finalState,
                     actionSequence: getNewActionSequence(initialStage, finalState.playerActions),
                     betsThisStreet: {},
+                    potForStreetMap: {...finalState.potForStreetMap, [nextStage]: finalState.pot},
                     currentBetFacing: 0,
                 };
             }
@@ -239,7 +240,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 actionSequence: moveFirstTwoToEnd(actionSequence),
                 pot: smallBlind + bigBlind,
                 hero: { position: heroPosition, hand: parsePokerHandString(upperCasedHand) },
-                deck: filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), state.current.deck),
+                deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
                 playerActions: [],
                 stage: Stage.Preflop,
                 cards: initialState.cards,
@@ -335,12 +336,12 @@ export default function App() {
             >
                 <View style={{
                     alignItems: 'center',
-                    marginInline: 8,
+                    marginInline: 6,
                     marginTop: 12,
                     flexDirection: 'row',
                     justifyContent: 'space-between'
                 }}>
-                    <Text style={styles.potText}>Pot: ${state.current.pot}</Text>
+                    <Text style={styles.potText} onPress={() => dispatch({type: DispatchActionType.kReset, payload: {}})}>Eff: $700</Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
                 {/* ScrollView now takes up available space within KAV */}
@@ -350,10 +351,11 @@ export default function App() {
                     contentContainerStyle={styles.contentContainer} // Add padding inside if needed
                     keyboardShouldPersistTaps="handled" // Good practice
                 >
-                    {state.current.stage !== Stage.Showdown && state.current.playerActions.length > 0 && (
+                    {state.current.stage !== Stage.Showdown && (
                         <ActionList
                             actionList={state.current.playerActions}
-                            heroPosition={state.current.hero.position}
+                            potForStreetMap={state.current.potForStreetMap}
+                            currentStage={state.current.stage}
                         />
                     )}
 
@@ -498,7 +500,7 @@ function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] 
         let trim = h.trim();
         return transFormCardsToFormattedString(trim);
     });
-    console.log('villain hands ', hands)
+    // TODO format hands
     let output = []
     for (let i = 0; i < villains.length; i++) {
         let currHand = hands[i];
@@ -574,7 +576,7 @@ function getIdForPlayerAction(action: PlayerAction): string {
 }
 
 function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage): PlayerAction {
-    const action: PlayerAction = { text: '', stage, shouldHideFromUi: false, ...actionInfo, id: '' };
+    const action: PlayerAction = { text: '', stage, isLastActionForStage: false, shouldHideFromUi: false, ...actionInfo, id: '' };
     action.id = getIdForPlayerAction(action);
     return action;
 }
@@ -671,9 +673,9 @@ const styles = StyleSheet.create({
     },
     potText: {
         fontSize: 16,
-        fontWeight: '500',
         width: '30%',
-        color: '#333',
+        fontWeight: '800',
+        color: '#555'
     },
     inputContainer: {
         paddingHorizontal: 16,

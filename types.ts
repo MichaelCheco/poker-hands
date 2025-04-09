@@ -58,6 +58,7 @@ export interface PlayerAction {
     stage: Stage;
     shouldHideFromUi: boolean;
     id: string;
+    isLastActionForStage: boolean;
 }
 
 export interface ActionTextToken {
@@ -78,6 +79,7 @@ export interface GameState {
     pot: number;
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
+    potForStreetMap: { [key in Position]?: number };
     stacks: { [key in Position]?: number  };
     currentBetFacing: number;
     mostRecentBet: number;
