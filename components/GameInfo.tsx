@@ -1,17 +1,11 @@
 import * as React from 'react';
-import { Appbar } from 'react-native-paper';
-import { MyHand } from './Cards';
+import { Text } from 'react-native-paper';
 
 const GameInfo = ({ info }) => {
   return (
-    <Appbar.Header>
-      <Appbar.Content
-        title={`$${info.smallBlind}/$${info.bigBlind} • ${info.location} • ${info.position}`}
-        titleStyle={{ fontSize: 18 }}
-
-      />
-      <Appbar.Content title={<MyHand cards={info.hand} />} style={{alignSelf: 'flex-end'}}/>
-    </Appbar.Header>
+    <Text style={{fontSize: 20, fontWeight: 'bold', color: '#555'}}>
+      ${info.smallBlind}/${info.bigBlind} • {info.location}
+    </Text>
   );
 };
 

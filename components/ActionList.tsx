@@ -3,7 +3,7 @@ import * as React from 'react';
 import { StyleSheet } from 'react-native';
 import { List, Text } from 'react-native-paper';
 // item.position === heroPosition ? 'HERO' : item.position
-export default function ActionList({ stage, actionList, heroPosition }: { stage: Stage, actionList: PlayerAction[], heroPosition: string; }) {
+export default function ActionList({ actionList, heroPosition }: { actionList: PlayerAction[], heroPosition: string; }) {
     const filteredActions = actionList.filter(action => !action.shouldHideFromUi);
     return (
         <List.Section>

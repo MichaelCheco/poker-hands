@@ -29,7 +29,6 @@ export enum DispatchActionType {
     kTransition,
     kAddAction,
     kSetInput,
-    kSetVisibleStage,
     kReset,
     kUndo,
 }
@@ -72,7 +71,6 @@ export interface GameState {
     cards: string[];
     playerActions: PlayerAction[];
     stage: Stage;
-    stageDisplayed: Stage;
     hero: { position: string, hand: string };
     actionSequence: Position[];
     pot: number;

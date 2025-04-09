@@ -139,7 +139,6 @@ export const initialState: InitialState = {
     cards: ['', '', '', '', ''],
     playerActions: [],
     stage: Stage.Preflop,
-    stageDisplayed: Stage.Preflop,
     hero: {position: '', hand: ''},
     actionSequence: [],
     pot: 0,
