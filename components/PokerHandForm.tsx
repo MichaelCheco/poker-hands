@@ -4,7 +4,6 @@ import { useForm, Controller, FieldValues } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as Yup from 'yup';
 import { TextInput, Button, HelperText, useTheme } from 'react-native-paper';
-import { Dropdown } from 'react-native-paper-dropdown';
 import { useRouter } from 'expo-router';
 import { playerOptions, positionMapping } from '@/constants';
 
@@ -83,11 +82,8 @@ function PokerHandForm() {
                             label="Small Blind"
                             onBlur={onBlur}
                             onChangeText={(text) => {
-                                const num = Number(text);
-                                if (isNaN(num)) {
-                                    return;
-                                }
-                                return onChange(text === '' ? 0 : num);
+                                const numericText = text.replace(/[^0-9]/g, '');
+                                return onChange(numericText);
                             }}
                             value={String(value)}
                             keyboardType="numeric"
@@ -109,11 +105,8 @@ function PokerHandForm() {
                             label="Big Blind"
                             onBlur={onBlur}
                             onChangeText={(text) => {
-                                const num = Number(text);
-                                if (isNaN(num)) {
-                                    return;
-                                }
-                                return onChange(text === '' ? 0 : num);
+                                const numericText = text.replace(/[^0-9]/g, '');
+                                return onChange(numericText);
                             }}
                             value={String(value)}
                             keyboardType="numeric"
@@ -141,21 +134,28 @@ function PokerHandForm() {
                             activeOutlineColor='#000000'
                             error={!!errors.smallBlind}
                         />
-                        {errors.smallBlind && <HelperText type="error" visible={!!errors.location}>{errors.location.message}</HelperText>}
+                        {errors.location && <HelperText type="error" visible={!!errors.location}>{errors.location.message}</HelperText>}
                     </>
                 )}
                 name="location"
             />
             <Controller
                 control={control}
-                render={({ field: { onChange, value } }) => (
+                render={({ field: { onChange, onBlur, value } }) => (
                     <>
-                        <Dropdown
-                            label="Players"
-                            mode="outlined"
+                        <TextInput
+                            label="Number of Players"
+                            onBlur={onBlur}
+                            onChangeText={(text) => {
+                                const numericText = text.replace(/[^0-9]/g, '');
+                                return onChange(numericText);
+                            }}
                             value={String(value)}
-                            options={playerOptions}
-                            onSelect={onChange}
+                            keyboardType="numeric"
+                            mode="outlined"
+                            style={styles.input}
+                            activeOutlineColor='#000000'
+                            error={!!errors.numPlayers}
                         />
                         {errors.numPlayers && <HelperText type="error" visible={!!errors.numPlayers}>{errors.numPlayers.message}</HelperText>}
                     </>
@@ -164,16 +164,20 @@ function PokerHandForm() {
             />
             <Controller
                 control={control}
-                render={({ field: { onChange, value } }) => (
+                render={({ field: { onChange, onBlur, value } }) => (
                     <>
-                        <Dropdown
+                        <TextInput
                             label="Hero's Position"
-                            mode="outlined"
+                            placeholder={positionOptions.map(v => v.value).join(', ')}
+                            onBlur={onBlur}
+                            onChangeText={onChange}
                             value={value}
-                            options={positionOptions}
-                            onSelect={onChange}
+                            mode="outlined"
+                            style={styles.input}
+                            activeOutlineColor='#000000'
+                            error={!!errors.smallBlind}
                         />
-                        {errors.position && <HelperText type="error" visible={!!errors.position}> {errors.position.message}</HelperText>}
+                        {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position.message}</HelperText>}
                     </>
                 )}
                 name="position"

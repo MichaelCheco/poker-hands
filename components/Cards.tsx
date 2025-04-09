@@ -51,6 +51,43 @@ export const Card: React.FC<CardProps> = ({ card, style, textStyle }) => {
   );
 };
 
+export const SimpleCard: React.FC<CardProps> = ({ card, style, textStyle }) => {
+  const rank = card.substring(0, card.length - 1).toUpperCase();
+  const suitChar = card.substring(card.length - 1).toLowerCase();
+
+  const { color: suitColor, symbol: suitSymbol } = getSuitInfo(suitChar);
+
+  return (
+    <View style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
+      <Text style={[styles.cardText, { color: suitColor }, textStyle]}>
+        {rank}
+      </Text>
+      <Text style={[styles.cardText, { color: suitColor }, textStyle, {fontSize: 14}]}>
+        {suitSymbol}
+      </Text>
+    </View>
+  );
+};
+
+export const MyHand = ({ cards }: { cards: string }) => {
+  return (
+    <View style={{ flexDirection: 'row' }}>
+      <SimpleCard textStyle={{marginEnd: 2}} card={cards.substring(0, 2)} />
+      <SimpleCard card={cards.substring(2)} />
+    </View>
+  )
+};
+
+export const CommunityCards = ({ cards }: { cards: string[] }) => {
+  return (
+    <View style={{ flexDirection: 'row' }}>
+      {cards.map((card, i) => (
+        <Card card={card} key={i} />
+      ))}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: '#FFFFFF',
@@ -79,22 +116,3 @@ const styles = StyleSheet.create({
     color: '#757575',
   }
 });
-
-export const MyHand = ({ cards }: { cards: string }) => {
-  return (
-    <View style={{ flexDirection: 'row', padding: 10 }}>
-      <Card card={cards.substring(0, 2)} />
-      <Card card={cards.substring(2)} />
-    </View>
-  )
-};
-
-export const CommunityCards = ({ cards }: { cards: string[] }) => {
-  return (
-    <View style={{ flexDirection: 'row', padding: 8, paddingRight: 4 }}>
-      {cards.map((card, i) => (
-        <Card card={card} key={i} />
-      ))}
-    </View>
-  )
-}

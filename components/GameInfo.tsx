@@ -8,8 +8,9 @@ const GameInfo = ({ info }) => {
       <Appbar.Content
         title={`$${info.smallBlind}/$${info.bigBlind} • ${info.location} • ${info.position}`}
         titleStyle={{ fontSize: 18 }}
+
       />
-      <MyHand cards={info.hand} />
+      <Appbar.Content title={<MyHand cards={info.hand} />} style={{alignSelf: 'flex-end'}}/>
     </Appbar.Header>
   );
 };

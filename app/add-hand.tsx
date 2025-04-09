@@ -1,11 +1,11 @@
-import React, { useReducer, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView,  KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage } from '@/types';
-import { CommunityCards } from '@/components/Cards';
+import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { formatCommunityCards, getInitialGameState, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
@@ -13,7 +13,9 @@ import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import { ImmutableStack } from '@/ImmutableStack';
-import { useSafeAreaInsets, SafeAreaView} from 'react-native-safe-area-context'; // 1. Import the hook
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'; // 1. Import the hook
+import { useNavigation } from '@react-navigation/native'; // Or get navigation from props if using older class components/navigation versions
 
 interface GameAppState {
     current: GameState; // The current state of the game
@@ -23,7 +25,7 @@ interface GameAppState {
 function removeAfterLastComma(input: string): string {
     const lastIndex = input.lastIndexOf(",");
     return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
-  }
+}
 
 function isRecordedAction(playerActions: PlayerAction[], text: string, playerToAct: string, stage: Stage): boolean {
     const actionText = getLastAction(text.endsWith('.') ? text.slice(0, -1) : text);
@@ -45,14 +47,14 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             if (state.history.size === 1) {
                 return state;
             }
-            const {stack: updatedHistory, value: previousState} = state.history.pop();
-                return {
-                    current: {...previousState as GameState, input: removeAfterLastComma(previousState?.input || '')}, // Revert current game state
-                    history: updatedHistory,
-                };
+            const { stack: updatedHistory, value: previousState } = state.history.pop();
+            return {
+                current: { ...previousState as GameState, input: removeAfterLastComma(previousState?.input || '') }, // Revert current game state
+                history: updatedHistory,
+            };
         case DispatchActionType.kSetInput:
             return {
-                current: {...state.current, input: action.payload.input},
+                current: { ...state.current, input: action.payload.input },
                 history: state.history,
             };
 
@@ -67,7 +69,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             if (state.current.playerActions.some(ac => ac.id === playerAction.id)) {
                 console.log(`id matched for input: ${mostRecentActionText}`)
                 return {
-                    current: {...state.current, input: action.payload.input},
+                    current: { ...state.current, input: action.payload.input },
                     history: state.history,
                 };
             }
@@ -218,7 +220,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
             const newHistory = state.history.push(currentState);
             const newTransitionState = {
-                current: {...finalState},
+                current: { ...finalState },
                 history: newHistory,
             }
             console.log('newTransitionState ', newTransitionState);
@@ -228,7 +230,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
         case DispatchActionType.kSetVisibleStage:
             return {
-                current: {...state.current, stageDisplayed: action.payload.newStage},
+                current: { ...state.current, stageDisplayed: action.payload.newStage },
                 history: state.history,
             };
 
@@ -251,7 +253,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 stacks: parseStackSizes(relevantStacks),
             };
             const gameInfoStateInitial = {
-                current: {...initialGameState},
+                current: { ...initialGameState },
                 history: state.history,
             };
             return gameInfoStateInitial;
@@ -271,6 +273,7 @@ const initialAppState: GameAppState = {
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const theme = useTheme();
+    const headerHeight = useHeaderHeight();
     const [logging, setLogging] = useState(false)
     const gameInfo: PokerFormData = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialAppState);
@@ -278,8 +281,32 @@ export default function App() {
     const scrollViewRef = useRef<ScrollView>(null);
     const baseInputPaddingBottom = Platform.OS === 'ios' ? 8 : 12;
     const insets = useSafeAreaInsets(); // 2. Get safe area insets
+    const navigation = useNavigation();
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerLeft: () => (
+                <Text
+                    style={{
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        color: '#555'
+                    }}
+                >${gameInfo.smallBlind}/${gameInfo.bigBlind} • {gameInfo.location}</Text>
+            ),
+            headerRight: () => (
+                <View style={{
+                    flexDirection: 'row', alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    <MyHand cards={parsePokerHandString(gameInfo.hand.toUpperCase())} />
+                    <Text style={{ marginInline: 4, fontSize: 20, fontWeight: 'bold' }}>•</Text>
+                    <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{gameInfo.position}</Text>
+                </View>
 
-    React.useEffect(() => {
+            ),
+        });
+    }, [navigation]);
+    useEffect(() => {
         dispatch({
             type: DispatchActionType.kSetGameInfo,
             payload: {
@@ -306,6 +333,16 @@ export default function App() {
         }
         dispatch({ type, payload: { input: text } });
     };
+
+    useEffect(() => {
+        if (state.current.playerActions.length > 0) {
+            // Use setTimeout to ensure layout is updated before scrolling
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [state.current.playerActions.length]);
+
     const handleInputFocus = () => {
         // Scroll to the end when the input is focused
         // Use setTimeout to allow keyboard animation to potentially finish
@@ -317,16 +354,25 @@ export default function App() {
         dispatch({ type: DispatchActionType.kUndo, payload: {} });
         // Optionally blur input after undo if desired
         // textInputRef.current?.blur();
-   };
+    };
     return (
-        // Outermost View provides background and flex setup
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoidingContainer}
                 // Adjust offset if you have a header above this screen component
-                // keyboardVerticalOffset={HEADER_HEIGHT}
+                keyboardVerticalOffset={headerHeight - 5}
             >
+                <View style={{
+                    alignItems: 'center',
+                    marginInline: 8,
+                    marginTop: 12,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between'
+                }}>
+                    <Text style={styles.potText} onPress={() => setLogging(true)}>Pot: ${state.current.pot}</Text>
+                    <CommunityCards cards={state.current.cards} />
+                </View>
                 {/* ScrollView now takes up available space within KAV */}
                 <ScrollView
                     ref={scrollViewRef}
@@ -334,12 +380,6 @@ export default function App() {
                     contentContainerStyle={styles.contentContainer} // Add padding inside if needed
                     keyboardShouldPersistTaps="handled" // Good practice
                 >
-                    <GameInfo info={gameInfo} />
-                    <View style={styles.infoRow}>
-                        <Text style={styles.potText} onPress={() => setLogging(true)}>Pot: ${state.current.pot}</Text>
-                        <CommunityCards cards={state.current.cards} />
-                    </View>
-
                     {/* ActionList should now scroll correctly */}
                     {state.current.playerActions.length > 0 && (
                         <ActionList
@@ -375,10 +415,8 @@ export default function App() {
                             style={styles.input}
                             autoFocus
                             activeOutlineColor='#000000'
-                            onFocus={handleInputFocus} // Add the onFocus handler
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={false} />} // Added forceTextInputFocus=false
                         />
-                        {/* Removed separate undo button View */}
                     </SafeAreaView>
                 )}
             </KeyboardAvoidingView>
@@ -392,7 +430,7 @@ const styles = StyleSheet.create({
     },
     keyboardAvoidingContainer: { // KAV needs flex: 1 to manage space
         flex: 1,
-        
+
     },
     content: {
         flex: 1, // Allows ScrollView to grow/shrink within KAV
@@ -404,14 +442,15 @@ const styles = StyleSheet.create({
     infoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 4,
         marginBottom: 4,
+        marginTop: 12,
     },
     potText: {
         fontSize: 16,
         fontWeight: '500',
+        width: '30%',
         color: '#333', // Adjust color based on theme if needed
     },
     inputContainer: {
@@ -423,15 +462,10 @@ const styles = StyleSheet.create({
         // backgroundColor: 'blue', // Use theme.colors.background?
         flexDirection: 'row',
         alignItems: 'center', // Center items vertically if needed (adjust from stretch)
-        // borderTopWidth: 1,
-        // borderTopColor: '#e0e0e0', // Use theme color?
     },
     input: {
-        flex: 1, // Take available horizontal space
-        // marginRight: 8, // Only needed if there was a separate button
-        // height: 56, // Let the input determine its height based on mode/content unless fixed height needed
+        flex: 1,
     },
-    // Removed undoButton style as icon is part of TextInput
 });
 
 function getUpdatedBettingInfo(
