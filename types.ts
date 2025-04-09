@@ -1,3 +1,5 @@
+import { PokerPlayerInput } from "./hand-evaluator";
+
 export enum Stage {
     Preflop,
     Flop,
@@ -79,6 +81,5 @@ export interface GameState {
     stacks: { [key in Position]?: number  };
     currentBetFacing: number;
     mostRecentBet: number;
-    villainCards: any;
-    showdown: { text: string, winner: string, combination: string[] };
+    showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] };
 }

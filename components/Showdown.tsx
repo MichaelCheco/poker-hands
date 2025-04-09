@@ -2,37 +2,34 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { List, Card, Text } from 'react-native-paper';
 import PokerHandHistory from './HandHistory';
-import { MyHand } from './Cards';
+import { MyHand, ShowdownCards } from './Cards';
+import { PokerPlayerInput } from '@/hand-evaluator';
 
-const Showdown = ({ villainCards, playerActions, showdown }) => {
+const Showdown = ({ showdown }: { showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] } }) => {
     return (
         <View>
-        <List.Section>
-            {villainCards.map((villain, index) => (
-                <List.Item
-                    contentStyle={{ flexGrow: 0 }}
-                    key={`${villain.playerId}-${villain.holeCards.join('')}-${index}`}
-                    title={`shows`}
-                    titleStyle={styles.actionText}
-                    left={() => <Text style={styles.actionPosition}>{villain.playerId}</Text>}
-                    right={() => <MyHand cards={villain.holeCards.join('')} />}
-                    style={{ ...styles.actionItem }}
-                />
-            ))}
-            <List.Item key={'showdown'}
-                title={`wins with ${showdown.text}`}
-                titleStyle={styles.actionText}
-                left={() => <Text style={styles.actionPosition}>{showdown.winner}</Text>}
-                style={{ ...styles.actionItem, flexGrow: 0 }} />
-        </List.Section>
-        <PokerHandHistory actions={playerActions} />
-    </View>
+            <List.Section>
+                {showdown.hands.map((hand, index) => {
+                    return (
+                        <List.Item
+                            contentStyle={{ flexGrow: 0, alignItems: 'center' }}
+                            key={`${hand.playerId}-${hand.holeCards.join('')}-${index}`}
+                            title={() => <MyHand cards={hand.holeCards.join('')} />}
+                            left={() => <Text style={styles.actionPosition}>{hand.playerId}</Text>}
+                            right={hand.playerId === showdown.winner ? () => <Text style={{marginInlineStart: 8, alignSelf: 'center'}}>wins with {showdown.text}</Text> : undefined}
+                        />
+                    )
+                }
+                )}
+            </List.Section>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     actionText: {
-        fontSize: 14,
+        fontSize: 16,
+        marginRight: 0,
     },
     actionItem: {
         paddingVertical: 4,

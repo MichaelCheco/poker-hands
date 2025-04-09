@@ -143,18 +143,22 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             } else if (state.current.currentAction.actionType === ActionType.kVillainCards) {
                 let villains = state.current.actionSequence.filter(v => v !== state.current.hero.position);
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
+                console.log(inputCards, ' ippp')
                 const villainCards = getVillainCards(inputCards, villains);
-                propertyUpdates.villainCards = villainCards;
-
+                const showdownHands = [{
+                    playerId: state.current.hero.position,
+                    holeCards: [state.current.hero.hand.slice(0, 2), state.current.hero.hand.slice(2)]
+                }, ...villainCards];
                 const result = determinePokerWinnerManual(
-                    [...villainCards,
-                    {
-                        playerId: state.current.hero.position,
-                        holeCards: [state.current.hero.hand.slice(0, 2), state.current.hero.hand.slice(2)]
-                    }],
+                    showdownHands,
                     formatCommunityCards(state.current.cards)) as WinnerInfo;
                 // TODO
-                propertyUpdates.showdown = { combination: result.bestHandCards.sort(), text: result.winningHandDescription, winner: `${result.winners.map(w => w.playerId)[0]}` };
+                propertyUpdates.showdown = {
+                    combination: result.bestHandCards,
+                    hands: showdownHands,
+                    text: result.winningHandDescription,
+                    winner: `${result.winners.map(w => w.playerId)[0]}`
+                };
                 // Check if there's action input
             } else if (action.payload.input.trim().length > 1) {
                 // Handle the last player action input before transitioning
@@ -276,7 +280,7 @@ export default function App() {
     useLayoutEffect(() => {
         navigation.setOptions({
             headerLeft: () => <GameInfo info={gameInfo} />,
-            headerRight: () => <HeroHandInfo info={gameInfo}/>,
+            headerRight: () => <HeroHandInfo info={gameInfo} />,
         });
     }, [navigation]);
 
@@ -346,8 +350,7 @@ export default function App() {
                     contentContainerStyle={styles.contentContainer} // Add padding inside if needed
                     keyboardShouldPersistTaps="handled" // Good practice
                 >
-                    {/* ActionList should now scroll correctly */}
-                    {state.current.playerActions.length > 0 && (
+                    {state.current.stage !== Stage.Showdown && state.current.playerActions.length > 0 && (
                         <ActionList
                             actionList={state.current.playerActions}
                             heroPosition={state.current.hero.position}
@@ -355,11 +358,7 @@ export default function App() {
                     )}
 
                     {state.current.stage === Stage.Showdown && state.current.showdown && (
-                        <Showdown
-                            playerActions={state.current.playerActions}
-                            showdown={state.current.showdown}
-                            villainCards={state.current.villainCards}
-                        />
+                        <Showdown showdown={state.current.showdown} />
                     )}
                 </ScrollView>
 
@@ -374,7 +373,7 @@ export default function App() {
                     ]}>
                         <TextInput
                             mode="outlined"
-                            label={state.current.currentAction?.placeholder || 'Enter action'} // Handle case where currentAction might be null/undefined initially
+                            label={state.current.currentAction?.placeholder}
                             onChangeText={handleInputChange}
                             // submitBehavior={'newline'}
                             value={state.current.input}
@@ -384,7 +383,7 @@ export default function App() {
                             returnKeyType="next"
                             onSubmitEditing={() => {
                                 console.log(state.current.input);
-                               }}
+                            }}
                             activeOutlineColor='#000000'
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={false} />}
                         />
@@ -394,46 +393,6 @@ export default function App() {
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    keyboardAvoidingContainer: { // KAV needs flex: 1 to manage space
-        flex: 1,
-
-    },
-    content: {
-        flex: 1, // Allows ScrollView to grow/shrink within KAV
-    },
-    contentContainer: {
-        paddingBottom: 10,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        marginBottom: 4,
-        marginTop: 12,
-    },
-    potText: {
-        fontSize: 16,
-        fontWeight: '500',
-        width: '30%',
-        color: '#333',
-    },
-    inputContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 0,
-        paddingBottom: Platform.OS === 'ios' ? 6 : 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    input: {
-        flex: 1,
-    },
-});
 
 function getUpdatedBettingInfo(
     betsThisStreet: { [key in Position]?: number },
@@ -535,7 +494,10 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
 }
 
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
-    let hands = cards.split(",").map(h => transFormCardsToFormattedString(h));
+    let hands = cards.split(",").map(h => {
+        let trim = h.trim();
+        return transFormCardsToFormattedString(trim);
+    });
     console.log('villain hands ', hands)
     let output = []
     for (let i = 0; i < villains.length; i++) {
@@ -684,3 +646,43 @@ function extractCards(str: string): string[] {
     }
     return result;
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    keyboardAvoidingContainer: { // KAV needs flex: 1 to manage space
+        flex: 1,
+
+    },
+    content: {
+        flex: 1, // Allows ScrollView to grow/shrink within KAV
+    },
+    contentContainer: {
+        paddingBottom: 10,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        marginBottom: 4,
+        marginTop: 12,
+    },
+    potText: {
+        fontSize: 16,
+        fontWeight: '500',
+        width: '30%',
+        color: '#333',
+    },
+    inputContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 0,
+        paddingBottom: Platform.OS === 'ios' ? 6 : 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    input: {
+        flex: 1,
+    },
+});

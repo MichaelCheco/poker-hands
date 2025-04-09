@@ -78,6 +78,16 @@ export const MyHand = ({ cards }: { cards: string }) => {
   )
 };
 
+export const ShowdownCards = ({ cards }: { cards: string[] }) => {
+  return (
+    <View style={{ flexDirection: 'row', gap: 4 }}>
+      {cards.map((card, i) => (
+        <SimpleCard card={card} key={i} />
+      ))}
+    </View>
+  )
+}
+
 export const CommunityCards = ({ cards }: { cards: string[] }) => {
   return (
     <View style={{ flexDirection: 'row' }}>
