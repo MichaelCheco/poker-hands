@@ -1,13 +1,19 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { List, Card, Text } from 'react-native-paper';
+import { List, Card, Text, Icon, Button, useTheme } from 'react-native-paper';
 import PokerHandHistory from './HandHistory';
 import { MyHand, ShowdownCards } from './Cards';
 import { PokerPlayerInput } from '@/hand-evaluator';
 
+/**
+* icons  content-copy
+
+ */
 const Showdown = ({ showdown }: { showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] } }) => {
+    const theme = useTheme();
+
     return (
-        <View>
+        <View style={{ marginInline: 8 }}>
             <List.Section>
                 {showdown.hands.map((hand, index) => {
                     return (
@@ -16,12 +22,21 @@ const Showdown = ({ showdown }: { showdown: { text: string, winner: string, comb
                             key={`${hand.playerId}-${hand.holeCards.join('')}-${index}`}
                             title={() => <MyHand cards={hand.holeCards.join('')} />}
                             left={() => <Text style={styles.actionPosition}>{hand.playerId}</Text>}
-                            right={hand.playerId === showdown.winner ? () => <Text style={{marginInlineStart: 8, alignSelf: 'center'}}>wins with {showdown.text}</Text> : undefined}
+                            right={hand.playerId === showdown.winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins with {showdown.text}</Text> : undefined}
                         />
                     )
                 }
                 )}
             </List.Section>
+            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginLeft: 8 }}>
+                <Icon
+                    source="content-copy"
+                    size={40}
+                    color='#000000'
+                />
+                <Button mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
+            </View>
+
         </View>
     );
 };

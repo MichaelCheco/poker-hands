@@ -1,8 +1,6 @@
 CURRENT TODOS:
-* Support random suit for card
-* Support AJss / 745xhh notation
-* Scrollable, sticky action list
-
+* Add dividers for streets to action list
+* Make copy to clipboard and Save actions work
 
 TODO ACTION LOG:
 * Experiment with icons
