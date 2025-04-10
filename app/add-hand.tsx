@@ -17,7 +17,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'; // 1. Import the hook
 import { useNavigation } from '@react-navigation/native'; // Or get navigation from props if using older class components/navigation versions
 import HeroHandInfo from '@/components/HeroHandInfo';
-
+let start;
 interface GameAppState {
     current: GameState; // The current state of the game
     history: ImmutableStack<GameState>; // The stack holding previous states
@@ -253,16 +253,17 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 input: '',
                 betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
                 currentBetFacing: bigBlind,
-                stacks: parseStackSizes(relevantStacks),
+                stacks: parseStackSizes(relevantStacks, actionSequence),
             };
             const gameInfoStateInitial = {
                 current: { ...initialGameState },
                 history: state.history,
             };
+            start = gameInfoStateInitial;
             return gameInfoStateInitial;
         }
         case DispatchActionType.kReset:
-            console.log(getInitialGameState())
+            return start;
             return {
                 current: getInitialGameState(),
                 history: ImmutableStack.create<GameState>([getInitialGameState()])
@@ -351,7 +352,9 @@ export default function App() {
                     flexDirection: 'row',
                     justifyContent: 'space-between'
                 }}>
-                    <Text style={styles.potText} onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>Eff: $700</Text>
+                    <Text style={styles.potText} onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
+                        Eff: {calculateEffectiveStack(state.current.actionSequence, state.current.stacks)}
+                    </Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
                 {/* ScrollView now takes up available space within KAV */}
@@ -410,6 +413,23 @@ export default function App() {
             </KeyboardAvoidingView>
         </View>
     );
+}
+
+function calculateEffectiveStack(
+    positionsLeft: string[],
+    stacks: { [position: string]: number }
+): number {
+    console.log(positionsLeft, stacks);
+    // 1. Map the list of positions directly to their stack sizes
+    //    (Assumes every position exists in stacks and the value is a number)
+    const relevantStacks = positionsLeft.map(position => stacks[position]);
+
+    // 2. Find the minimum value among those stack sizes
+    //    Math.min() returns Infinity if relevantStacks is empty (shouldn't happen if positionsLeft isn't empty)
+    //    Math.min() returns NaN if any value in relevantStacks is not a number (e.g., undefined from a bad lookup)
+    const effectiveStack = Math.min(...relevantStacks);
+
+    return effectiveStack;
 }
 
 

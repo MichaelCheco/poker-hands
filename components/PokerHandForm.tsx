@@ -44,7 +44,7 @@ export interface PokerFormData extends FieldValues {
 function PokerHandForm() {
     const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<PokerFormData>({
         resolver: yupResolver(handFormValidationSchema),
-        defaultValues: { smallBlind: 5, bigBlind: 5, location: 'Aria', numPlayers: 6, position: 'SB', hand: '8s8c', relevantStacks: 'SB 400', },
+        defaultValues: { smallBlind: 5, bigBlind: 5, location: 'Aria', numPlayers: 6, position: 'SB', hand: '8s8c', relevantStacks: 'SB 400, CO 600', },
     });
     const router = useRouter();
     const theme = useTheme();

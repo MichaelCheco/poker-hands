@@ -1,11 +1,10 @@
 import { initialState } from "./constants";
 import { GameState, Position } from "./types";
-
-export function parseStackSizes(stackString: string) {
+export function parseStackSizes(stackString: string, sequence: string[]): {[position: string]: number} {
     if (!stackString) {
-        return [];
+        return {};
     }
-    const stackObjects = {};
+    const stackObjects: {[position: string]: number} = {};
     const stackEntries = stackString.split(',').map(entry => entry.trim());
     for (const entry of stackEntries) {
         const match = entry.match(/^([a-zA-Z]+)\s+(\d+)$/);
@@ -17,7 +16,12 @@ export function parseStackSizes(stackString: string) {
             }
         }
     }
-    return stackObjects;
+    return sequence.reduce((acc, player) => {
+        if (!stackObjects[player]) {
+            stackObjects[player] = Number.POSITIVE_INFINITY;
+        }
+        return acc;
+    }, stackObjects);
 }
 
 export function transFormCardsToFormattedString(cards: string): string {
