@@ -37,6 +37,16 @@ function isRecordedAction(playerActions: PlayerAction[], text: string, playerToA
     return result;
 }
 
+function hasActionBeenAddedAlready(playerActions: PlayerAction[], currentAction: PlayerAction): boolean {
+    return playerActions.some(action => action.id === currentAction.id);
+}
+
+function getNumBetsForStage(playerActions: PlayerAction[], stage: Stage): number {
+    let numBets = playerActions.filter(a => a.stage === stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
+    numBets = stage === Stage.Preflop ? numBets + 1 : numBets;
+    return numBets;
+}
+
 function shouldTriggerUndo(text: string, currState: GameState): boolean {
     const isAddAction = text.endsWith(',');
     return (isAddAction || `${text},` === currState.input) && isRecordedAction(currState.playerActions, text, currState.actionSequence[0] || '', currState.stage);
@@ -45,13 +55,12 @@ function shouldTriggerUndo(text: string, currState: GameState): boolean {
 function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
         case DispatchActionType.kUndo:
-            // console.log(state, ' state before undo')
             if (state.history.size === 1) {
                 return state;
             }
             const { stack: updatedHistory, value: previousState } = state.history.pop();
             return {
-                current: { ...previousState as GameState, input: removeAfterLastComma(previousState?.input || '') }, // Revert current game state
+                current: { ...previousState as GameState, input: removeAfterLastComma(previousState?.input || '') },
                 history: updatedHistory,
             };
         case DispatchActionType.kSetInput:
@@ -61,14 +70,11 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             };
 
         case DispatchActionType.kAddAction: {
-            const currentState = state.current;
+            const currentGameState = state.current;
             const mostRecentActionText = getLastAction(action.payload.input);
-            // Player to act is always the first in the current sequence
-            const playerToAct = state.current.actionSequence[0];
-            const actionInfo = parseAction(mostRecentActionText, playerToAct);
-            const playerAction = buildBasePlayerAction(actionInfo, state.current.stage);
-            // attempt at handling input after undo
-            if (state.current.playerActions.some(ac => ac.id === playerAction.id)) {
+            const playerAction = getPlayerAction(state.current.actionSequence[0], getLastAction(action.payload.input), state.current.stage)
+
+            if (hasActionBeenAddedAlready(state.current.playerActions, playerAction)) {
                 console.log(`id matched for input: ${mostRecentActionText}`)
                 return {
                     current: { ...state.current, input: action.payload.input },
@@ -81,14 +87,16 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
             const actingPlayer = playerAction.position;
             // Calculate betting information updates (if applicable) based on new player action
-            const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, playerAction);
+            const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
+              getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = newPlayerBetTotal;
-            let numBets = state.current.playerActions.filter(a => a.stage === state.current.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
-            numBets = state.current.stage === Stage.Preflop ? numBets + 1 : numBets;
-            playerAction.text = getMeaningfulTextToDisplay(playerAction, numBets, state.current.stage);
-            let newActionSequence = [...state.current.actionSequence];
+            playerAction.text = getMeaningfulTextToDisplay(
+                playerAction,
+                getNumBetsForStage(state.current.playerActions, state.current.stage),
+                state.current.stage);
 
+            let newActionSequence = [...state.current.actionSequence];
             if (state.current.stage !== Stage.Preflop) {
                 const remainingPlayers = state.current.actionSequence.slice(1);
                 // If the player didn't fold, add them to the end of the remaining sequence
@@ -106,13 +114,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 playerActions: newPlayerActions,
                 actionSequence: newActionSequence,
                 pot: state.current.pot + amountToAdd,
+                currentBetFacing: newCurrentBetFacing,
                 betsThisStreet: {
                     ...state.current.betsThisStreet,
                     [actingPlayer]: newPlayerBetTotal,
                 },
-                currentBetFacing: newCurrentBetFacing,
             };
-            const newHistory = state.history.push(currentState);
+            const newHistory = state.history.push(currentGameState);
             const newStateAfterAdd = {
                 current: addActionState,
                 history: newHistory,
@@ -219,7 +227,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     ...finalState,
                     actionSequence: getNewActionSequence(initialStage, finalState.playerActions),
                     betsThisStreet: {},
-                    potForStreetMap: {...finalState.potForStreetMap, [nextStage]: finalState.pot},
+                    potForStreetMap: { ...finalState.potForStreetMap, [nextStage]: finalState.pot },
                     currentBetFacing: 0,
                 };
             }
@@ -257,8 +265,10 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
         }
         case DispatchActionType.kReset:
             console.log(getInitialGameState())
-            return { current: getInitialGameState(),
-                     history: ImmutableStack.create<GameState>([getInitialGameState()])};
+            return {
+                current: getInitialGameState(),
+                history: ImmutableStack.create<GameState>([getInitialGameState()])
+            };
         default:
             return state;
     }
@@ -343,7 +353,7 @@ export default function App() {
                     flexDirection: 'row',
                     justifyContent: 'space-between'
                 }}>
-                    <Text style={styles.potText} onPress={() => dispatch({type: DispatchActionType.kReset, payload: {}})}>Eff: $700</Text>
+                    <Text style={styles.potText} onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>Eff: $700</Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
                 {/* ScrollView now takes up available space within KAV */}
@@ -402,6 +412,11 @@ export default function App() {
     );
 }
 
+
+function getPlayerAction(playerToAct: string, mostRecentActionText: string, stage: Stage): PlayerAction {
+    const actionInfo = parseAction(mostRecentActionText, playerToAct);
+    return buildBasePlayerAction(actionInfo, stage);
+}
 function getUpdatedBettingInfo(
     betsThisStreet: { [key in Position]?: number },
     currentBetFacing: number, playerAction: PlayerAction) {
