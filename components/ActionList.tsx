@@ -3,16 +3,6 @@ import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Divider, List, Text } from 'react-native-paper';
 
-const getStageName = (stage) => {
-    switch (stage) {
-        case 0: return 'PREFLOP';
-        case 1: return 'FLOP';
-        case 2: return 'TURN';
-        case 3: return 'RIVER';
-        default: return `Stage ${stage}`;
-    }
-};
-
 export default function ActionList({ actionList, currentStage, potForStreetMap }: { actionList: PlayerAction[], currentStage: Stage; potForStreetMap: { [key in Position]?: number }; }) {
     const filteredActions = actionList.filter(action => !action.shouldHideFromUi);
     const groupedActions = React.useMemo(() => {
@@ -29,39 +19,31 @@ export default function ActionList({ actionList, currentStage, potForStreetMap }
             [Stage.River]: [],
         });
     }, [actionList]);
+
     const sortedStages = Object.keys(groupedActions).map(Number).filter(n => n <= currentStage).sort((a, b) => a - b);
 
     return (
         <List.Section>
             {sortedStages.map((stage) => (
-                // 1. Add unique key to the outer View for each stage
                 <View key={`stage-container-${stage}`}>
                     <List.Subheader style={{
                         marginLeft: -10, marginInline: 0, padding: 0,
-                        fontWeight: '800',
+                        fontWeight: '700',
                         color: '#555',
                      }}>
-                      {/* Using the improved version from the previous step */}
                       {`${getStageName(stage)}${stage !== Stage.Preflop ? ` ($${potForStreetMap[stage]})` : ''}`}
                     </List.Subheader>
-                    {groupedActions[stage].map((item, index) => {
-                        // Determine a unique key for each action item.
-                        // Prefer item.id if it's guaranteed to be unique when present.
-                        // Use a composite key with index as a fallback if id is empty or not unique enough.
+                    {groupedActions[stage].map((item: PlayerAction, index: number) => {
                         const uniqueItemKey = item.id || `action-${stage}-${item.position}-${index}`;
-    
-                        // 2. Use React.Fragment with the key for the inner map's top-level element
                         return (
                             <React.Fragment key={uniqueItemKey}>
                                 <List.Item
-                                    // No 'key' prop needed here anymore, it's on the Fragment
                                     title={item.text}
                                     titleStyle={styles.actionText}
                                     left={() => <Text style={styles.actionPosition}>{item.position}</Text>}
                                     style={styles.actionItem}
                                 />
                                 {item.isLastActionForStage && (
-                                    // 3. Give the conditional Divider a unique key too (relative to siblings)
                                     <Divider key={`${uniqueItemKey}-divider`} />
                                 )}
                             </React.Fragment>
@@ -72,6 +54,16 @@ export default function ActionList({ actionList, currentStage, potForStreetMap }
         </List.Section>
     );
 }
+
+const getStageName = (stage: Stage) => {
+    switch (stage) {
+        case Stage.Preflop: return 'PREFLOP';
+        case Stage.Flop: return 'FLOP';
+        case Stage.Turn: return 'TURN';
+        case Stage.River: return 'RIVER';
+        default: return '';
+    }
+};
 
 const styles = StyleSheet.create({
     actionItem: {

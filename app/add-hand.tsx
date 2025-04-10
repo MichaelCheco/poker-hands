@@ -135,7 +135,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             let newCurrentBetFacing = 0;
             if (state.current.currentAction.actionType === ActionType.kCommunityCard) {
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                const newCards = getCards(state.current.cards, [...state.current.deck], inputCards);
+                const newCards = getCards([...state.current.cards], [...state.current.deck], inputCards);
                 propertyUpdates = {
                     cards: [...newCards],
                     deck: [...filterNewCardsFromDeck(newCards, [...state.current.deck])]
@@ -243,7 +243,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
                 playerActions: [],
                 stage: Stage.Preflop,
-                cards: initialState.cards,
+                cards: [...initialState.cards],
                 input: '',
                 betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
                 currentBetFacing: bigBlind,
@@ -256,7 +256,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             return gameInfoStateInitial;
         }
         case DispatchActionType.kReset:
-            return { ...initialAppState };
+            console.log(getInitialGameState())
+            return { current: getInitialGameState(),
+                     history: ImmutableStack.create<GameState>([getInitialGameState()])};
         default:
             return state;
     }
@@ -331,7 +333,7 @@ export default function App() {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoidingContainer}
-                // Adjust offset if you have a header above this screen component
+                // Adjust offset for header above this screen component
                 keyboardVerticalOffset={headerHeight - 5}
             >
                 <View style={{
@@ -480,6 +482,7 @@ function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction
         decision: Decision.kFold,
         position,
         shouldHideFromUi: true,
+        isLastActionForStage: false,
         text: `${position} folds`,
         stage: Stage.Preflop,
         id: '',
@@ -659,7 +662,6 @@ const styles = StyleSheet.create({
     },
     keyboardAvoidingContainer: { // KAV needs flex: 1 to manage space
         flex: 1,
-
     },
     content: {
         flex: 1, // Allows ScrollView to grow/shrink within KAV

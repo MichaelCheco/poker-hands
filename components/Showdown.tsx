@@ -1,7 +1,7 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { List, Card, Text, Icon, Button, useTheme } from 'react-native-paper';
-import { MyHand, ShowdownCards } from './Cards';
+import { StyleSheet, View } from 'react-native';
+import { List, Text, IconButton, Button, useTheme } from 'react-native-paper';
+import { MyHand } from './Cards';
 import { PokerPlayerInput } from '@/hand-evaluator';
 import { PlayerAction, Stage } from '@/types';
 import * as Clipboard from 'expo-clipboard';
@@ -32,6 +32,7 @@ function getStageCards(stage: Stage, communityCards: string[]): string {
         default: return `Unknown Stage (${stage})`;
     }
 }
+
 /**
  * Formats a poker hand history from actions and showdown info into a string
  * and copies it to the clipboard using Expo Clipboard.
@@ -194,12 +195,13 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards }: {
                 )}
             </List.Section>
             <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginLeft: 8 }}>
-                <Icon
-                    source="content-copy"
+                <IconButton
+                    icon="content-copy"
                     size={40}
-                    color='#000000'
+                    onPress={handleCopyPress}
+                    iconColor='#000000'
                 />
-                <Button onPress={handleCopyPress} mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
+                <Button mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
             </View>
 
         </View>

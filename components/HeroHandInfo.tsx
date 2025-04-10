@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MyHand } from './Cards';
 import { parsePokerHandString } from '@/utils';
+import { PokerFormData } from './PokerHandForm';
 
-const HeroHandInfo = ({ info }) => {
+const HeroHandInfo = ({ info }: {info: PokerFormData}) => {
   return (
     <View style={{
         flexDirection: 'row', alignItems: 'center',
