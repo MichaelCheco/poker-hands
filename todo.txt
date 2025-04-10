@@ -1,35 +1,16 @@
 CURRENT TODOS:
-* Add dividers for streets to action list
-* Make copy to clipboard and Save actions work
-
+* Save Hand that doesn't reach showdown
 * Support unknown for villain's cards
-TODO ACTION LOG:
-* Experiment with icons
 * support all in and stack size
-* add 
+* Make Save actions work
+* Handle multiple winners for a pot
 
 * Add RemoveTrailingPunctuation helper
-* structuredClone? useCallback?
-* TODO handle backspace undo, two cases one with a space and one without, maybe i can combine them
-TODO:
-* PRIORITIZE TODOS + REVIEW TODOS FOR MISSING ITEMS
-* Improve UI for displaying winning hand
 * Use Paper.HelperText for error display
 * Basic SavedHandRow component
 * Basic view of Saved Hand
-* Translate Player Actions into hand history
-* Save Hand that doesn't reach showdown
 * Supabase + watermelon offline first approach
-* Pick colors
-* Investigate swiping to navigate streets
-* Stack sizes design
-* Handle All ins
-* allow more flexible input (all, jams?)
 * Testflight
-* KeyboardAvoidingView
-* hands that don't go to showdown
-* hands with folds on early streets
-* Handle multiple winners for a pot
 * Location text truncation
 * logo idea - white diagonal line across intersecting (???), black background
 VALIDATION TODOS:
