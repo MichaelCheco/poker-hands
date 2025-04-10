@@ -67,6 +67,13 @@ export interface ActionTextToken {
     amount: number;
 }
 
+export interface ShowdownDetails {
+    text: string;
+    winner: string;
+    combination: string[];
+    hands: PokerPlayerInput[];
+}
+
 export interface GameState {
     gameQueue: GameQueueItem[];
     currentAction: GameQueueItem;
@@ -83,5 +90,5 @@ export interface GameState {
     stacks: { [key in Position]?: number  };
     currentBetFacing: number;
     mostRecentBet: number;
-    showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] };
+    showdown: ShowdownDetails;
 }

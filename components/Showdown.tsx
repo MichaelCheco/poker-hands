@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { List, Text, IconButton, Button, useTheme } from 'react-native-paper';
 import { MyHand } from './Cards';
 import { PokerPlayerInput } from '@/hand-evaluator';
-import { PlayerAction, Stage } from '@/types';
+import { Decision, PlayerAction, ShowdownDetails, Stage } from '@/types';
 import * as Clipboard from 'expo-clipboard';
 import { PokerFormData } from './PokerHandForm';
 
@@ -45,7 +45,7 @@ export async function formatAndCopyHandHistory(
     actions: PlayerAction[],
     gameInfo: PokerFormData,
     communityCards: string[],
-    showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] } | null
+    showdown: ShowdownDetails | null
 ): Promise<boolean> {
     if (!actions || actions.length === 0) {
         console.warn("No actions provided to format.");
@@ -155,17 +155,50 @@ export async function formatAndCopyHandHistory(
     }
 }
 
-/**
-* icons  content-copy
+function getLastStageName(actionList: PlayerAction[]): string {
+    return getStageName(actionList[actionList.length -1].stage);
+}
 
- */
-const Showdown = ({ showdown, actionList, gameInfo, communityCards }: {
-    showdown: {
-        text: string, winner: string, combination: string[],
-        hands: PokerPlayerInput[]
-    }, actionList: PlayerAction[],
+function decisionToText(decision: Decision): string {
+    switch (decision) {
+        case Decision.kCheck: return 'checked';
+        case Decision.kBet: return 'bet';
+        case Decision.kCall: return 'called';
+        case Decision.kFold: return 'folded';
+        case Decision.kRaise: return 'raised';
+
+    }
+}
+
+function getTextSummaryForLastStage(actionList: PlayerAction[]): string {
+    const lastStagePlayed = actionList[actionList.length -1].stage;
+    const lastStageActions = actionList.filter(action => action.stage === lastStagePlayed);
+    let text = '';
+    for (const action of lastStageActions) {
+        text = text + `${action.position} ${decisionToText(action.decision)}, `
+    }
+    text = text.slice(0, -2);
+    return `${text}.`
+}
+
+function getWinner(actionSequence: string[]): string {
+    if (actionSequence.length > 1) {
+        console.error(`action sequence should only contain 1 player. `, actionSequence)
+    }
+    return actionSequence[0];
+}
+
+function getHandSummary(actionList: PlayerAction[], actionSequence: string[], pot: number): string {
+    let summary = `Hand ended on the ${getLastStageName(actionList)}.\n${getTextSummaryForLastStage(actionList)}.\n${getWinner(actionSequence)} wins $${pot}.`;
+    return summary;
+    // Hand ended on the River. Pot: $250. SB wins $250. CO folded.
+}
+const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionSequence }: {
+    showdown: ShowdownDetails | null, actionList: PlayerAction[],
     gameInfo: PokerFormData,
-    communityCards: string[]
+    communityCards: string[],
+    pot: number,
+    actionSequence: string[],
 }) => {
     const theme = useTheme();
     const handleCopyPress = async () => {
@@ -178,10 +211,11 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards }: {
             console.log('Could not copy history.');
         }
     };
+    // <Text>Hand ended on the River. Pot: $250. SB wins $250. CO folded.</Text>
     return (
         <View style={{ marginInline: 8 }}>
             <List.Section>
-                {showdown.hands.map((hand, index) => {
+                {showdown ? showdown.hands.map((hand, index) => {
                     return (
                         <List.Item
                             contentStyle={{ flexGrow: 0, alignItems: 'center' }}
@@ -192,15 +226,19 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards }: {
                         />
                     )
                 }
+                ) : (
+                    <Text style={{marginTop: 8}}>{getHandSummary(actionList, actionSequence, pot)}</Text>
                 )}
             </List.Section>
             <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginLeft: 8 }}>
-                <IconButton
+                {/* <IconButton
                     icon="content-copy"
-                    size={40}
+                    size={24}
                     onPress={handleCopyPress}
                     iconColor='#000000'
-                />
+                /> */}
+                <Button onPress={handleCopyPress} mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Copy</Button>
+
                 <Button mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
             </View>
 

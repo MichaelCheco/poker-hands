@@ -16,3 +16,4 @@ CURRENT TODOS:
 VALIDATION TODOS:
 * Hero must be in preflop action sequence
 * what if a user selects text in middle of string, highlights it and deletes it
+* confirm gameQueue reset
