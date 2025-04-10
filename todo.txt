@@ -2,6 +2,7 @@ CURRENT TODOS:
 * Add dividers for streets to action list
 * Make copy to clipboard and Save actions work
 
+* Support unknown for villain's cards
 TODO ACTION LOG:
 * Experiment with icons
 * support all in and stack size

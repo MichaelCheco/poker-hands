@@ -1,17 +1,182 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { List, Card, Text, Icon, Button, useTheme } from 'react-native-paper';
-import PokerHandHistory from './HandHistory';
 import { MyHand, ShowdownCards } from './Cards';
 import { PokerPlayerInput } from '@/hand-evaluator';
+import { PlayerAction, Stage } from '@/types';
+import * as Clipboard from 'expo-clipboard';
+import { PokerFormData } from './PokerHandForm';
+
+
+function getStageName(stage: Stage): string {
+    switch (stage) {
+        case Stage.Preflop: return 'Preflop';
+        case Stage.Flop: return 'Flop';
+        case Stage.Turn: return 'Turn';
+        case Stage.River: return 'River';
+        case Stage.Showdown: return 'Showdown';
+        default: return `Unknown Stage (${stage})`;
+    }
+}
+
+function getStageCards(stage: Stage, communityCards: string[]): string {
+    const flopCardStr = communityCards.slice(0, 3).join(', ');
+    const turnCardStr = communityCards[3];
+    const riverCardStr = communityCards[4];
+    switch (stage) {
+        case Stage.Preflop: return '';
+        case Stage.Flop: return `: ${flopCardStr}`;
+        case Stage.Turn: return `: ${turnCardStr}`;
+        case Stage.River: return `: ${riverCardStr}`;
+        case Stage.Showdown: return '';
+        default: return `Unknown Stage (${stage})`;
+    }
+}
+/**
+ * Formats a poker hand history from actions and showdown info into a string
+ * and copies it to the clipboard using Expo Clipboard.
+ *
+ * @param actions - Array of action objects for the hand.
+ * @param showdown - Showdown information object, or null if no showdown.
+ * @returns Promise<boolean> - True if copy was successful, false otherwise.
+ */
+export async function formatAndCopyHandHistory(
+    actions: PlayerAction[],
+    gameInfo: PokerFormData,
+    communityCards: string[],
+    showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] } | null
+): Promise<boolean> {
+    if (!actions || actions.length === 0) {
+        console.warn("No actions provided to format.");
+        // Optionally set clipboard to empty or show user feedback
+        // await Clipboard.setStringAsync("");
+        return false;
+    }
+
+    const lines: string[] = [];
+    lines.push(`${gameInfo.smallBlind}/${gameInfo.bigBlind} • ${gameInfo.location}`);
+    lines.push(`\nHero: ${gameInfo.hand} ${gameInfo.position}`);
+
+    // Group actions by stage
+    const groupedActions: { [stage: number]: PlayerAction[] } = {};
+    for (const action of actions) {
+        // Only include stages relevant to betting rounds for action listing
+        if (action.stage <= Stage.River) {
+            if (!groupedActions[action.stage]) {
+                groupedActions[action.stage] = [];
+            }
+            groupedActions[action.stage].push(action);
+        }
+    }
+    const flopCardStr = communityCards.slice(0, 3).join(', ');
+    const turnCardStr = communityCards[3];
+    const riverCardStr = communityCards[4];
+
+    // Define the order of stages
+    const stageOrder: Stage[] = [Stage.Preflop, Stage.Flop, Stage.Turn, Stage.River];
+
+    // Process stages in order
+    for (const stageNum of stageOrder) {
+        const stageActions = groupedActions[stageNum];
+
+        if (stageActions && stageActions.length > 0) {
+            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}`);
+
+            // Filter out actions typically hidden from UI for summary (e.g., folds)
+            const visibleActions = stageActions.filter(a => !a.shouldHideFromUi);
+
+            if (visibleActions.length === 0 && stageNum !== Stage.Preflop) {
+                // If only hidden actions occurred (e.g. everyone folded pre-bet on flop)
+                // Or if it was checked around (and checks aren't hidden)
+                // You might want different logic here, but this indicates no major action shown.
+                // We'll rely on visibleActions loop below instead.
+            }
+
+            if (visibleActions.length > 0) {
+                visibleActions.forEach(action => {
+                    // Use a consistent format: Position: text
+                    // The 'text' field in your data seems quite descriptive already
+                    lines.push(`${action.position}: ${action.text}`);
+                });
+            } else if (stageNum > Stage.Preflop) {
+                // Check if the *only* actions were checks (which aren't hidden)
+                const onlyChecks = stageActions.every(a => a.decision === 'X');
+                if (onlyChecks) {
+                    lines.push("(Checked around)");
+                } else {
+                    lines.push("(No significant action shown)"); // Or adjust as needed
+                }
+
+            }
+        }
+    }
+
+    // Add Showdown info if available
+    if (showdown) {
+        lines.push("\nSHOWDOWN");
+
+        // Note: The 'combination' field isn't clearly defined as board cards vs winning hand cards.
+        // For clarity, we'll just show who showed cards and who won. Add board separately if you have that data.
+        // lines.push(`Board: [ ${communityCardsArray.join(' ')} ]`); // <-- Add if you have board cards separately
+
+        if (showdown.hands && showdown.hands.length > 0) {
+            showdown.hands.forEach(handInfo => {
+                const cardsString = Array.isArray(handInfo.holeCards) ? handInfo.holeCards.join(' ') : '??';
+                lines.push(`- ${handInfo.playerId} shows [ ${cardsString} ]`);
+            });
+        }
+
+        if (showdown.winner && showdown.text) {
+            lines.push(`\nWinner: ${showdown.winner} wins with ${showdown.text}`);
+            lines.push(`\nCombination: ${showdown.combination.join(', ')}`)
+        } else if (showdown.winner) {
+            lines.push(`\nWinner: ${showdown.winner}`); // Fallback if description missing
+        }
+    } else {
+        // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
+        // This would require analysing the last actions. For simplicity, we omit this for now.
+    }
+
+    // Join lines into a single string
+    const historyString = lines.join('\n');
+    console.log("Formatted History:\n", historyString); // For debugging
+
+    // Copy to clipboard
+    try {
+        await Clipboard.setStringAsync(historyString);
+        console.log("Hand history copied to clipboard.");
+        // You could add user feedback here (e.g., a toast message)
+        return true;
+    } catch (error) {
+        console.error("Failed to copy hand history to clipboard:", error);
+        // Add user feedback for error
+        return false;
+    }
+}
 
 /**
 * icons  content-copy
 
  */
-const Showdown = ({ showdown }: { showdown: { text: string, winner: string, combination: string[], hands: PokerPlayerInput[] } }) => {
+const Showdown = ({ showdown, actionList, gameInfo, communityCards }: {
+    showdown: {
+        text: string, winner: string, combination: string[],
+        hands: PokerPlayerInput[]
+    }, actionList: PlayerAction[],
+    gameInfo: PokerFormData,
+    communityCards: string[]
+}) => {
     const theme = useTheme();
-
+    const handleCopyPress = async () => {
+        const success = await formatAndCopyHandHistory(actionList, gameInfo, communityCards, showdown);
+        if (success) {
+            // Optional: Show a success message (e.g., toast)
+            console.log('success');
+        } else {
+            // Optional: Show an error message
+            console.log('Could not copy history.');
+        }
+    };
     return (
         <View style={{ marginInline: 8 }}>
             <List.Section>
@@ -34,7 +199,7 @@ const Showdown = ({ showdown }: { showdown: { text: string, winner: string, comb
                     size={40}
                     color='#000000'
                 />
-                <Button mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
+                <Button onPress={handleCopyPress} mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
             </View>
 
         </View>

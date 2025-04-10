@@ -360,7 +360,11 @@ export default function App() {
                     )}
 
                     {state.current.stage === Stage.Showdown && state.current.showdown && (
-                        <Showdown showdown={state.current.showdown} />
+                        <Showdown
+                            actionList={state.current.playerActions}
+                            showdown={state.current.showdown}
+                            gameInfo={gameInfo}
+                            communityCards={state.current.cards} />
                     )}
                 </ScrollView>
 

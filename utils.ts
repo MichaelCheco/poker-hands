@@ -1,5 +1,5 @@
 import { initialState } from "./constants";
-import { InitialState, Position } from "./types";
+import { GameState, Position } from "./types";
 
 export function parseStackSizes(stackString: string) {
     if (!stackString) {
@@ -55,7 +55,7 @@ export function positionToRank(positionKey: string): number {
 }
 
 
-export const getInitialGameState = (): InitialState => {
+export const getInitialGameState = (): GameState => {
     return initialState;
 };
 
