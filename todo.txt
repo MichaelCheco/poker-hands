@@ -1,6 +1,4 @@
 CURRENT TODOS:
-* Save Hand that doesn't reach showdown
-* Support unknown for villain's cards
 * support all in and stack size
 * Make Save actions work
 * Handle multiple winners for a pot
@@ -17,3 +15,5 @@ VALIDATION TODOS:
 * Hero must be in preflop action sequence
 * what if a user selects text in middle of string, highlights it and deletes it
 * confirm gameQueue reset
+* clicking reset doesn't set game info
+* handle double space resulting in "." might not be needed if i switch transition to enter

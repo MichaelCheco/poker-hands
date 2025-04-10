@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { List, Text, IconButton, Button, useTheme } from 'react-native-paper';
+import { List, Text, IconButton, Button, useTheme, TextInput } from 'react-native-paper';
 import { MyHand } from './Cards';
 import { PokerPlayerInput } from '@/hand-evaluator';
 import { Decision, PlayerAction, ShowdownDetails, Stage } from '@/types';
@@ -45,7 +45,8 @@ export async function formatAndCopyHandHistory(
     actions: PlayerAction[],
     gameInfo: PokerFormData,
     communityCards: string[],
-    showdown: ShowdownDetails | null
+    showdown: ShowdownDetails | null,
+    pot: number
 ): Promise<boolean> {
     if (!actions || actions.length === 0) {
         console.warn("No actions provided to format.");
@@ -128,7 +129,7 @@ export async function formatAndCopyHandHistory(
         }
 
         if (showdown.winner && showdown.text) {
-            lines.push(`\nWinner: ${showdown.winner} wins with ${showdown.text}`);
+            lines.push(`\nWinner: ${showdown.winner} wins ${pot} with ${showdown.text}`);
             lines.push(`\nCombination: ${showdown.combination.join(', ')}`)
         } else if (showdown.winner) {
             lines.push(`\nWinner: ${showdown.winner}`); // Fallback if description missing
@@ -202,16 +203,13 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
 }) => {
     const theme = useTheme();
     const handleCopyPress = async () => {
-        const success = await formatAndCopyHandHistory(actionList, gameInfo, communityCards, showdown);
+        const success = await formatAndCopyHandHistory(actionList, gameInfo, communityCards, showdown, pot);
         if (success) {
-            // Optional: Show a success message (e.g., toast)
             console.log('success');
         } else {
-            // Optional: Show an error message
             console.log('Could not copy history.');
         }
     };
-    // <Text>Hand ended on the River. Pot: $250. SB wins $250. CO folded.</Text>
     return (
         <View style={{ marginInline: 8 }}>
             <List.Section>
@@ -222,7 +220,7 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
                             key={`${hand.playerId}-${hand.holeCards.join('')}-${index}`}
                             title={() => <MyHand cards={hand.holeCards.join('')} />}
                             left={() => <Text style={styles.actionPosition}>{hand.playerId}</Text>}
-                            right={hand.playerId === showdown.winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins with {showdown.text}</Text> : undefined}
+                            right={hand.playerId === showdown.winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins ${pot} with {showdown.text}</Text> : undefined}
                         />
                     )
                 }
@@ -230,22 +228,27 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
                     <Text style={{marginTop: 8}}>{getHandSummary(actionList, actionSequence, pot)}</Text>
                 )}
             </List.Section>
+            <TextInput
+                mode="outlined"
+                multiline
+                label="Notes"
+                style={{minHeight: 90, flex: 1, marginBottom: 16}}
+                activeOutlineColor='#000000'
+            />
             <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginLeft: 8 }}>
-                {/* <IconButton
-                    icon="content-copy"
-                    size={24}
-                    onPress={handleCopyPress}
-                    iconColor='#000000'
-                /> */}
                 <Button onPress={handleCopyPress} mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Copy</Button>
-
                 <Button mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
             </View>
 
         </View>
     );
 };
-
+{/* <IconButton
+    icon="content-copy"
+    size={24}
+    onPress={handleCopyPress}
+    iconColor='#000000'
+/> */}
 const styles = StyleSheet.create({
     actionText: {
         fontSize: 16,
