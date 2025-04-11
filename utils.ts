@@ -1,7 +1,9 @@
 import { initialState } from "./constants";
 import { GameState, Position } from "./types";
 
-export function parseStackSizes(stackString: string, sequence: string[]): {[position: string]: number} {
+export function parseStackSizes(stackString: string, sequence: string[],
+    smallBlind: number, bigBlind: number
+): {[position: string]: number} {
     if (!stackString) {
         return {};
     }
@@ -17,12 +19,21 @@ export function parseStackSizes(stackString: string, sequence: string[]): {[posi
             }
         }
     }
-    return sequence.reduce((acc, player) => {
+    const result = sequence.reduce((acc, player) => {
         if (!stackObjects[player]) {
             stackObjects[player] = Number.POSITIVE_INFINITY;
         }
         return acc;
     }, stackObjects);
+    if (result[Position.SB] !== Number.POSITIVE_INFINITY) {
+        result[Position.SB] = result[Position.SB] - smallBlind
+    }
+    if (result[Position.BB] !== Number.POSITIVE_INFINITY) {
+        result[Position.BB] = result[Position.BB] - bigBlind
+    }
+
+    // TODO handle straddles and antes
+    return result;
 }
 
 export function transFormCardsToFormattedString(cards: string): string {
