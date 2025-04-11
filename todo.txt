@@ -2,13 +2,19 @@ CURRENT TODOS:
 * support all in and stack size
 * Make Save actions work
 * Handle multiple winners for a pot
-
+* Use Local State for the Input Value
 * Add RemoveTrailingPunctuation helper
 * Use Paper.HelperText for error display
 * Basic SavedHandRow component
 * Basic view of Saved Hand
 * Supabase + watermelon offline first approach
 * Testflight
+* if bet size is more than player stack, reduce bet total to player total
+-- player bets 200 and i only have 95 so reduce bet to 95
+* When all-ins and a call happens we need to collect remaining cards and go to showdown.
+* negative effective stack size bug due to player calling a bet but not having enough chips
+* Handle case where player calls a bet but has less chips than total bet size
+* What if stack sizes are missing?
 * Location text truncation
 * logo idea - white diagonal line across intersecting (???), black background
 VALIDATION TODOS:

@@ -17,7 +17,9 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'; // 1. Import the hook
 import { useNavigation } from '@react-navigation/native'; // Or get navigation from props if using older class components/navigation versions
 import HeroHandInfo from '@/components/HeroHandInfo';
+
 let start;
+
 interface GameAppState {
     current: GameState; // The current state of the game
     history: ImmutableStack<GameState>; // The stack holding previous states
@@ -87,7 +89,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const actingPlayer = playerAction.position;
             // Calculate betting information updates (if applicable) based on new player action
             const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
-              getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, playerAction);
+              getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, state.current.stacks[playerAction.position], playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = newPlayerBetTotal;
             playerAction.text = getMeaningfulTextToDisplay(
@@ -119,6 +121,15 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     [actingPlayer]: newPlayerBetTotal,
                 },
             };
+
+            // update player's stack size
+            const currentStackSize = addActionState.stacks[playerAction.position];
+            addActionState.stacks = {
+                ...addActionState.stacks,
+                [playerAction.position]: currentStackSize - amountToAdd
+            };
+
+            console.log(`${playerAction.position}'s updated stack size is: ${addActionState.stacks[playerAction.position]}`);
             const newHistory = state.history.push(currentGameState);
             const newStateAfterAdd = {
                 current: addActionState,
@@ -171,7 +182,8 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 const playerAction = buildBasePlayerAction(actionInfo, currentState.stage);
                 playerAction.isLastActionForStage = initialStage !== nextStage;
                 const actingPlayer = playerAction.position;
-                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, playerAction);
+                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = 
+                    getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, currentState.stacks[playerAction.position], playerAction)
                 playerAction.amount = newPlayerBetTotal;
                 let numBets = currentState.playerActions.filter(a => a.stage === currentState.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
                 numBets = initialStage === Stage.Preflop ? numBets + 1 : numBets;
@@ -191,7 +203,14 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     [actingPlayer]: newPlayerBetTotal,
                 };
                 propertyUpdates.currentBetFacing = newCurrentBetFacing;
-
+                            // update player's stack size
+            const currentStackSize = currentState.stacks[playerAction.position];
+            propertyUpdates.stacks = {
+                ...currentState.stacks,
+                [playerAction.position]: currentStackSize - amountToAdd
+            };
+            
+            console.log(`Transition | ${playerAction.position}'s updated stack size is: ${propertyUpdates.stacks[playerAction.position]}`);
             }
 
             const newStateBase: GameState = {
@@ -353,7 +372,7 @@ export default function App() {
                     justifyContent: 'space-between'
                 }}>
                     <Text style={styles.potText} onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
-                        Eff: {calculateEffectiveStack(state.current.actionSequence, state.current.stacks)}
+                        Eff: ${calculateEffectiveStack(state.current.actionSequence, state.current.stacks)}
                     </Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
@@ -419,7 +438,6 @@ function calculateEffectiveStack(
     positionsLeft: string[],
     stacks: { [position: string]: number }
 ): number {
-    console.log(positionsLeft, stacks);
     // 1. Map the list of positions directly to their stack sizes
     //    (Assumes every position exists in stacks and the value is a number)
     const relevantStacks = positionsLeft.map(position => stacks[position]);
@@ -437,9 +455,13 @@ function getPlayerAction(playerToAct: string, mostRecentActionText: string, stag
     const actionInfo = parseAction(mostRecentActionText, playerToAct);
     return buildBasePlayerAction(actionInfo, stage);
 }
+
 function getUpdatedBettingInfo(
     betsThisStreet: { [key in Position]?: number },
-    currentBetFacing: number, playerAction: PlayerAction) {
+    currentBetFacing: number,
+    stack: number,
+    playerAction: PlayerAction) {
+    console.log(`${playerAction.position} stack sz before action: ${stack}`)
     const actingPlayer = playerAction.position;
     // How much player already bet this street
     const alreadyBet = betsThisStreet[actingPlayer] || 0;
@@ -475,17 +497,24 @@ function getUpdatedBettingInfo(
             // Ensure amountToAdd isn't negative if something went wrong
             amountToAdd = Math.max(0, amountToAdd);
             // Handle all-ins: if amountToAdd > player's remaining stack, adjust amountToAdd
-            // amountToAdd = Math.min(amountToAdd, playerStack); // <-- Need player stack info here!
+            amountToAdd = Math.min(amountToAdd, stack);
 
             // Their total commitment matches the facing bet
             newPlayerBetTotal = alreadyBet + amountToAdd;
             break;
-
+        case Decision.kAllIn:
+            amountToAdd = stack;
+            // Their total commitment is now the raise amount
+            newPlayerBetTotal = stack;
+            // This sets the new bet level
+            newCurrentBetFacing = stack;
+            break;
         case Decision.kCheck:
         case Decision.kFold:
             amountToAdd = 0;
             break;
     }
+    console.log(`${playerAction.position} ~ amountToAdd: ${amountToAdd}, newPlayerBetTotal: ${newPlayerBetTotal}, newCurrentBetFacing: ${newCurrentBetFacing}`)
     return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
 }
 
@@ -581,6 +610,8 @@ function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: num
             return 'calls'
         case Decision.kCheck:
             return 'checks'
+        case Decision.kAllIn:
+            return `all-in for ${amountStr}`
         case Decision.kFold:
             return 'folds'
         case Decision.kRaise: {

@@ -1,5 +1,6 @@
 import { initialState } from "./constants";
 import { GameState, Position } from "./types";
+
 export function parseStackSizes(stackString: string, sequence: string[]): {[position: string]: number} {
     if (!stackString) {
         return {};
@@ -32,7 +33,7 @@ export function formatCommunityCards(cards: string[]): string[] {
     return cards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}`);
 }
 
-export function moveFirstTwoToEnd(list: string[]): Position[] {
+export function moveFirstTwoToEnd(list: Position[]): Position[] {
     if (list.length < 2 || list.length > 9) {
         throw new Error("List length must be between 2 and 9 elements.");
     }

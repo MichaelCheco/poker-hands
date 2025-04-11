@@ -48,6 +48,7 @@ export enum Decision {
     kRaise = 'R',
     kCall = 'C',
     kFold = 'F',
+    kAllIn = 'A',
 }
 
 export interface PlayerAction {
@@ -87,7 +88,7 @@ export interface GameState {
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
     potForStreetMap: { [key in Position]?: number };
-    stacks: { [key in Position]?: number  };
+    stacks: { [key in Position]: number  };
     currentBetFacing: number;
     mostRecentBet: number;
     showdown: ShowdownDetails;
