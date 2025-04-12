@@ -19,6 +19,7 @@ import { useNavigation } from '@react-navigation/native'; // Or get navigation f
 import HeroHandInfo from '@/components/HeroHandInfo';
 
 let start;
+const logging = false;
 
 interface GameAppState {
     current: GameState; // The current state of the game
@@ -76,7 +77,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const playerAction = getPlayerAction(state.current.actionSequence[0], getLastAction(action.payload.input), state.current.stage)
 
             if (hasActionBeenAddedAlready(state.current.playerActions, playerAction)) {
-                console.log(`id matched for input: ${mostRecentActionText}`)
+                if (logging) {
+                    console.log(`id matched for input: ${mostRecentActionText}`)
+                }
                 return {
                     current: { ...state.current, input: action.payload.input },
                     history: state.history,
@@ -132,9 +135,11 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 ...addActionState.stacks,
                 [actingPlayer]: newStackSize
             };
-
-            console.log(`${playerAction.position}'s updated stack size is: ${addActionState.stacks[playerAction.position]}`);
+            if (logging) {
+                console.log(`${playerAction.position}'s updated stack size is: ${addActionState.stacks[playerAction.position]}`);
+            }
             const newHistory = state.history.push(currentGameState);
+            console.log(addActionState, ' add')
             const newStateAfterAdd = {
                 current: addActionState,
                 history: newHistory,
@@ -194,7 +199,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 // Calculate the player's new stack size
                 const newStackSize = currentStack - amountToAdd;
 
-
                 let numBets = currentState.playerActions.filter(a => a.stage === currentState.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
                 numBets = initialStage === Stage.Preflop ? numBets + 1 : numBets;
                 playerAction.text = getMeaningfulTextToDisplay(playerAction, numBets, initialStage);
@@ -213,13 +217,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     [actingPlayer]: newPlayerBetTotal,
                 };
                 propertyUpdates.currentBetFacing = newCurrentBetFacing;
-                            // update player's stack size
-            propertyUpdates.stacks = {
-                ...currentState.stacks,
-                [actingPlayer]: newStackSize
-            };
-            
-            console.log(`Transition | ${playerAction.position}'s updated stack size is: ${propertyUpdates.stacks[playerAction.position]}`);
+                propertyUpdates.stacks = {
+                    ...currentState.stacks,
+                    [actingPlayer]: newStackSize
+                };
+            if (logging) {
+                console.log(`Transition | ${playerAction.position}'s updated stack size is: ${propertyUpdates.stacks[playerAction.position]}`);
+            }
             }
 
             const newStateBase: GameState = {
@@ -254,6 +258,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     currentBetFacing: 0,
                 };
             }
+
             // Advance to showdown
             if (finalState.actionSequence.length === 1) {
                 finalState.stage = Stage.Showdown;
@@ -312,7 +317,7 @@ export default function App() {
     const headerHeight = useHeaderHeight();
     const navigation = useNavigation();
     const gameInfo: PokerFormData = JSON.parse(data);
-
+    const [inputValue, setInputValue] = useState('');
     const [state, dispatch] = useReducer(reducer, initialAppState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
     const scrollViewRef = useRef<ScrollView>(null);
@@ -323,6 +328,14 @@ export default function App() {
             headerRight: () => <HeroHandInfo info={gameInfo} />,
         });
     }, [navigation]);
+
+    useEffect(() => {
+        // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
+        if (logging) {
+            console.log(`state.current.input in useEffect: ${state.current.input} | gameQueue: ${state.current.gameQueue.length}`)
+        }
+        setInputValue(state.current.input);
+     }, [state.current.input, state.current.gameQueue.length]);
 
     useEffect(() => {
         dispatch({
@@ -339,18 +352,23 @@ export default function App() {
     }, []);
 
     const handleInputChange = (text: string) => {
+        setInputValue(text);
         const isTransition = text.endsWith('.');
         const isAddAction = text.endsWith(',');
         let type: DispatchActionType;
 
         if (isTransition) {
+            console.log('in transition')
             type = DispatchActionType.kTransition;
+            // setInputValue(text)
+            dispatch({ type, payload: { input: text } });
         } else if (isAddAction && state.current.currentAction.actionType !== ActionType.kCommunityCard) {
+            console.log('in add')
             type = DispatchActionType.kAddAction;
-        } else {
-            type = DispatchActionType.kSetInput;
+            // setInputValue(text)
+            dispatch({ type, payload: { input: text } });
         }
-        dispatch({ type, payload: { input: text } });
+        // dispatch({ type, payload: { input: text } });
     };
 
     useEffect(() => {
@@ -425,7 +443,7 @@ export default function App() {
                             label={state.current.currentAction?.placeholder}
                             onChangeText={handleInputChange}
                             // submitBehavior={'newline'}
-                            value={state.current.input}
+                            value={inputValue}
                             style={styles.input}
                             autoFocus
                             blurOnSubmit={false}
@@ -434,7 +452,7 @@ export default function App() {
                                 console.log(state.current.input);
                             }}
                             activeOutlineColor='#000000'
-                            right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={false} />}
+                            right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
                     </SafeAreaView>
                 )}
@@ -470,7 +488,9 @@ function getUpdatedBettingInfo(
     currentBetFacing: number,
     playerStack: number,
     playerAction: PlayerAction) {
-    console.log(`${playerAction.position} stack sz before action: ${playerStack}`)
+    if (logging) {
+        console.log(`${playerAction.position} stack sz before action: ${playerStack}`)
+    }
     const actingPlayer = playerAction.position;
     // How much player already bet this street
     const alreadyBet = betsThisStreet[actingPlayer] || 0;
@@ -528,7 +548,9 @@ function getUpdatedBettingInfo(
             amountToAdd = 0;
             break;
     }
-    console.log(`${playerAction.position} ~ amountToAdd: ${amountToAdd}, newPlayerBetTotal: ${newPlayerBetTotal}, newCurrentBetFacing: ${newCurrentBetFacing}`)
+    if (logging) {
+        console.log(`${playerAction.position} ~ amountToAdd: ${amountToAdd}, newPlayerBetTotal: ${newPlayerBetTotal}, newCurrentBetFacing: ${newCurrentBetFacing}`)
+    }
     return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
 }
 

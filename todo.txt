@@ -1,4 +1,6 @@
 CURRENT TODOS:
+* test multiway pots with shorthand notation and fast forward hands where bets put players all in
+* always set input first
 * support all in and stack size
 * Make Save actions work
 * Handle multiple winners for a pot
