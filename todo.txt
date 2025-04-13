@@ -1,5 +1,4 @@
 CURRENT TODOS:
-* fix bug where 788xxx incorrectly assigns the same suit for repeated card (8)
 * test multiway pots with shorthand notation and fast forward hands where bets put players all in
 * always set input first
 * fix reset
