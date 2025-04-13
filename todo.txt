@@ -1,6 +1,8 @@
 CURRENT TODOS:
+* fix bug where 788xxx incorrectly assigns the same suit for repeated card (8)
 * test multiway pots with shorthand notation and fast forward hands where bets put players all in
 * always set input first
+* fix reset
 * support all in and stack size
 * Make Save actions work
 * Handle multiple winners for a pot
@@ -9,7 +11,6 @@ CURRENT TODOS:
 * Use Paper.HelperText for error display
 * Basic SavedHandRow component
 * Basic view of Saved Hand
-* fix bug where 788xxx incorrectly assigns the same suit for repeated card (8)
 * Supabase + watermelon offline first approach
 * Testflight
 * if bet size is more than player stack, reduce bet total to player total

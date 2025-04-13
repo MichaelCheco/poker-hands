@@ -620,18 +620,21 @@ function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] 
     return output;
 }
 
-function getCards(currentCards: string[], currentDeck: string[], newCards: string) {
+function getCards(communityCards: string[], currentDeck: string[], newCards: string) {
     const EMPTY_CARD = '';
+    let deckToPickFrom = currentDeck;
     let cardsToAdd: string[] = newCards.length > 2 ? parseFlopString(newCards) : [newCards]
-    for (let i = 0; i < currentCards.length; i++) {
-        if (currentCards[i] === EMPTY_CARD) {
-            currentCards[i] = getSuitForCard(cardsToAdd.shift() as string, currentDeck);
+    for (let i = 0; i < communityCards.length; i++) {
+        if (communityCards[i] === EMPTY_CARD) {
+            const newCard = getSuitForCard(cardsToAdd.shift() as string, deckToPickFrom);
+            deckToPickFrom = filterNewCardsFromDeck(newCard, deckToPickFrom);
+            communityCards[i] = newCard;
             if (cardsToAdd.length === 0) {
-                return currentCards;
+                return communityCards;
             }
         }
     }
-    return currentCards
+    return communityCards
 }
 
 function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: number, stage: Stage): string {
