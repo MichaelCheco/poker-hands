@@ -362,7 +362,7 @@ export default function App() {
             type = DispatchActionType.kTransition;
             // setInputValue(text)
             dispatch({ type, payload: { input: text } });
-        } else if (isAddAction && state.current.currentAction.actionType !== ActionType.kCommunityCard) {
+        } else if (isAddAction && (state.current.currentAction.actionType !== ActionType.kCommunityCard && state.current.currentAction.actionType !== ActionType.kVillainCards)) {
             console.log('in add')
             type = DispatchActionType.kAddAction;
             // setInputValue(text)

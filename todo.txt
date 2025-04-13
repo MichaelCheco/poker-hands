@@ -1,6 +1,6 @@
 CURRENT TODOS:
+* bug inputting multiple values for villain hand
 * test multiway pots with shorthand notation and fast forward hands where bets put players all in
-* always set input first
 * fix reset
 * support all in and stack size
 * Make Save actions work
