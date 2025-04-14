@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { List, Text, IconButton, Button, useTheme, TextInput } from 'react-native-paper';
 import { MyHand } from './Cards';
 import { PokerPlayerInput } from '@/hand-evaluator';
-import { Decision, PlayerAction, ShowdownDetails, Stage } from '@/types';
+import { Decision, PlayerAction, PlayerStatus, ShowdownDetails, Stage } from '@/types';
 import * as Clipboard from 'expo-clipboard';
 import { PokerFormData } from './PokerHandForm';
 
@@ -199,7 +199,7 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
     gameInfo: PokerFormData,
     communityCards: string[],
     pot: number,
-    actionSequence: string[],
+    actionSequence: PlayerStatus[],
 }) => {
     const theme = useTheme();
     const handleCopyPress = async () => {
@@ -225,7 +225,7 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
                     )
                 }
                 ) : (
-                    <Text style={{marginTop: 8}}>{getHandSummary(actionList, actionSequence, pot)}</Text>
+                    <Text style={{marginTop: 8}}>{getHandSummary(actionList, actionSequence.map(a => a.position), pot)}</Text>
                 )}
             </List.Section>
             <TextInput

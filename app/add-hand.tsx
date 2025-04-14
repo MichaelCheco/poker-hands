@@ -4,7 +4,7 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus } from '@/types';
 import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
@@ -74,7 +74,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
         case DispatchActionType.kAddAction: {
             const currentGameState = state.current;
             const mostRecentActionText = getLastAction(action.payload.input);
-            const playerAction = getPlayerAction(state.current.actionSequence[0], getLastAction(action.payload.input), state.current.stage)
+            const nextPlayerToActIndex = currentGameState.actionSequence.findIndex(a => !a.isAllIn);
+            const playerToAct = currentGameState.actionSequence[nextPlayerToActIndex] as PlayerStatus
+            const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), state.current.stage)
 
             if (hasActionBeenAddedAlready(state.current.playerActions, playerAction)) {
                 if (logging) {
@@ -105,13 +107,17 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 getNumBetsForStage(state.current.playerActions, state.current.stage),
                 state.current.stage);
 
-            let newActionSequence = [...state.current.actionSequence];
+            let newActionSequence: PlayerStatus[] = [...state.current.actionSequence];
             if (state.current.stage !== Stage.Preflop) {
-                const remainingPlayers = state.current.actionSequence.slice(1);
+                // const remainingPlayers = state.current.actionSequence.slice(1);
+                const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex+1)]
+                // fix action sequence
                 // If the player didn't fold, add them to the end of the remaining sequence
+                const addPlayerBack = playerAction.decision !== Decision.kFold;
+                const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
                 newActionSequence = [
                     ...remainingPlayers,
-                    ...(playerAction.decision !== Decision.kFold ? [actingPlayer] : [])
+                    ...(addPlayerBack ? [{position: actingPlayer, isAllIn}] : [])
                 ];
             }
             // Pre-flop: Action sequence is handled differently, often based on who is left
@@ -136,7 +142,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 [actingPlayer]: newStackSize
             };
             if (logging) {
-                console.log(`${playerAction.position}'s updated stack size is: ${addActionState.stacks[playerAction.position]}`);
+                console.log(`${playerAction.position}'s stack: ${addActionState.stacks[playerAction.position]}`);
             }
             const newHistory = state.history.push(currentGameState);
             console.log(addActionState, ' add')
@@ -146,17 +152,20 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             };
             return newStateAfterAdd;
         }
-
         case DispatchActionType.kTransition: {
             const currentState = state.current;
             const initialStage = currentState.stage;
+            // We don't always move to the next stage after a transition (turn card --> turn action)
             const nextStage = currentState.currentAction.shouldTransitionAfterStep ? getNextStage(currentState.stage) : currentState.stage;
             // Next step in the overall game flow
             const nextAction = currentState.gameQueue[0];
 
+            // Contains properties to update based on the current action type.
             let propertyUpdates: Partial<GameState> = {};
+            // Get current actions and sequence before any potential modifications
             let finalPlayerActions = [...currentState.playerActions];
             let finalActionSequence = [...currentState.actionSequence];
+
             if (currentState.currentAction.actionType === ActionType.kCommunityCard) {
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const newCards = getCards([...currentState.cards], [...currentState.deck], inputCards);
@@ -165,7 +174,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     deck: [...filterNewCardsFromDeck(newCards, [...currentState.deck])]
                 };
             } else if (currentState.currentAction.actionType === ActionType.kVillainCards) {
-                let villains = currentState.actionSequence.filter(v => v !== currentState.hero.position);
+                let villains = currentState.actionSequence.filter(v => v.position !== currentState.hero.position).map(v => v.position);
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const villainCards = getVillainCards(inputCards, villains);
                 const showdownHands = [{
@@ -185,12 +194,14 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             } else if (action.payload.input.trim().length > 1) {
                 // Handle the last player action input before transitioning
                 const mostRecentActionText = getLastAction(action.payload.input);
-                const playerToAct = currentState.actionSequence[0];
+                const nextPlayerToActIndex = currentState.actionSequence.findIndex(a => !a.isAllIn);
+                const playerToAct = currentState.actionSequence[nextPlayerToActIndex] as PlayerStatus
 
-                const actionInfo = parseAction(mostRecentActionText, playerToAct);
+                const actionInfo = parseAction(mostRecentActionText, playerToAct.position);
                 const playerAction = buildBasePlayerAction(actionInfo, currentState.stage);
+                // Used to display a divider between stages in action list.
                 playerAction.isLastActionForStage = initialStage !== nextStage;
-                const actingPlayer = playerAction.position;
+                const playerPos = playerAction.position;
                 const currentStack = state.current.stacks[playerAction.position];
                 const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = 
                     getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, currentStack, playerAction)
@@ -199,31 +210,37 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 // Calculate the player's new stack size
                 const newStackSize = currentStack - amountToAdd;
 
-                let numBets = currentState.playerActions.filter(a => a.stage === currentState.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
+                let numBets =
+                  currentState.playerActions.filter(a => a.stage === currentState.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
                 numBets = initialStage === Stage.Preflop ? numBets + 1 : numBets;
                 playerAction.text = getMeaningfulTextToDisplay(playerAction, numBets, initialStage);
                 finalPlayerActions = [...finalPlayerActions, playerAction];
                 // Update action sequence if post-flop (mirroring kAddAction logic)
                 if (currentState.stage !== Stage.Preflop) {
-                    const remainingPlayers = currentState.actionSequence.slice(1);
+                    const remainingPlayers = [
+                        ...state.current.actionSequence.slice(0, nextPlayerToActIndex),
+                        ...state.current.actionSequence.slice(nextPlayerToActIndex +1)]
+
+                    // If the player didn't fold, add them to the end of the remaining sequence
+                    const addPlayerBack = playerAction.decision !== Decision.kFold;
+                    const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
                     finalActionSequence = [
                         ...remainingPlayers,
-                        ...(playerAction.decision !== Decision.kFold ? [playerToAct] : [])
+                        ...(addPlayerBack ? [{position: playerPos, isAllIn}] : [])
                     ];
                 }
+
+                // Update betting information
                 propertyUpdates.pot = currentState.pot + amountToAdd;
                 propertyUpdates.betsThisStreet = {
                     ...currentState.betsThisStreet,
-                    [actingPlayer]: newPlayerBetTotal,
+                    [playerPos]: newPlayerBetTotal,
                 };
-                propertyUpdates.currentBetFacing = newCurrentBetFacing;
                 propertyUpdates.stacks = {
                     ...currentState.stacks,
-                    [actingPlayer]: newStackSize
+                    [playerPos]: newStackSize
                 };
-            if (logging) {
-                console.log(`Transition | ${playerAction.position}'s updated stack size is: ${propertyUpdates.stacks[playerAction.position]}`);
-            }
+                propertyUpdates.currentBetFacing = newCurrentBetFacing;
             }
 
             const newStateBase: GameState = {
@@ -233,35 +250,48 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 actionSequence: finalActionSequence,
                 stage: nextStage,
                 input: '',
-                gameQueue: currentState.gameQueue.slice(1),
                 currentAction: nextAction,
+                gameQueue: currentState.gameQueue.slice(1), // remove upcoming `currentAction` from queue
             };
 
             let finalState = newStateBase;
 
-            // If transitioning *away from* Preflop, apply auto-folds based on the *original* preflop sequence
+            // If transitioning away from* Preflop, apply auto-folds based on the original preflop sequence
             if (initialStage === Stage.Preflop && nextStage !== initialStage) {
-                const originalPreflopSequence = currentState.actionSequence;
+                const originalPreflopSequence = currentState.actionSequence.map(v => v.position);
                 finalState = {
                     ...finalState,
                     playerActions: getPlayerActionsWithAutoFolds(originalPreflopSequence, finalState.playerActions)
                 };
             }
 
-            // If the stage actually changed, recalculate the action sequence for the *new* stage
+            // If the stage actually changed, recalculate the action sequence for the new stage.
             if (initialStage !== nextStage && nextStage !== Stage.Showdown) {
                 finalState = {
                     ...finalState,
-                    actionSequence: getNewActionSequence(initialStage, finalState.playerActions),
+                    actionSequence: getNewActionSequence(initialStage, finalState.playerActions, finalState.actionSequence),
+                    // Update betting information for new stage
                     betsThisStreet: {},
                     potForStreetMap: { ...finalState.potForStreetMap, [nextStage]: finalState.pot },
                     currentBetFacing: 0,
                 };
             }
 
-            // Advance to showdown
-            if (finalState.actionSequence.length === 1) {
-                finalState.stage = Stage.Showdown;
+            // Advance to showdown if necessary.
+            const playersLeft = finalState.actionSequence.filter(player => !player.isAllIn).length;
+            if (playersLeft <= 1) {
+                const allInAndACall = didAllInAndACallOccurOnStreet(finalState.playerActions);
+                console.log(allInAndACall, ' allInAndACall value')
+                if (allInAndACall) {
+                    finalState.gameQueue = getRemainingCardActions(finalState.gameQueue)
+                    if (!finalState.currentAction) {
+                        finalState.stage = Stage.Showdown;
+                    }
+
+                } else {
+                    console.log('skipping to showdown state because no one called ... ')
+                    finalState.stage = Stage.Showdown;
+                }
             }
             const newHistory = state.history.push(currentState);
             const newTransitionState = {
@@ -274,9 +304,13 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
         case DispatchActionType.kSetGameInfo: {
             const { actionSequence, heroPosition, hand, smallBlind, bigBlind, relevantStacks } = action.payload;
             const upperCasedHand = hand.toUpperCase();
+            const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position) => ({
+                position,
+                isAllIn: false,
+            }));
             const initialGameState: GameState = {
                 ...state.current,
-                actionSequence: moveFirstTwoToEnd(actionSequence),
+                actionSequence: moveFirstTwoToEnd(initialPlayerStatuses),
                 pot: smallBlind + bigBlind,
                 hero: { position: heroPosition, hand: parsePokerHandString(upperCasedHand) },
                 deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
@@ -292,11 +326,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: { ...initialGameState },
                 history: state.history,
             };
-            start = gameInfoStateInitial;
             return gameInfoStateInitial;
         }
         case DispatchActionType.kReset:
-            return start;
             return {
                 current: getInitialGameState(),
                 history: ImmutableStack.create<GameState>([getInitialGameState()])
@@ -304,6 +336,24 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
         default:
             return state;
     }
+}
+
+
+// change action sequence to obj?
+function didAllInAndACallOccurOnStreet(playerActions: PlayerAction[]): boolean {
+    // console.log('====== didAllInAndACallOccurOnStreet ======')
+    let allInIndex = playerActions.findIndex((action: PlayerAction) => action.decision === Decision.kAllIn);
+    if (allInIndex === -1) {
+        return false;
+    }
+    const decisions = Object.values(Decision).filter(d => d !== Decision.kFold);
+    return playerActions.slice(allInIndex + 1).some(((action: PlayerAction) => decisions.includes(action.decision)));
+
+}
+function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueItem[] {
+    // console.log('====== getRemainingCardActions ======')
+    // console.log(gameQueue, ' queue')
+    return gameQueue.filter((item: GameQueueItem) => item.actionType !== ActionType.kActionSequence);
 }
 
 const initialAppState: GameAppState = {
@@ -331,9 +381,6 @@ export default function App() {
 
     useEffect(() => {
         // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
-        if (logging) {
-            console.log(`state.current.input in useEffect: ${state.current.input} | gameQueue: ${state.current.gameQueue.length}`)
-        }
         setInputValue(state.current.input);
      }, [state.current.input, state.current.gameQueue.length]);
 
@@ -358,12 +405,10 @@ export default function App() {
         let type: DispatchActionType;
 
         if (isTransition) {
-            console.log('in transition')
             type = DispatchActionType.kTransition;
             // setInputValue(text)
             dispatch({ type, payload: { input: text } });
         } else if (isAddAction && (state.current.currentAction.actionType !== ActionType.kCommunityCard && state.current.currentAction.actionType !== ActionType.kVillainCards)) {
-            console.log('in add')
             type = DispatchActionType.kAddAction;
             // setInputValue(text)
             dispatch({ type, payload: { input: text } });
@@ -399,7 +444,7 @@ export default function App() {
                     justifyContent: 'space-between'
                 }}>
                     <Text style={styles.potText} onPress={() => dispatch({ type: DispatchActionType.kReset, payload: {} })}>
-                        Eff: ${calculateEffectiveStack(state.current.actionSequence, state.current.stacks)}
+                        Eff: ${calculateEffectiveStack(state.current.actionSequence.map(a => a.position), state.current.stacks)}
                     </Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
@@ -468,7 +513,7 @@ function calculateEffectiveStack(
     // 1. Map the list of positions directly to their stack sizes
     //    (Assumes every position exists in stacks and the value is a number)
     const relevantStacks = positionsLeft.map(position => stacks[position]);
-
+    // console.log(`${positionsLeft.join(', ')} : ${relevantStacks.join(', ')}`)
     // 2. Find the minimum value among those stack sizes
     //    Math.min() returns Infinity if relevantStacks is empty (shouldn't happen if positionsLeft isn't empty)
     //    Math.min() returns NaN if any value in relevantStacks is not a number (e.g., undefined from a bad lookup)
@@ -563,17 +608,30 @@ function getUpdatedBettingInfo(
  * @param playerActions The list of all actions recorded so far.
  * @returns An ordered array of unique positions for the next round of action.
  */
-function getNewActionSequence(stage: Stage, playerActions: PlayerAction[]): Position[] {
+function getNewActionSequence(stage: Stage, playerActions: PlayerAction[], sequence: PlayerStatus[]): PlayerStatus[] {
     // 1. Filter actions for the relevant stage and remove players who folded
     const foldedOutPlayers = playerActions.filter(action => action.stage === stage && action.decision === Decision.kFold).map(a => a.position);
+
     const activeActions = playerActions
         .filter(action => action.stage === stage && action.decision !== Decision.kFold);
     const filteredActiveActions = activeActions.filter(a => !foldedOutPlayers.includes(a.position));
-    const positions = filteredActiveActions.map(action => action.position);
-    const uniquePositions = positions.filter((position, index, self) =>
-        self.indexOf(position) === index
-    );
-    return uniquePositions.sort((a, b) => positionToRank(a) - positionToRank(b))
+    const allInPlayers = sequence.filter(s => s.isAllIn);
+    const allInPlayersPositions = allInPlayers.map(s => s.position);
+
+
+    const positions: PlayerStatus[] = [...allInPlayers ,...filteredActiveActions.map(action => ({position:action.position, isAllIn: allInPlayersPositions.includes(action.position)}))];
+    const uniquePositionsSet = new Set<string>();
+    const uniquePositions: PlayerStatus[] = [];
+    positions.forEach(p => {
+        if (!uniquePositionsSet.has(p.position)) {
+            uniquePositionsSet.add(p.position);
+            uniquePositions.push(p);
+        }
+    })
+    // const uniquePositions = positions.filter((position, index, self) =>
+    //     self.indexOf(position.z) === index
+    // );
+    return uniquePositions.sort((a, b) => positionToRank(a.position) - positionToRank(b.position));
 }
 
 function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction {
@@ -603,6 +661,10 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
 }
 
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
+    console.log(' ==== getVillainCards ====')
+    console.table(`cards: `, cards);
+    console.table(`villains: `, villains);
+
     let hands = cards.split(",").map(h => {
         let trim = h.trim();
         return transFormCardsToFormattedString(trim);
@@ -799,3 +861,4 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 });
+

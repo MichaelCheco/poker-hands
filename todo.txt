@@ -1,11 +1,16 @@
-CURRENT TODOS:
+TODOS:
+- Collect cards after all in and a call
+- Multiway: Ensure multiple villain cards supported
+- Multiway: Remove player from sequence if all-in but still collect cards
+- add placeholder text for villain cards
+- Support villain mucking cards
+- preflop actions must contain position
 * bug inputting multiple values for villain hand
 * test multiway pots with shorthand notation and fast forward hands where bets put players all in
 * fix reset
 * support all in and stack size
 * Make Save actions work
 * Handle multiple winners for a pot
-* Use Local State for the Input Value
 * Add RemoveTrailingPunctuation helper
 * Use Paper.HelperText for error display
 * Basic SavedHandRow component
@@ -20,6 +25,7 @@ CURRENT TODOS:
 * Handle case where player calls a bet but has less chips than total bet size
 * What if stack sizes are missing?
 * Location text truncation
+* preflop all-ins?
 * logo idea - white diagonal line across intersecting (???), black background
 VALIDATION TODOS:
 * Hero must be in preflop action sequence

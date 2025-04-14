@@ -75,6 +75,11 @@ export interface ShowdownDetails {
     hands: PokerPlayerInput[];
 }
 
+export interface PlayerStatus {
+    position: Position;
+    isAllIn: boolean;
+}
+
 export interface GameState {
     gameQueue: GameQueueItem[];
     currentAction: GameQueueItem;
@@ -83,7 +88,7 @@ export interface GameState {
     playerActions: PlayerAction[];
     stage: Stage;
     hero: { position: string, hand: string };
-    actionSequence: Position[];
+    actionSequence: PlayerStatus[];
     pot: number;
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
