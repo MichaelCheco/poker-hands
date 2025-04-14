@@ -663,10 +663,9 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
 }
 
 function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
-    console.log(' ==== getVillainCards ====')
-    console.table(`cards: `, cards);
-    console.table(`villains: `, villains);
-    convertRRSS_to_RSRS
+    // console.log(' ==== getVillainCards ====')
+    // console.table(`cards: `, cards);
+    // console.table(`villains: `, villains);
     let hands = cards.split(",").map(h => {
         let trim = h.trim();
         const thirdCard = trim[2];
