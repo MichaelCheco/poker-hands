@@ -156,14 +156,3 @@ export const initialState: InitialState = {
   showdown: { text: '', winner: '', combination: [] },
   stacks: {}
 };
-
-// 1 bet this street 5
-// bu raise to 20 --> open
-// 2 bets this sreet
-// // betFacing is 20
-// sb 3! to 50 
-// {sb: 2, bb: 5}
-
-// {bu: 20, bb: 80}
-// bu b 20
-// bb r 80

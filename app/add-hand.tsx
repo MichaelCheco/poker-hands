@@ -399,8 +399,8 @@ export default function App() {
     }, []);
 
     const handleInputChange = (text: string) => {
-        setInputValue(text);
         const isTransition = text.endsWith('.');
+        setInputValue(isTransition ? '' : text);
         const isAddAction = text.endsWith(',');
         let type: DispatchActionType;
 
@@ -412,6 +412,8 @@ export default function App() {
             type = DispatchActionType.kAddAction;
             // setInputValue(text)
             dispatch({ type, payload: { input: text } });
+        } else {
+            // setInputValue(text)
         }
         // dispatch({ type, payload: { input: text } });
     };
@@ -485,7 +487,7 @@ export default function App() {
                     ]}>
                         <TextInput
                             mode="outlined"
-                            label={state.current.currentAction?.placeholder}
+                            placeholder={state.current.currentAction?.placeholder || ''}
                             onChangeText={handleInputChange}
                             // submitBehavior={'newline'}
                             value={inputValue}
