@@ -80,7 +80,7 @@ const VALID_RANKS = 'AKQJT98765432';
 const VALID_SUITS = 'SHDCX'; // spades, hearts, diamonds, clubs, random
 
 const isRank = (char: string): boolean => VALID_RANKS.includes(char);
-const isSuit = (char: string): boolean => VALID_SUITS.includes(char);
+export const isSuit = (char: string): boolean => VALID_SUITS.includes(char);
 
 /**
  * Converts a 4-character poker hand string from RRSS format (Rank1, Rank2, Suit1, Suit2)
@@ -92,7 +92,7 @@ const isSuit = (char: string): boolean => VALID_SUITS.includes(char);
  * @returns The hand string converted to RSRS format.
  * @throws Error if the input string is null, not 4 characters long, or doesn't match the RRSS format (Rank, Rank, Suit, Suit).
  */
-function convertRRSS_to_RSRS(rrssHandString: string | null | undefined): string {
+export function convertRRSS_to_RSRS(rrssHandString: string | null | undefined): string {
     // Define valid characters (using common poker notation casing)
 
     // Helper functions for validation

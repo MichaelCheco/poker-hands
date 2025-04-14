@@ -8,7 +8,7 @@ import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, P
 import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
-import { formatCommunityCards, getInitialGameState, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
+import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
 import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
@@ -666,12 +666,12 @@ function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] 
     console.log(' ==== getVillainCards ====')
     console.table(`cards: `, cards);
     console.table(`villains: `, villains);
-
+    convertRRSS_to_RSRS
     let hands = cards.split(",").map(h => {
         let trim = h.trim();
-        return transFormCardsToFormattedString(trim);
+        const thirdCard = trim[2];
+        return transFormCardsToFormattedString(isSuit(thirdCard) ? convertRRSS_to_RSRS(trim) : trim);
     });
-    // TODO format hands
     let output = []
     for (let i = 0; i < villains.length; i++) {
         let currHand = hands[i];
