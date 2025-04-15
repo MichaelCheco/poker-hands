@@ -1,4 +1,4 @@
-import { ActionType, InitialState, Position, Stage } from "./types";
+import { ActionType, GameState, GameQueueItemType, Position, Stage } from "./types";
 
 export const playerOptions = [
   { label: '2', value: '2' },
@@ -92,48 +92,50 @@ export const initialDeck: string[] = [
   '2S', '3S', '4S', '5S', '6S', '7S', '8S', '9S', 'TS', 'JS', 'QS', 'KS', 'AS'
 ];
 
-export const initialState: InitialState = {
+export const initialState: GameState = {
   gameQueue: [
     {
       placeholder: 'Flop cards',
       shouldTransitionAfterStep: false,
       actionType: ActionType.kCommunityCard,
+      id: GameQueueItemType.kFlopCards,
     },
     {
       placeholder: 'Flop action',
       shouldTransitionAfterStep: true,
       actionType: ActionType.kActionSequence,
+      id: GameQueueItemType.kFlopAction,
     },
     {
       placeholder: 'Turn card',
       shouldTransitionAfterStep: false,
       actionType: ActionType.kCommunityCard,
+      id: GameQueueItemType.kTurnCard,
     },
     {
       placeholder: 'Turn action',
       shouldTransitionAfterStep: true,
       actionType: ActionType.kActionSequence,
+      id: GameQueueItemType.kTurnAction,
     },
     {
       placeholder: 'River card',
       shouldTransitionAfterStep: false,
       actionType: ActionType.kCommunityCard,
+      id: GameQueueItemType.kRiverCard,
     },
     {
       placeholder: 'River action',
       shouldTransitionAfterStep: false,
       actionType: ActionType.kActionSequence,
-    },
-    {
-      placeholder: "Villain's cards",
-      shouldTransitionAfterStep: true,
-      actionType: ActionType.kVillainCards,
+      id: GameQueueItemType.kRiverAction,
     },
   ],
   currentAction: {
     placeholder: 'Preflop action',
     shouldTransitionAfterStep: true,
     actionType: ActionType.kActionSequence,
+    id: GameQueueItemType.kPreflopAction,
   },
   input: '',
   cards: ['', '', '', '', ''],
@@ -152,7 +154,7 @@ export const initialState: InitialState = {
   betsThisStreet: {},
   currentBetFacing: 0,
   mostRecentBet: 0,
-  villainCards: {},
-  showdown: { text: '', winner: '', combination: [] },
+  showdownHands: [],
+  showdown: null,
   stacks: {}
 };

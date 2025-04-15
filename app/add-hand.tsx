@@ -4,7 +4,7 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType } from '@/types';
 import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
@@ -48,11 +48,6 @@ function getNumBetsForStage(playerActions: PlayerAction[], stage: Stage): number
     let numBets = playerActions.filter(a => a.stage === stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
     numBets = stage === Stage.Preflop ? numBets + 1 : numBets;
     return numBets;
-}
-
-function shouldTriggerUndo(text: string, currState: GameState): boolean {
-    const isAddAction = text.endsWith(',');
-    return (isAddAction || `${text},` === currState.input) && isRecordedAction(currState.playerActions, text, currState.actionSequence[0] || '', currState.stage);
 }
 
 function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
@@ -158,8 +153,8 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             // We don't always move to the next stage after a transition (turn card --> turn action)
             const nextStage = currentState.currentAction.shouldTransitionAfterStep ? getNextStage(currentState.stage) : currentState.stage;
             // Next step in the overall game flow
-            const nextAction = currentState.gameQueue[0];
-
+            let nextAction = currentState.gameQueue[0];
+            let updatedGameQueue = currentState.gameQueue.slice(1);
             // Contains properties to update based on the current action type.
             let propertyUpdates: Partial<GameState> = {};
             // Get current actions and sequence before any potential modifications
@@ -174,31 +169,29 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     deck: [...filterNewCardsFromDeck(newCards, [...currentState.deck])]
                 };
             } else if (currentState.currentAction.actionType === ActionType.kVillainCards) {
-                let villains = currentState.actionSequence.filter(v => v.position !== currentState.hero.position).map(v => v.position);
-                const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
-                const villainCards = getVillainCards(inputCards, villains);
-                const showdownHands = [{
-                    playerId: currentState.hero.position,
-                    holeCards: [currentState.hero.hand.slice(0, 2), currentState.hero.hand.slice(2)]
-                }, ...villainCards];
-                const result = determinePokerWinnerManual(
-                    showdownHands,
-                    formatCommunityCards(currentState.cards)) as WinnerInfo;
-                propertyUpdates.showdown = {
-                    combination: result.bestHandCards,
-                    hands: showdownHands,
-                    text: result.winningHandDescription,
-                    winner: `${result.winners.map(w => w.playerId)[0]}`
-                };
-                // Check if there's action input
+                const villainHand = getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), currentState.currentAction.position as Position)
+                const hands = [...currentState.showdownHands, villainHand];
+                // All hands have been collected, determine winner information.
+                if (!nextAction) {
+                    const showdownHands = [formatHeroHand(currentState.hero), ...hands];
+                    const result = determinePokerWinnerManual(
+                        showdownHands,
+                        formatCommunityCards(currentState.cards)) as WinnerInfo;
+                    propertyUpdates.showdown = {
+                        combination: result.bestHandCards,
+                        hands: showdownHands,
+                        text: result.winningHandDescription,
+                        winner: `${result.winners.map(w => w.playerId)[0]}`
+                    };
+                } else {
+                    console.log(`updating showdownHands`)
+                    propertyUpdates.showdownHands = hands;    
+                }
             } else if (action.payload.input.trim().length > 1) {
-                // Handle the last player action input before transitioning
-                const mostRecentActionText = getLastAction(action.payload.input);
-                const nextPlayerToActIndex = currentState.actionSequence.findIndex(a => !a.isAllIn);
-                const playerToAct = currentState.actionSequence[nextPlayerToActIndex] as PlayerStatus
-
-                const actionInfo = parseAction(mostRecentActionText, playerToAct.position);
-                const playerAction = buildBasePlayerAction(actionInfo, currentState.stage);
+                const currentGameState = state.current;
+                const nextPlayerToActIndex = currentGameState.actionSequence.findIndex(a => !a.isAllIn);
+                const playerToAct = currentGameState.actionSequence[nextPlayerToActIndex] as PlayerStatus
+                const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), currentGameState.stage)
                 // Used to display a divider between stages in action list.
                 playerAction.isLastActionForStage = initialStage !== nextStage;
                 const playerPos = playerAction.position;
@@ -210,16 +203,16 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 // Calculate the player's new stack size
                 const newStackSize = currentStack - amountToAdd;
 
-                let numBets =
-                  currentState.playerActions.filter(a => a.stage === currentState.stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
-                numBets = initialStage === Stage.Preflop ? numBets + 1 : numBets;
-                playerAction.text = getMeaningfulTextToDisplay(playerAction, numBets, initialStage);
+                playerAction.text = getMeaningfulTextToDisplay(
+                    playerAction,
+                    getNumBetsForStage(currentState.playerActions, initialStage),
+                    initialStage);
                 finalPlayerActions = [...finalPlayerActions, playerAction];
                 // Update action sequence if post-flop (mirroring kAddAction logic)
                 if (currentState.stage !== Stage.Preflop) {
                     const remainingPlayers = [
                         ...state.current.actionSequence.slice(0, nextPlayerToActIndex),
-                        ...state.current.actionSequence.slice(nextPlayerToActIndex +1)]
+                        ...state.current.actionSequence.slice(nextPlayerToActIndex + 1)]
 
                     // If the player didn't fold, add them to the end of the remaining sequence
                     const addPlayerBack = playerAction.decision !== Decision.kFold;
@@ -251,7 +244,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 stage: nextStage,
                 input: '',
                 currentAction: nextAction,
-                gameQueue: currentState.gameQueue.slice(1), // remove upcoming `currentAction` from queue
+                gameQueue: updatedGameQueue, // remove upcoming `currentAction` from queue
             };
 
             let finalState = newStateBase;
@@ -276,9 +269,21 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     currentBetFacing: 0,
                 };
             }
-
+            // !nextAction && !currentState.currentAction.position && currentState.showdownHands.length === 0
+            if (currentState.currentAction.id === GameQueueItemType.kRiverAction) {
+                // add villains to queue for card collection
+                updatedGameQueue = AddVillainsToGameQueue(currentState.actionSequence.filter(v => v.position !== currentState.hero.position).map(v => v.position));
+                nextAction = updatedGameQueue[0];
+                updatedGameQueue = updatedGameQueue.slice(1);
+                finalState = {
+                    ...finalState,
+                    currentAction: nextAction,
+                    gameQueue: updatedGameQueue
+                };
+            }
             // Advance to showdown if necessary.
             const playersLeft = finalState.actionSequence.filter(player => !player.isAllIn).length;
+            // Should this and the statement above be conditional and ordered?
             if (playersLeft <= 1) {
                 const allInAndACall = didAllInAndACallOccurOnStreet(finalState.playerActions);
                 console.log(allInAndACall, ' allInAndACall value')
@@ -287,7 +292,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     if (!finalState.currentAction) {
                         finalState.stage = Stage.Showdown;
                     }
-
                 } else {
                     console.log('skipping to showdown state because no one called ... ')
                     finalState.stage = Stage.Showdown;
@@ -338,8 +342,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
     }
 }
 
-
-// change action sequence to obj?
 function didAllInAndACallOccurOnStreet(playerActions: PlayerAction[]): boolean {
     // console.log('====== didAllInAndACallOccurOnStreet ======')
     let allInIndex = playerActions.findIndex((action: PlayerAction) => action.decision === Decision.kAllIn);
@@ -350,10 +352,18 @@ function didAllInAndACallOccurOnStreet(playerActions: PlayerAction[]): boolean {
     return playerActions.slice(allInIndex + 1).some(((action: PlayerAction) => decisions.includes(action.decision)));
 
 }
+
 function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueItem[] {
     // console.log('====== getRemainingCardActions ======')
     // console.log(gameQueue, ' queue')
     return gameQueue.filter((item: GameQueueItem) => item.actionType !== ActionType.kActionSequence);
+}
+
+function AddVillainsToGameQueue(villains: Position[]): GameQueueItem[] {
+    const newQueueItems: GameQueueItem[] = villains.map(villain => ({placeholder: `${villain}'s cards`, shouldTransitionAfterStep: false, actionType: ActionType.kVillainCards, position: villain}));
+    const sortedQueueItems = newQueueItems.sort((a, b) => positionToRank(a.position as Position) - positionToRank(b.position as Position));
+    sortedQueueItems[sortedQueueItems.length -1].shouldTransitionAfterStep = true;
+    return sortedQueueItems;
 }
 
 const initialAppState: GameAppState = {
@@ -415,7 +425,6 @@ export default function App() {
         } else {
             // setInputValue(text)
         }
-        // dispatch({ type, payload: { input: text } });
     };
 
     useEffect(() => {
@@ -430,6 +439,7 @@ export default function App() {
     const handleUndo = () => {
         dispatch({ type: DispatchActionType.kUndo, payload: {} });
     };
+
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
@@ -487,7 +497,7 @@ export default function App() {
                     ]}>
                         <TextInput
                             mode="outlined"
-                            placeholder={state.current.currentAction?.placeholder || ''}
+                            label={state.current.currentAction?.placeholder || ''}
                             onChangeText={handleInputChange}
                             // submitBehavior={'newline'}
                             value={inputValue}
@@ -620,7 +630,6 @@ function getNewActionSequence(stage: Stage, playerActions: PlayerAction[], seque
     const allInPlayers = sequence.filter(s => s.isAllIn);
     const allInPlayersPositions = allInPlayers.map(s => s.position);
 
-
     const positions: PlayerStatus[] = [...allInPlayers ,...filteredActiveActions.map(action => ({position:action.position, isAllIn: allInPlayersPositions.includes(action.position)}))];
     const uniquePositionsSet = new Set<string>();
     const uniquePositions: PlayerStatus[] = [];
@@ -630,9 +639,6 @@ function getNewActionSequence(stage: Stage, playerActions: PlayerAction[], seque
             uniquePositions.push(p);
         }
     })
-    // const uniquePositions = positions.filter((position, index, self) =>
-    //     self.indexOf(position.z) === index
-    // );
     return uniquePositions.sort((a, b) => positionToRank(a.position) - positionToRank(b.position));
 }
 
@@ -662,25 +668,18 @@ function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions
     return newSequence;
 }
 
-function getVillainCards(cards: string, villains: string[]): PokerPlayerInput[] {
-    // console.log(' ==== getVillainCards ====')
-    // console.table(`cards: `, cards);
-    // console.table(`villains: `, villains);
-    let hands = cards.split(",").map(h => {
-        let trim = h.trim();
-        const thirdCard = trim[2];
-        return transFormCardsToFormattedString(isSuit(thirdCard) ? convertRRSS_to_RSRS(trim) : trim);
-    });
-    let output = []
-    for (let i = 0; i < villains.length; i++) {
-        let currHand = hands[i];
-        let splitCards = [currHand.slice(0, 2), currHand.slice(2)];
-        output[i] = {
-            holeCards: splitCards,
-            playerId: villains[i]
-        };
+function formatHeroHand(hero: { position: string, hand: string }): PokerPlayerInput {
+    return {
+        playerId: hero.position,
+        holeCards: [hero.hand.slice(0, 2), hero.hand.slice(2)]
     }
-    return output;
+}
+function getVillainCards(inputCards: string, playerId: Position): PokerPlayerInput {
+    const thirdCard = inputCards[2];
+    const formattedCards =  transFormCardsToFormattedString(isSuit(thirdCard) ? convertRRSS_to_RSRS(inputCards) : inputCards);
+    const card1 = formattedCards.slice(0, 2);
+    const card2 = formattedCards.slice(2);
+    return {playerId, holeCards: [card1, card2]}
 }
 
 function getCards(communityCards: string[], currentDeck: string[], newCards: string) {
@@ -724,7 +723,6 @@ function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: num
         }
     }
 }
-
 
 // Used to pick a random suit for a card (Ax).
 function getRandomIndex(arrayLen: number): number {
@@ -862,4 +860,3 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 });
-

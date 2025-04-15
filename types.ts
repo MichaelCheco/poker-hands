@@ -35,12 +35,23 @@ export enum DispatchActionType {
     kUndo,
 }
 
+export enum GameQueueItemType {
+    kPreflopAction,
+    kFlopCards,
+    kFlopAction,
+    kTurnCard,
+    kTurnAction,
+    kRiverCard,
+    kRiverAction,
+  };
+
 export interface GameQueueItem {
     placeholder: string;
     shouldTransitionAfterStep: boolean;
     actionType: ActionType;
+    position?: Position
+    id?: GameQueueItemType;
 }
-
 
 export enum Decision {
     kCheck = 'X',
@@ -92,9 +103,10 @@ export interface GameState {
     pot: number;
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
-    potForStreetMap: { [key in Position]?: number };
+    potForStreetMap: { [key in Stage]?: number };
     stacks: { [key in Position]: number  };
     currentBetFacing: number;
+    showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
-    showdown: ShowdownDetails;
+    showdown: ShowdownDetails | null;
 }
