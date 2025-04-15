@@ -3,7 +3,7 @@ import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Divider, List, Text } from 'react-native-paper';
 
-export default function ActionList({ actionList, currentStage, potForStreetMap }: { actionList: PlayerAction[], currentStage: Stage; potForStreetMap: { [key in Position]?: number }; }) {
+export default function ActionList({ actionList, currentStage, potForStreetMap }: { actionList: PlayerAction[], currentStage: Stage; potForStreetMap: { [key in Stage]?: number }; }) {
     const filteredActions = actionList.filter(action => !action.shouldHideFromUi);
     const groupedActions = React.useMemo(() => {
         return filteredActions.reduce((acc, action) => {
@@ -30,8 +30,8 @@ export default function ActionList({ actionList, currentStage, potForStreetMap }
                         marginLeft: -10, marginInline: 0, padding: 0,
                         fontWeight: '700',
                         color: '#555',
-                     }}>
-                      {`${getStageName(stage)}${stage !== Stage.Preflop ? ` ($${potForStreetMap[stage]})` : ''}`}
+                    }}>
+                        {`${getStageName(stage)}${stage !== Stage.Preflop ? ` ($${potForStreetMap[stage]})` : ''}`}
                     </List.Subheader>
                     {groupedActions[stage].map((item: PlayerAction, index: number) => {
                         const uniqueItemKey = item.id || `action-${stage}-${item.position}-${index}`;

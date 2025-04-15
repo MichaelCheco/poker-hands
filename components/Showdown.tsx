@@ -157,7 +157,7 @@ export async function formatAndCopyHandHistory(
 }
 
 function getLastStageName(actionList: PlayerAction[]): string {
-    return getStageName(actionList[actionList.length -1].stage);
+    return getStageName(actionList[actionList.length - 1].stage);
 }
 
 function decisionToText(decision: Decision): string {
@@ -172,7 +172,7 @@ function decisionToText(decision: Decision): string {
 }
 
 function getTextSummaryForLastStage(actionList: PlayerAction[]): string {
-    const lastStagePlayed = actionList[actionList.length -1].stage;
+    const lastStagePlayed = actionList[actionList.length - 1].stage;
     const lastStageActions = actionList.filter(action => action.stage === lastStagePlayed);
     let text = '';
     for (const action of lastStageActions) {
@@ -225,14 +225,14 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
                     )
                 }
                 ) : (
-                    <Text style={{marginTop: 8}}>{getHandSummary(actionList, actionSequence.map(a => a.position), pot)}</Text>
+                    <Text style={{ marginTop: 8 }}>{getHandSummary(actionList, actionSequence.map(a => a.position), pot)}</Text>
                 )}
             </List.Section>
             <TextInput
                 mode="outlined"
                 multiline
                 label="Notes"
-                style={{minHeight: 90, flex: 1, marginBottom: 16}}
+                style={{ minHeight: 90, flex: 1, marginBottom: 16 }}
                 activeOutlineColor='#000000'
             />
             <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginLeft: 8 }}>

@@ -18,7 +18,6 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'; // Or get navigation from props if using older class components/navigation versions
 import HeroHandInfo from '@/components/HeroHandInfo';
 
-let start;
 const logging = false;
 
 interface GameAppState {
@@ -32,13 +31,6 @@ function removeAfterLastComma(input: string): string {
     return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
 }
 
-function isRecordedAction(playerActions: PlayerAction[], text: string, playerToAct: string, stage: Stage): boolean {
-    const actionText = getLastAction(text.endsWith('.') ? text.slice(0, -1) : text);
-    const actionInfo = parseAction(actionText, playerToAct);
-    const playerAction = buildBasePlayerAction(actionInfo, stage);
-    const result = playerActions.some(ac => ac.id === playerAction.id)
-    return result;
-}
 
 function hasActionBeenAddedAlready(playerActions: PlayerAction[], currentAction: PlayerAction): boolean {
     return playerActions.some(action => action.id === currentAction.id);
@@ -90,7 +82,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const currentStack = state.current.stacks[playerAction.position];
             // Calculate betting information updates (if applicable) based on new player action
             const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
-              getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, currentStack, playerAction);
+                getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, currentStack, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = amountToAdd;
 
@@ -105,18 +97,18 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             let newActionSequence: PlayerStatus[] = [...state.current.actionSequence];
             if (state.current.stage !== Stage.Preflop) {
                 // const remainingPlayers = state.current.actionSequence.slice(1);
-                const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex+1)]
+                const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex + 1)]
                 // fix action sequence
                 // If the player didn't fold, add them to the end of the remaining sequence
                 const addPlayerBack = playerAction.decision !== Decision.kFold;
                 const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
                 newActionSequence = [
                     ...remainingPlayers,
-                    ...(addPlayerBack ? [{position: actingPlayer, isAllIn}] : [])
+                    ...(addPlayerBack ? [{ position: actingPlayer, isAllIn }] : [])
                 ];
             }
             // Pre-flop: Action sequence is handled differently, often based on who is left
-            // *after* the betting round, so we don't modify it here per-action.
+            // after the betting round, so we don't modify it here per-action.
             // It gets recalculated during the transition from Preflop.
             const addActionState: GameState = {
                 ...state.current,
@@ -185,7 +177,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     };
                 } else {
                     console.log(`updating showdownHands`)
-                    propertyUpdates.showdownHands = hands;    
+                    propertyUpdates.showdownHands = hands;
                 }
             } else if (action.payload.input.trim().length > 1) {
                 const currentGameState = state.current;
@@ -196,7 +188,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 playerAction.isLastActionForStage = initialStage !== nextStage;
                 const playerPos = playerAction.position;
                 const currentStack = state.current.stacks[playerAction.position];
-                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } = 
+                const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
                     getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, currentStack, playerAction)
                 playerAction.amount = amountToAdd;
 
@@ -219,7 +211,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
                     finalActionSequence = [
                         ...remainingPlayers,
-                        ...(addPlayerBack ? [{position: playerPos, isAllIn}] : [])
+                        ...(addPlayerBack ? [{ position: playerPos, isAllIn }] : [])
                     ];
                 }
 
@@ -360,9 +352,9 @@ function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueItem[] {
 }
 
 function AddVillainsToGameQueue(villains: Position[]): GameQueueItem[] {
-    const newQueueItems: GameQueueItem[] = villains.map(villain => ({placeholder: `${villain}'s cards`, shouldTransitionAfterStep: false, actionType: ActionType.kVillainCards, position: villain}));
+    const newQueueItems: GameQueueItem[] = villains.map(villain => ({ placeholder: `${villain}'s cards`, shouldTransitionAfterStep: false, actionType: ActionType.kVillainCards, position: villain }));
     const sortedQueueItems = newQueueItems.sort((a, b) => positionToRank(a.position as Position) - positionToRank(b.position as Position));
-    sortedQueueItems[sortedQueueItems.length -1].shouldTransitionAfterStep = true;
+    sortedQueueItems[sortedQueueItems.length - 1].shouldTransitionAfterStep = true;
     return sortedQueueItems;
 }
 
@@ -392,7 +384,7 @@ export default function App() {
     useEffect(() => {
         // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
         setInputValue(state.current.input);
-     }, [state.current.input, state.current.gameQueue.length]);
+    }, [state.current.input, state.current.gameQueue.length]);
 
     useEffect(() => {
         dispatch({
@@ -595,7 +587,6 @@ function getUpdatedBettingInfo(
 
             // Player's total commitment this street after the all-in
             newPlayerBetTotal = alreadyBet + amountToAdd;
-        // stop at sb flop bet
             // The bet level facing others is the MAX of the previous facing bet
             // and the total amount this player just committed.
             newCurrentBetFacing = Math.max(currentBetFacing, newPlayerBetTotal);
@@ -630,7 +621,7 @@ function getNewActionSequence(stage: Stage, playerActions: PlayerAction[], seque
     const allInPlayers = sequence.filter(s => s.isAllIn);
     const allInPlayersPositions = allInPlayers.map(s => s.position);
 
-    const positions: PlayerStatus[] = [...allInPlayers ,...filteredActiveActions.map(action => ({position:action.position, isAllIn: allInPlayersPositions.includes(action.position)}))];
+    const positions: PlayerStatus[] = [...allInPlayers, ...filteredActiveActions.map(action => ({ position: action.position, isAllIn: allInPlayersPositions.includes(action.position) }))];
     const uniquePositionsSet = new Set<string>();
     const uniquePositions: PlayerStatus[] = [];
     positions.forEach(p => {
@@ -674,12 +665,13 @@ function formatHeroHand(hero: { position: string, hand: string }): PokerPlayerIn
         holeCards: [hero.hand.slice(0, 2), hero.hand.slice(2)]
     }
 }
+
 function getVillainCards(inputCards: string, playerId: Position): PokerPlayerInput {
     const thirdCard = inputCards[2];
-    const formattedCards =  transFormCardsToFormattedString(isSuit(thirdCard) ? convertRRSS_to_RSRS(inputCards) : inputCards);
+    const formattedCards = transFormCardsToFormattedString(isSuit(thirdCard) ? convertRRSS_to_RSRS(inputCards) : inputCards);
     const card1 = formattedCards.slice(0, 2);
     const card2 = formattedCards.slice(2);
-    return {playerId, holeCards: [card1, card2]}
+    return { playerId, holeCards: [card1, card2] }
 }
 
 function getCards(communityCards: string[], currentDeck: string[], newCards: string) {

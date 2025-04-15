@@ -43,7 +43,7 @@ export enum GameQueueItemType {
     kTurnAction,
     kRiverCard,
     kRiverAction,
-  };
+};
 
 export interface GameQueueItem {
     placeholder: string;
@@ -104,7 +104,7 @@ export interface GameState {
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
     potForStreetMap: { [key in Stage]?: number };
-    stacks: { [key in Position]: number  };
+    stacks: { [key in Position]: number };
     currentBetFacing: number;
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
