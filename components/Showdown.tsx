@@ -214,11 +214,21 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
         <View style={{ marginInline: 8 }}>
             <List.Section>
                 {showdown ? showdown.hands.map((hand, index) => {
+                    const isHand = !(typeof hand.holeCards === "string");
                     return (
                         <List.Item
                             contentStyle={{ flexGrow: 0, alignItems: 'center' }}
-                            key={`${hand.playerId}-${hand.holeCards.join('')}-${index}`}
-                            title={() => <MyHand cards={hand.holeCards.join('')} />}
+                            key={`${hand.playerId}-${isHand ? hand.holeCards.join('') : hand.holeCards}-${index}`}
+                            title={() => {
+                                if (isHand) {
+                                  return (
+                                    <MyHand cards={hand.holeCards.join('')} />
+                                  )
+                                }
+                                return (
+                                  <Text style={{fontSize:16}}>Mucked</Text>
+                                )
+                            }}
                             left={() => <Text style={styles.actionPosition}>{hand.playerId}</Text>}
                             right={hand.playerId === showdown.winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins ${pot} with {showdown.text}</Text> : undefined}
                         />

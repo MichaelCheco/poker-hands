@@ -1,4 +1,44 @@
-import { PokerPlayerInput } from "./hand-evaluator";
+export type Suit = 's' | 'h' | 'd' | 'c';
+export type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14; // 10=T, 11=J, 12=Q, 13=K, 14=A
+export type RankChar = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'T' | 'J' | 'Q' | 'K' | 'A';
+
+export interface ParsedCard {
+    rank: Rank;
+    suit: Suit;
+    str: string; // Original string representation e.g., "Ah"
+}
+
+// Hand Ranks (Higher is better)
+export enum HandRank {
+    HIGH_CARD = 1,
+    ONE_PAIR = 2,
+    TWO_PAIR = 3,
+    THREE_OF_A_KIND = 4,
+    STRAIGHT = 5,
+    FLUSH = 6,
+    FULL_HOUSE = 7,
+    FOUR_OF_A_KIND = 8,
+    STRAIGHT_FLUSH = 9,
+}
+
+// Structure to hold evaluation result for comparison
+export interface HandEvaluation {
+    rank: HandRank;
+    values: number[]; // Relevant card ranks for tie-breaking, highest first
+}
+
+// Input/Output Interfaces (same as library example)
+export interface PokerPlayerInput {
+    playerId: string;
+    // TODO improve type safety
+    holeCards: string[]|"muck";
+}
+
+export interface WinnerInfo {
+    winners: PokerPlayerInput[];
+    winningHandDescription: string;
+    bestHandCards: string[]; // The 5 cards forming the best hand
+}
 
 export enum Stage {
     Preflop,

@@ -4,12 +4,12 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../components/ActionList';
 import GameInfo from '../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo } from '@/types';
 import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { PokerFormData } from '@/components/PokerHandForm';
 import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
-import { determinePokerWinnerManual, PokerPlayerInput, WinnerInfo } from '@/hand-evaluator';
+import { determinePokerWinnerManual} from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import { ImmutableStack } from '@/ImmutableStack';
@@ -161,13 +161,15 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     deck: [...filterNewCardsFromDeck(newCards, [...currentState.deck])]
                 };
             } else if (currentState.currentAction.actionType === ActionType.kVillainCards) {
-                const villainHand = getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), currentState.currentAction.position as Position)
+                const handText = action.payload.input.slice(0, -1).trim().toUpperCase();
+                const position = currentState.currentAction.position as Position;
+                const villainHand = isMuck(handText) ? {playerId: position, holeCards: "muck"} as PokerPlayerInput : getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), position);
                 const hands = [...currentState.showdownHands, villainHand];
                 // All hands have been collected, determine winner information.
                 if (!nextAction) {
                     const showdownHands = [formatHeroHand(currentState.hero), ...hands];
                     const result = determinePokerWinnerManual(
-                        showdownHands,
+                        showdownHands.filter(hand => !(typeof hand.holeCards === "string")),
                         formatCommunityCards(currentState.cards)) as WinnerInfo;
                     propertyUpdates.showdown = {
                         combination: result.bestHandCards,
@@ -508,6 +510,11 @@ export default function App() {
             </KeyboardAvoidingView>
         </View>
     );
+}
+
+
+function isMuck(text: string): boolean {
+    return text.toLowerCase().trim() === "muck";
 }
 
 function calculateEffectiveStack(
