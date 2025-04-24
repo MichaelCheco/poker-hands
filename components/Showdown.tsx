@@ -1,12 +1,17 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { List, Text, IconButton, Button, useTheme, TextInput } from 'react-native-paper';
+import { List, Text, IconButton, Button, useTheme, TextInput, Portal, Snackbar } from 'react-native-paper';
 import { MyHand } from './Cards';
-import { PokerPlayerInput } from '@/hand-evaluator';
-import { Decision, PlayerAction, PlayerStatus, ShowdownDetails, Stage } from '@/types';
+import { Decision, PlayerAction, PlayerStatus, ShowdownDetails, HandSetupInfo, Stage, GameState } from '@/types';
 import * as Clipboard from 'expo-clipboard';
-import { PokerFormData } from './PokerHandForm';
+import { saveHandToSupabase } from '@/utils/hand-utils';
+import { useRouter } from 'expo-router';
 
+async function handleOnSavePress(gameState: GameState, gameInfo: HandSetupInfo) {
+    const result = await saveHandToSupabase(gameState, gameInfo);
+    console.log(result, ' ======')
+    return result.success;
+}
 
 function getStageName(stage: Stage): string {
     switch (stage) {
@@ -43,7 +48,7 @@ function getStageCards(stage: Stage, communityCards: string[]): string {
  */
 export async function formatAndCopyHandHistory(
     actions: PlayerAction[],
-    gameInfo: PokerFormData,
+    gameInfo: HandSetupInfo,
     communityCards: string[],
     showdown: ShowdownDetails | null,
     pot: number
@@ -194,18 +199,21 @@ function getHandSummary(actionList: PlayerAction[], actionSequence: string[], po
     return summary;
     // Hand ended on the River. Pot: $250. SB wins $250. CO folded.
 }
-const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionSequence }: {
-    showdown: ShowdownDetails | null, actionList: PlayerAction[],
-    gameInfo: PokerFormData,
-    communityCards: string[],
-    pot: number,
-    actionSequence: PlayerStatus[],
+const Showdown = ({ gameState, gameInfo }: {
+    gameState: GameState,
+    gameInfo: HandSetupInfo
 }) => {
     const theme = useTheme();
+    const router = useRouter()
+    const [portalSnackbarVisible, setPortalSnackbarVisible] = React.useState(false);
+    const showdown = gameState.gameQueue.length > 0 ? null : gameState.showdown;
     const handleCopyPress = async () => {
-        const success = await formatAndCopyHandHistory(actionList, gameInfo, communityCards, showdown, pot);
+        const success = await formatAndCopyHandHistory(gameState.playerActions, gameInfo, gameState.cards, gameState.showdown, gameState.pot);
         if (success) {
-            console.log('success');
+            setPortalSnackbarVisible(true)
+            setTimeout(() => {
+                router.back();
+            }, 500);
         } else {
             console.log('Could not copy history.');
         }
@@ -230,12 +238,12 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
                                 )
                             }}
                             left={() => <Text style={styles.actionPosition}>{hand.playerId}</Text>}
-                            right={hand.playerId === showdown.winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins ${pot} with {showdown.text}</Text> : undefined}
+                            right={hand.playerId === showdown.winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins ${gameState.pot} with {showdown.text}</Text> : undefined}
                         />
                     )
                 }
                 ) : (
-                    <Text style={{ marginTop: 8 }}>{getHandSummary(actionList, actionSequence.map(a => a.position), pot)}</Text>
+                    <Text style={{ marginTop: 8 }}>{getHandSummary(gameState.playerActions, gameState.actionSequence.map(a => a.position), gameState.pot)}</Text>
                 )}
             </List.Section>
             <TextInput
@@ -247,9 +255,28 @@ const Showdown = ({ showdown, actionList, gameInfo, communityCards, pot, actionS
             />
             <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginLeft: 8 }}>
                 <Button onPress={handleCopyPress} mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Copy</Button>
-                <Button mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
-            </View>
+                <Button onPress={async () => {
+                    const success = await handleOnSavePress(gameState, gameInfo);
+                    setPortalSnackbarVisible(success);
+                    if (success) {
+                        setTimeout(() => {
+                            router.back();
+                        }, 1500);
+                    }
 
+                    }} mode="contained" buttonColor="#000000" textColor='#FFFFFF'>Save</Button>
+            </View>
+            <Portal>
+            <Snackbar
+              visible={portalSnackbarVisible}
+              onDismiss={() => setPortalSnackbarVisible(false)}
+              action={{
+                label: 'close'
+              }}
+            >
+              Successfully saved hand!
+            </Snackbar>
+          </Portal>
         </View>
     );
 };

@@ -1,7 +1,9 @@
+import * as React from 'react'
 import { Stack } from "expo-router";
-import { MD3LightTheme as DefaultTheme, PaperProvider } from 'react-native-paper';
-
+import { MD3LightTheme as DefaultTheme, PaperProvider, Text } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from "@/utils/authContext";
+import { View } from 'react-native';
 
 const theme = {
   ...DefaultTheme,
@@ -18,19 +20,24 @@ const theme = {
     fabButton: '#48AEFF'
   },
 };
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
+        <AuthProvider>
         <Stack>
-        {/* options={{ headerTitle: "Add Hand", headerBackVisible: false }} */}
-          <Stack.Screen name="add-hand" options={{
-            headerBackButtonDisplayMode: "minimal",
-            headerTitle: ''
+          <Stack.Screen name="(protected)" options={{
+            headerShown: false,
+            animation: "none",
           }}/>
-          <Stack.Screen name="index" options={{ headerTitle: "Saved Hands"  }} />
+          <Stack.Screen name="login" options={{ animation: "none",  }} />
         </Stack>
+        </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>
   )
 }
+
+    //  headerBackButtonDisplayMode: "minimal",
+    //         headerTitle: ''

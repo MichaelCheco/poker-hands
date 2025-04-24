@@ -1,14 +1,13 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
-import ActionList from '../components/ActionList';
-import GameInfo from '../components/GameInfo';
+import ActionList from '../../components/ActionList';
+import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo } from '@/types';
 import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
-import { PokerFormData } from '@/components/PokerHandForm';
-import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils';
+import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils/hand-utils';
 import { determinePokerWinnerManual} from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
@@ -85,7 +84,8 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, currentStack, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = amountToAdd;
-
+            playerAction.potSizeBefore = currentGameState.pot;
+            playerAction.playerStackBefore = currentStack;
             // Calculate the player's new stack size
             const newStackSize = currentStack - amountToAdd;
 
@@ -193,6 +193,8 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
                     getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, currentStack, playerAction)
                 playerAction.amount = amountToAdd;
+                playerAction.potSizeBefore = currentGameState.pot;
+                playerAction.playerStackBefore = currentStack;
 
                 // Calculate the player's new stack size
                 const newStackSize = currentStack - amountToAdd;
@@ -370,8 +372,9 @@ export default function App() {
     const theme = useTheme();
     const headerHeight = useHeaderHeight();
     const navigation = useNavigation();
-    const gameInfo: PokerFormData = JSON.parse(data);
+    const gameInfo: HandSetupInfo = JSON.parse(data);
     const [inputValue, setInputValue] = useState('');
+    // const [handSetupInfo, setHandSetupInfo] = useState<HandSetupInfo>();
     const [state, dispatch] = useReducer(reducer, initialAppState);
     const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
     const scrollViewRef = useRef<ScrollView>(null);
@@ -471,12 +474,8 @@ export default function App() {
 
                     {state.current.stage === Stage.Showdown && (
                         <Showdown
-                            actionList={state.current.playerActions}
-                            showdown={state.current.gameQueue.length > 0 ? null : state.current.showdown}
-                            gameInfo={gameInfo}
-                            communityCards={state.current.cards}
-                            actionSequence={state.current.actionSequence}
-                            pot={state.current.pot} />
+                            gameState={state.current}
+                            gameInfo={gameInfo} />
                     )}
                 </ScrollView>
 

@@ -1,4 +1,4 @@
-import { transFormCardsToFormattedString } from '@/utils';
+import { transFormCardsToFormattedString } from '@/utils/hand-utils';
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { Text } from 'react-native-paper';

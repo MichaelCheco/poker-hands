@@ -6,6 +6,7 @@ import * as Yup from 'yup';
 import { TextInput, Button, HelperText, useTheme } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { playerOptions, positionMapping } from '@/constants';
+import { HandSetupInfo } from '@/types';
 
 const handFormValidationSchema = Yup.object().shape({
     smallBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number'),
@@ -31,18 +32,8 @@ const handFormValidationSchema = Yup.object().shape({
     ),
 });
 
-export interface PokerFormData extends FieldValues {
-    smallBlind: number;
-    bigBlind: number;
-    numPlayers: number;
-    position: string;
-    relevantStacks: string;
-    location: string;
-    hand: string;
-}
-
-function PokerHandForm() {
-    const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<PokerFormData>({
+function PokerHandForm({close}) {
+    const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<HandSetupInfo>({
         resolver: yupResolver(handFormValidationSchema),
         defaultValues: { smallBlind: 5, bigBlind: 5, location: 'Aria', numPlayers: 6, position: 'SB', hand: '8s8c', relevantStacks: 'SB 400, CO 600, BB 300', },
     });
@@ -57,6 +48,7 @@ function PokerHandForm() {
                 data: JSON.stringify(data)
             },
         });
+        close();
     };
     const onError = (errors, e) => console.log(errors, e);
     const positionOptions = useMemo(() => {

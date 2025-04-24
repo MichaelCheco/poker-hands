@@ -1,3 +1,5 @@
+import { FieldValues } from "react-hook-form";
+
 export type Suit = 's' | 'h' | 'd' | 'c';
 export type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14; // 10=T, 11=J, 12=Q, 13=K, 14=A
 export type RankChar = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'T' | 'J' | 'Q' | 'K' | 'A';
@@ -111,6 +113,8 @@ export interface PlayerAction {
     shouldHideFromUi: boolean;
     id: string;
     isLastActionForStage: boolean;
+    playerStackBefore: number;
+    potSizeBefore: number;
 }
 
 export interface ActionTextToken {
@@ -130,6 +134,27 @@ export interface PlayerStatus {
     position: Position;
     isAllIn: boolean;
 }
+
+export interface HandSetupInfo extends FieldValues {
+    smallBlind: number;
+    bigBlind: number;
+    numPlayers: number;
+    position: string;
+    relevantStacks: string;
+    location: string;
+    hand: string;
+    playedAt?: Date | string; // Optional specific time
+}
+
+// export interface HandSetupInfo {
+//     smallBlind: number;
+//     bigBlind: number;
+//     location: string | null;
+//     numPlayers: number;
+//     currency?: string;
+//     notes?: string | null;
+//     playedAt?: Date | string; // Optional specific time
+// }
 
 export interface GameState {
     gameQueue: GameQueueItem[];

@@ -1,5 +1,181 @@
-import { initialState } from "./constants";
-import { GameState, PlayerStatus, Position } from "./types";
+import { initialState } from "../constants";
+import { GameState, HandSetupInfo, PlayerStatus, Position } from "../types";
+import { supabase } from './supabase';
+
+export async function saveHandToSupabase(
+    handHistoryData: GameState,
+    setupInfo: HandSetupInfo
+): Promise<{ success: boolean; }> { // Returns nothing on success, throws error on failure
+
+    console.log("Attempting to save hand...", handHistoryData, setupInfo);
+
+    // 1. Get Authenticated User ID
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw new Error(`Authentication error: ${authError.message}`);
+    if (!user) throw new Error('User not found. Cannot save hand.');
+    const userId = user.id;
+
+    // 2. Insert into 'hands' table
+    const heroHandCards = parsePokerHandString(handHistoryData.hero.hand.toUpperCase()); // Assuming this returns ['Card1', 'Card2']
+
+    const { data: handData, error: handError } = await supabase
+        .from('hands')
+        .insert({
+            user_id: userId,
+            played_at: setupInfo.playedAt ? new Date(setupInfo.playedAt).toISOString() : new Date().toISOString(),
+            game_type: 'NLHE', // Assuming default for now
+            small_blind: setupInfo.smallBlind,
+            big_blind: setupInfo.bigBlind,
+            location: setupInfo.location,
+            num_players: setupInfo.numPlayers,
+            hero_position: handHistoryData.hero.position,
+            hero_cards: handHistoryData.hero.hand, // Store raw 4-char string
+            final_pot_size: handHistoryData.pot,
+            currency: setupInfo.currency || '$',
+            notes: setupInfo.notes,
+            // Add winner info if showdown exists
+            // winner_position: handHistoryData.showdown?.winner,
+            // winning_hand_description: handHistoryData.showdown?.text,
+        })
+        .select('id') // Select the ID of the newly inserted row
+        .single(); // Expect only one row back
+
+    if (handError) {
+        console.error("Supabase hand insert error:", handError);
+        throw new Error(`Failed to insert hand: ${handError.message}`);
+    }
+    if (!handData) {
+        throw new Error('Failed to insert hand: No data returned.');
+    }
+
+    const handId = handData.id;
+    console.log("Hand inserted with ID:", handId);
+
+    // 3. Insert into 'actions' table
+    if (handHistoryData.playerActions && handHistoryData.playerActions.length > 0) {
+        const actionsToInsert = handHistoryData.playerActions.map((action, index) => ({
+            hand_id: handId,
+            action_index: index,
+            stage: action.stage,
+            position: action.position,
+            // Map decision codes to full words if DB uses words
+            // decision: mapDecisionCode(action.decision), // Example: 'F' -> 'FOLD'
+            decision: action.decision.toUpperCase(), // Or just store code 'F', 'C', 'B', 'R', 'X'
+            action_amount: action.amount, // Store the amount associated with the action state object
+            // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+            player_stack_before: action.playerStackBefore, // Cannot derive from final state
+            pot_size_before: action.potSizeBefore,     // Cannot derive from final state
+            text_description: action.text, // Store the descriptive text
+        }));
+
+        const { error: actionsError } = await supabase
+            .from('actions')
+            .insert(actionsToInsert);
+
+        if (actionsError) {
+            console.error("Supabase actions insert error:", actionsError);
+            // Consider deleting the hand record if actions fail? (Or use transaction)
+            throw new Error(`Failed to insert actions: ${actionsError.message}`);
+        }
+        console.log(`Inserted ${actionsToInsert.length} actions.`);
+    }
+
+    // 4. Insert into 'showdown_hands' table (if showdown occurred)
+    if (handHistoryData.showdown && handHistoryData.showdown.hands && handHistoryData.showdown.hands.length > 0) {
+        const showdownHandsToInsert = handHistoryData.showdown.hands.map(playerHand => {
+             const isWinner = playerHand.playerId === handHistoryData.showdown?.winner; // Basic winner check
+             // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+             // Basic check if holeCards seems valid (adjust if mucks are represented differently)
+             const isValidHandArray = Array.isArray(playerHand.holeCards) && playerHand.holeCards.length === 2;
+
+             return {
+                 hand_id: handId,
+                 position: playerHand.playerId,
+                 hole_card1: isValidHandArray ? playerHand.holeCards[0] : null, // Handle potential mucks/invalid data
+                 hole_card2: isValidHandArray ? playerHand.holeCards[1] : null,
+                 is_winner: isWinner,
+                 // Only add description/combo if they actually won
+                 winning_hand_description: isWinner ? handHistoryData.showdown?.text : null,
+                 best_5_cards: isWinner ? handHistoryData.showdown?.combination : null, // Store the combination if winner
+             };
+        });
+
+         const { error: showdownError } = await supabase
+            .from('showdown_hands')
+            .insert(showdownHandsToInsert);
+
+        if (showdownError) {
+            console.error("Supabase showdown_hands insert error:", showdownError);
+             // Consider deleting the hand record if actions fail? (Or use transaction)
+            throw new Error(`Failed to insert showdown hands: ${showdownError.message}`);
+        }
+         console.log(`Inserted ${showdownHandsToInsert.length} showdown hands.`);
+    }
+
+    console.log("Hand saved successfully!");
+    return {success: true};
+    // No return value needed if using void promise, caller handles success/error
+}
+
+// Define the structure of the data returned from the 'hands' table
+// Adjust based on your actual table columns and desired data
+export interface SavedHandSummary {
+    id: string;
+    played_at: string;
+    game_type: string;
+    stake_level?: string | null;
+    small_blind: number;
+    big_blind: number;
+    location?: string | null;
+    num_players: number;
+    hero_position?: string | null;
+    hero_cards?: string | null;
+    final_pot_size?: number | null;
+    currency: string;
+    notes?: string | null;
+    created_at: string;
+    // You might want to add a field indicating if it went to showdown,
+    // or the winner if known without querying other tables, if useful for display.
+}
+/**
+ * Retrieves a list of saved hand summaries for the currently logged-in user.
+ *
+ * @param supabase - Initialized Supabase client instance.
+ * @param limit - Optional number of hands to retrieve per page.
+ * @param offset - Optional number of hands to skip (for pagination).
+ * @returns Object containing the list of hands or an error.
+ */
+export async function getSavedHands(
+    limit: number = 10, // Default limit
+    offset: number = 0 // Default offset
+): Promise<{ hands: SavedHandSummary[] | null; error?: any; count?: number | null }> {
+
+    // 1. Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('Error getting user or user not logged in:', userError);
+        return { hands: null, error: userError || new Error('User not authenticated') };
+    }
+    const userId = user.id;
+
+    // 2. Query 'hands' table
+    try {
+        const { data, error, count } = await supabase
+            .from('hands')
+            .select('*', { count: 'exact' }) // Select all columns, get total count
+            .eq('user_id', userId) // Filter by the logged-in user's ID
+            .order('played_at', { ascending: false }) // Order by most recent first
+            .range(offset, offset + limit - 1); // Apply pagination
+
+        if (error) throw error;
+
+        return { hands: data as SavedHandSummary[], error: null, count };
+
+    } catch (error) {
+        console.error('Error fetching saved hands:', error);
+        return { hands: null, error };
+    }
+}
 
 export function parseStackSizes(stackString: string, sequence: string[],
     smallBlind: number, bigBlind: number

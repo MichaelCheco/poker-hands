@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MyHand } from './Cards';
-import { parsePokerHandString } from '@/utils';
+import { parsePokerHandString } from '@/utils/hand-utils';
 import { PokerFormData } from './PokerHandForm';
 
 const HeroHandInfo = ({ info }: {info: PokerFormData}) => {
