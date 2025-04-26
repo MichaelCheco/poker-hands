@@ -2,22 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { List, Card, Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 
-// Your action data
-const actionsData = [
-    { "amount": 0, "decision": "F", "position": "UTG", "shouldHideFromUi": true, "text": "UTG folds", "stage": 0 },
-    { "amount": 0, "decision": "F", "position": "HJ", "shouldHideFromUi": true, "text": "HJ folds", "stage": 0 },
-    { "amount": 0, "decision": "F", "position": "CO", "shouldHideFromUi": true, "text": "CO folds", "stage": 0 },
-    { "amount": 20, "decision": "R", "position": "BU", "shouldHideFromUi": false, "text": "raises $20", "stage": 0 },
-    { "amount": 0, "decision": "F", "position": "SB", "shouldHideFromUi": true, "text": "SB folds", "stage": 0 },
-    { "amount": 15, "decision": "C", "position": "BB", "shouldHideFromUi": false, "text": "calls $15", "stage": 0 },
-    { "amount": 15, "decision": "B", "position": "BB", "shouldHideFromUi": false, "text": "bets $15", "stage": 1 },
-    { "amount": 15, "decision": "C", "position": "BU", "shouldHideFromUi": false, "text": "calls $15", "stage": 1 },
-    { "amount": 0, "decision": "X", "position": "BB", "shouldHideFromUi": false, "text": "checks", "stage": 2 },
-    { "amount": 0, "decision": "X", "position": "BU", "shouldHideFromUi": false, "text": "checks", "stage": 2 },
-    { "amount": 80, "decision": "B", "position": "BB", "shouldHideFromUi": false, "text": "bets $80", "stage": 3 },
-    { "amount": 80, "decision": "C", "position": "BU", "shouldHideFromUi": false, "text": "calls $80", "stage": 3 }
-];
-
 // Helper to get stage name
 const getStageName = (stage) => {
     switch (stage) {

@@ -1,180 +1,294 @@
 import { initialState } from "../constants";
-import { GameState, HandSetupInfo, PlayerStatus, Position } from "../types";
-import { supabase } from './supabase';
+import { ActionRecord, Decision, GameState, HandSetupInfo, PlayerAction, PlayerStatus, Position, ShowdownDetails, Stage } from "../types";
 
-export async function saveHandToSupabase(
-    handHistoryData: GameState,
-    setupInfo: HandSetupInfo
-): Promise<{ success: boolean; }> { // Returns nothing on success, throws error on failure
-
-    console.log("Attempting to save hand...", handHistoryData, setupInfo);
-
-    // 1. Get Authenticated User ID
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError) throw new Error(`Authentication error: ${authError.message}`);
-    if (!user) throw new Error('User not found. Cannot save hand.');
-    const userId = user.id;
-
-    // 2. Insert into 'hands' table
-    const heroHandCards = parsePokerHandString(handHistoryData.hero.hand.toUpperCase()); // Assuming this returns ['Card1', 'Card2']
-
-    const { data: handData, error: handError } = await supabase
-        .from('hands')
-        .insert({
-            user_id: userId,
-            played_at: setupInfo.playedAt ? new Date(setupInfo.playedAt).toISOString() : new Date().toISOString(),
-            game_type: 'NLHE', // Assuming default for now
-            small_blind: setupInfo.smallBlind,
-            big_blind: setupInfo.bigBlind,
-            location: setupInfo.location,
-            num_players: setupInfo.numPlayers,
-            hero_position: handHistoryData.hero.position,
-            hero_cards: handHistoryData.hero.hand, // Store raw 4-char string
-            final_pot_size: handHistoryData.pot,
-            currency: setupInfo.currency || '$',
-            notes: setupInfo.notes,
-            // Add winner info if showdown exists
-            // winner_position: handHistoryData.showdown?.winner,
-            // winning_hand_description: handHistoryData.showdown?.text,
-        })
-        .select('id') // Select the ID of the newly inserted row
-        .single(); // Expect only one row back
-
-    if (handError) {
-        console.error("Supabase hand insert error:", handError);
-        throw new Error(`Failed to insert hand: ${handError.message}`);
+function getStageName(stage: Stage): string {
+    switch (stage) {
+        case Stage.Preflop: return 'Preflop';
+        case Stage.Flop: return 'Flop';
+        case Stage.Turn: return 'Turn';
+        case Stage.River: return 'River';
+        case Stage.Showdown: return 'Showdown';
+        default: return `Unknown Stage (${stage})`;
     }
-    if (!handData) {
-        throw new Error('Failed to insert hand: No data returned.');
-    }
-
-    const handId = handData.id;
-    console.log("Hand inserted with ID:", handId);
-
-    // 3. Insert into 'actions' table
-    if (handHistoryData.playerActions && handHistoryData.playerActions.length > 0) {
-        const actionsToInsert = handHistoryData.playerActions.map((action, index) => ({
-            hand_id: handId,
-            action_index: index,
-            stage: action.stage,
-            position: action.position,
-            // Map decision codes to full words if DB uses words
-            // decision: mapDecisionCode(action.decision), // Example: 'F' -> 'FOLD'
-            decision: action.decision.toUpperCase(), // Or just store code 'F', 'C', 'B', 'R', 'X'
-            action_amount: action.amount, // Store the amount associated with the action state object
-            // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-            player_stack_before: action.playerStackBefore, // Cannot derive from final state
-            pot_size_before: action.potSizeBefore,     // Cannot derive from final state
-            text_description: action.text, // Store the descriptive text
-        }));
-
-        const { error: actionsError } = await supabase
-            .from('actions')
-            .insert(actionsToInsert);
-
-        if (actionsError) {
-            console.error("Supabase actions insert error:", actionsError);
-            // Consider deleting the hand record if actions fail? (Or use transaction)
-            throw new Error(`Failed to insert actions: ${actionsError.message}`);
-        }
-        console.log(`Inserted ${actionsToInsert.length} actions.`);
-    }
-
-    // 4. Insert into 'showdown_hands' table (if showdown occurred)
-    if (handHistoryData.showdown && handHistoryData.showdown.hands && handHistoryData.showdown.hands.length > 0) {
-        const showdownHandsToInsert = handHistoryData.showdown.hands.map(playerHand => {
-             const isWinner = playerHand.playerId === handHistoryData.showdown?.winner; // Basic winner check
-             // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-             // Basic check if holeCards seems valid (adjust if mucks are represented differently)
-             const isValidHandArray = Array.isArray(playerHand.holeCards) && playerHand.holeCards.length === 2;
-
-             return {
-                 hand_id: handId,
-                 position: playerHand.playerId,
-                 hole_card1: isValidHandArray ? playerHand.holeCards[0] : null, // Handle potential mucks/invalid data
-                 hole_card2: isValidHandArray ? playerHand.holeCards[1] : null,
-                 is_winner: isWinner,
-                 // Only add description/combo if they actually won
-                 winning_hand_description: isWinner ? handHistoryData.showdown?.text : null,
-                 best_5_cards: isWinner ? handHistoryData.showdown?.combination : null, // Store the combination if winner
-             };
-        });
-
-         const { error: showdownError } = await supabase
-            .from('showdown_hands')
-            .insert(showdownHandsToInsert);
-
-        if (showdownError) {
-            console.error("Supabase showdown_hands insert error:", showdownError);
-             // Consider deleting the hand record if actions fail? (Or use transaction)
-            throw new Error(`Failed to insert showdown hands: ${showdownError.message}`);
-        }
-         console.log(`Inserted ${showdownHandsToInsert.length} showdown hands.`);
-    }
-
-    console.log("Hand saved successfully!");
-    return {success: true};
-    // No return value needed if using void promise, caller handles success/error
 }
 
-// Define the structure of the data returned from the 'hands' table
-// Adjust based on your actual table columns and desired data
-export interface SavedHandSummary {
-    id: string;
-    played_at: string;
-    game_type: string;
-    stake_level?: string | null;
-    small_blind: number;
-    big_blind: number;
-    location?: string | null;
-    num_players: number;
-    hero_position?: string | null;
-    hero_cards?: string | null;
-    final_pot_size?: number | null;
-    currency: string;
-    notes?: string | null;
-    created_at: string;
-    // You might want to add a field indicating if it went to showdown,
-    // or the winner if known without querying other tables, if useful for display.
+function getTextSummaryForLastStage(actionList: ActionRecord[]): string {
+    const lastStagePlayed = actionList[actionList.length - 1].stage;
+    const lastStageActions = actionList.filter(action => action.stage === lastStagePlayed);
+    let text = '';
+    for (const action of lastStageActions) {
+        text = text + `${action.position} ${action.decision}, `
+    }
+    text = text.slice(0, -2);
+    return `${text}.`
 }
+
+function decisionToText(decision: Decision): string {
+    switch (decision) {
+        case Decision.kCheck: return 'checked';
+        case Decision.kBet: return 'bet';
+        case Decision.kCall: return 'called';
+        case Decision.kFold: return 'folded';
+        case Decision.kRaise: return 'raised';
+    }
+}
+
+function getWinner(actionSequence: string[]): string {
+    if (actionSequence.length > 1) {
+        console.error(`action sequence should only contain 1 player. `, actionSequence)
+    }
+    return actionSequence[0];
+}
+
+export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], winner: string, pot: number): string {
+    let summary = `Hand ended on the ${getStageName(finalStreet)}.\n${getTextSummaryForLastStage(actions)}.\n${winner} wins $${pot}.`;
+    return summary;
+    // Hand ended on the River. Pot: $250. SB wins $250. CO folded.
+}
+
+function getStageCards(stage: Stage, communityCards: string[]): string {
+    const flopCardStr = communityCards.slice(0, 3).join(', ');
+    const turnCardStr = communityCards[3];
+    const riverCardStr = communityCards[4];
+    switch (stage) {
+        case Stage.Preflop: return '';
+        case Stage.Flop: return `: ${flopCardStr}`;
+        case Stage.Turn: return `: ${turnCardStr}`;
+        case Stage.River: return `: ${riverCardStr}`;
+        case Stage.Showdown: return '';
+        default: return `Unknown Stage (${stage})`;
+    }
+}
+
+function getLastStageName(actionList: PlayerAction[]): string {
+    return getStageName(actionList[actionList.length - 1].stage);
+}
+
 /**
- * Retrieves a list of saved hand summaries for the currently logged-in user.
+ * Formats a poker hand history from actions and showdown info into a string
+ * and copies it to the clipboard using Expo Clipboard.
  *
- * @param supabase - Initialized Supabase client instance.
- * @param limit - Optional number of hands to retrieve per page.
- * @param offset - Optional number of hands to skip (for pagination).
- * @returns Object containing the list of hands or an error.
+ * @param actions - Array of action objects for the hand.
+ * @param showdown - Showdown information object, or null if no showdown.
+ * @returns Promise<boolean> - True if copy was successful, false otherwise.
  */
-export async function getSavedHands(
-    limit: number = 10, // Default limit
-    offset: number = 0 // Default offset
-): Promise<{ hands: SavedHandSummary[] | null; error?: any; count?: number | null }> {
-
-    // 1. Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-        console.error('Error getting user or user not logged in:', userError);
-        return { hands: null, error: userError || new Error('User not authenticated') };
+export async function formatAndCopyHandHistory(
+    actions: PlayerAction[],
+    gameInfo: HandSetupInfo,
+    communityCards: string[],
+    showdown: ShowdownDetails | null,
+    pot: number
+): Promise<boolean> {
+    if (!actions || actions.length === 0) {
+        console.warn("No actions provided to format.");
+        // Optionally set clipboard to empty or show user feedback
+        // await Clipboard.setStringAsync("");
+        return false;
     }
-    const userId = user.id;
 
-    // 2. Query 'hands' table
+    const lines: string[] = [];
+    lines.push(`${gameInfo.smallBlind}/${gameInfo.bigBlind} • ${gameInfo.location}`);
+    lines.push(`\nHero: ${gameInfo.hand} ${gameInfo.position}`);
+
+    // Group actions by stage
+    const groupedActions: { [stage: number]: PlayerAction[] } = {};
+    for (const action of actions) {
+        // Only include stages relevant to betting rounds for action listing
+        if (action.stage <= Stage.River) {
+            if (!groupedActions[action.stage]) {
+                groupedActions[action.stage] = [];
+            }
+            groupedActions[action.stage].push(action);
+        }
+    }
+    const flopCardStr = communityCards.slice(0, 3).join(', ');
+    const turnCardStr = communityCards[3];
+    const riverCardStr = communityCards[4];
+
+    // Define the order of stages
+    const stageOrder: Stage[] = [Stage.Preflop, Stage.Flop, Stage.Turn, Stage.River];
+
+    // Process stages in order
+    for (const stageNum of stageOrder) {
+        const stageActions = groupedActions[stageNum];
+
+        if (stageActions && stageActions.length > 0) {
+            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}`);
+
+            // Filter out actions typically hidden from UI for summary (e.g., folds)
+            const visibleActions = stageActions.filter(a => !a.shouldHideFromUi);
+
+            if (visibleActions.length === 0 && stageNum !== Stage.Preflop) {
+                // If only hidden actions occurred (e.g. everyone folded pre-bet on flop)
+                // Or if it was checked around (and checks aren't hidden)
+                // You might want different logic here, but this indicates no major action shown.
+                // We'll rely on visibleActions loop below instead.
+            }
+
+            if (visibleActions.length > 0) {
+                visibleActions.forEach(action => {
+                    // Use a consistent format: Position: text
+                    // The 'text' field in your data seems quite descriptive already
+                    lines.push(`${action.position}: ${action.text}`);
+                });
+            } else if (stageNum > Stage.Preflop) {
+                // Check if the *only* actions were checks (which aren't hidden)
+                const onlyChecks = stageActions.every(a => a.decision === 'X');
+                if (onlyChecks) {
+                    lines.push("(Checked around)");
+                } else {
+                    lines.push("(No significant action shown)"); // Or adjust as needed
+                }
+
+            }
+        }
+    }
+
+    // Add Showdown info if available
+    if (showdown) {
+        lines.push("\nSHOWDOWN");
+
+        // Note: The 'combination' field isn't clearly defined as board cards vs winning hand cards.
+        // For clarity, we'll just show who showed cards and who won. Add board separately if you have that data.
+        // lines.push(`Board: [ ${communityCardsArray.join(' ')} ]`); // <-- Add if you have board cards separately
+
+        if (showdown.hands && showdown.hands.length > 0) {
+            showdown.hands.forEach(handInfo => {
+                const cardsString = Array.isArray(handInfo.holeCards) ? handInfo.holeCards.join(' ') : '??';
+                lines.push(`- ${handInfo.playerId} shows [ ${cardsString} ]`);
+            });
+        }
+
+        if (showdown.winner && showdown.text) {
+            lines.push(`\nWinner: ${showdown.winner} wins ${pot} with ${showdown.text}`);
+            lines.push(`\nCombination: ${showdown.combination.join(', ')}`)
+        } else if (showdown.winner) {
+            lines.push(`\nWinner: ${showdown.winner}`); // Fallback if description missing
+        }
+    } else {
+        // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
+        // This would require analysing the last actions. For simplicity, we omit this for now.
+    }
+
+    // Join lines into a single string
+    const historyString = lines.join('\n');
+    console.log("Formatted History:\n", historyString); // For debugging
+
+    // Copy to clipboard
     try {
-        const { data, error, count } = await supabase
-            .from('hands')
-            .select('*', { count: 'exact' }) // Select all columns, get total count
-            .eq('user_id', userId) // Filter by the logged-in user's ID
-            .order('played_at', { ascending: false }) // Order by most recent first
-            .range(offset, offset + limit - 1); // Apply pagination
-
-        if (error) throw error;
-
-        return { hands: data as SavedHandSummary[], error: null, count };
-
+        await Clipboard.setStringAsync(historyString);
+        console.log("Hand history copied to clipboard.");
+        // You could add user feedback here (e.g., a toast message)
+        return true;
     } catch (error) {
-        console.error('Error fetching saved hands:', error);
-        return { hands: null, error };
+        console.error("Failed to copy hand history to clipboard:", error);
+        // Add user feedback for error
+        return false;
     }
+}
+
+export function formatAndGetTextToCopy(
+    actions: PlayerAction[],
+    gameInfo: HandSetupInfo,
+    communityCards: string[],
+    showdown: ShowdownDetails | null,
+    pot: number
+): string {
+    if (!actions || actions.length === 0) {
+        console.warn("No actions provided to format.");
+        // Optionally set clipboard to empty or show user feedback
+        // await Clipboard.setStringAsync("");
+        return '';
+    }
+
+    const lines: string[] = [];
+    lines.push(`${gameInfo.smallBlind}/${gameInfo.bigBlind} • ${gameInfo.location}`);
+    lines.push(`\nHero: ${gameInfo.hand} ${gameInfo.position}`);
+
+    // Group actions by stage
+    const groupedActions: { [stage: number]: PlayerAction[] } = {};
+    for (const action of actions) {
+        // Only include stages relevant to betting rounds for action listing
+        if (action.stage <= Stage.River) {
+            if (!groupedActions[action.stage]) {
+                groupedActions[action.stage] = [];
+            }
+            groupedActions[action.stage].push(action);
+        }
+    }
+    const flopCardStr = communityCards.slice(0, 3).join(', ');
+    const turnCardStr = communityCards[3];
+    const riverCardStr = communityCards[4];
+
+    // Define the order of stages
+    const stageOrder: Stage[] = [Stage.Preflop, Stage.Flop, Stage.Turn, Stage.River];
+
+    // Process stages in order
+    for (const stageNum of stageOrder) {
+        const stageActions = groupedActions[stageNum];
+
+        if (stageActions && stageActions.length > 0) {
+            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}`);
+
+            // Filter out actions typically hidden from UI for summary (e.g., folds)
+            const visibleActions = stageActions.filter(a => !a.shouldHideFromUi);
+
+            if (visibleActions.length === 0 && stageNum !== Stage.Preflop) {
+                // If only hidden actions occurred (e.g. everyone folded pre-bet on flop)
+                // Or if it was checked around (and checks aren't hidden)
+                // You might want different logic here, but this indicates no major action shown.
+                // We'll rely on visibleActions loop below instead.
+            }
+
+            if (visibleActions.length > 0) {
+                visibleActions.forEach(action => {
+                    // Use a consistent format: Position: text
+                    // The 'text' field in your data seems quite descriptive already
+                    lines.push(`${action.position}: ${action.text}`);
+                });
+            } else if (stageNum > Stage.Preflop) {
+                // Check if the *only* actions were checks (which aren't hidden)
+                const onlyChecks = stageActions.every(a => a.decision === 'X');
+                if (onlyChecks) {
+                    lines.push("(Checked around)");
+                } else {
+                    lines.push("(No significant action shown)"); // Or adjust as needed
+                }
+
+            }
+        }
+    }
+
+    // Add Showdown info if available
+    if (showdown) {
+        lines.push("\nSHOWDOWN");
+
+        // Note: The 'combination' field isn't clearly defined as board cards vs winning hand cards.
+        // For clarity, we'll just show who showed cards and who won. Add board separately if you have that data.
+        // lines.push(`Board: [ ${communityCardsArray.join(' ')} ]`); // <-- Add if you have board cards separately
+
+        if (showdown.hands && showdown.hands.length > 0) {
+            showdown.hands.forEach(handInfo => {
+                const cardsString = Array.isArray(handInfo.holeCards) ? handInfo.holeCards.join(' ') : '??';
+                lines.push(`- ${handInfo.playerId} shows [ ${cardsString} ]`);
+            });
+        }
+
+        if (showdown.winner && showdown.text) {
+            lines.push(`\nWinner: ${showdown.winner} wins ${pot} with ${showdown.text}`);
+            lines.push(`\nCombination: ${showdown.combination.join(', ')}`)
+        } else if (showdown.winner) {
+            lines.push(`\nWinner: ${showdown.winner}`); // Fallback if description missing
+        }
+    } else {
+        // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
+        // This would require analysing the last actions. For simplicity, we omit this for now.
+    }
+
+    // Join lines into a single string
+    const historyString = lines.join('\n');
+    console.log("Formatted History:\n", historyString); // For debugging
+    return historyString;
 }
 
 export function parseStackSizes(stackString: string, sequence: string[],

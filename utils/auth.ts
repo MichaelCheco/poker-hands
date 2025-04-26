@@ -1,8 +1,6 @@
 import { supabase } from './supabase';
 
-
 export async function signInAnonymously() {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    console.log(data, error)
+    const { data } = await supabase.auth.signInAnonymously();
     return data;
 }

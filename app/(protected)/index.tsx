@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { View, StyleSheet, FlatList } from 'react-native'; // Import View and StyleSheet
-import { Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text } from 'react-native-paper';
+import { Icon, Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider } from 'react-native-paper';
 import PokerHandForm from '../../components/PokerHandForm';
 import Fab from '@/components/Fab';
-import { getSavedHands, parsePokerHandString, SavedHandSummary } from '@/utils/hand-utils';
+import { parsePokerHandString } from '@/utils/hand-utils';
 import { MyHand } from '@/components/Cards';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { getSavedHands } from '@/api/hands';
+import { SavedHandSummary } from '@/types';
 
 export default function Index() {
+  const router = useRouter();
+
   const [visible, setVisible] = React.useState(false);
   const theme = useTheme(); // Get the theme object
   const containerStyle = {
@@ -57,14 +61,20 @@ export default function Index() {
   }
 
   const renderHandItem = ({ item }: { item: SavedHandSummary }) => (
-    // Simple display, customize as needed
+    <>
     <List.Item
       title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind} • ${item.location}`}
       description={`${new Date(item.played_at).toLocaleDateString()}`}
       // onPress={() => {/* Navigate to hand detail? */}}
       left={props => <List.Icon {...props} icon="cards-playing" />}
+      onPress={() => {
+        console.log(`Navigating to hand: ${item.id}`);
+        router.push(`${item.id}`)
+      }}
       right={() => <MyHand cards={parsePokerHandString(item.hero_cards.toUpperCase())} />}
     />
+    <Divider />
+    </>
   );
   return (
     <PaperProvider theme={theme}>
@@ -77,7 +87,9 @@ export default function Index() {
             data={savedHands}
             renderItem={renderHandItem}
             keyExtractor={(item) => item.id}
-            ListEmptyComponent={<Text style={styles.emptyText}>No saved hands found.</Text>}
+            ListEmptyComponent={
+                <Text style={styles.emptyText}>No hands saved. Tap the button below to start tracking your play!</Text>
+          }
             contentContainerStyle={styles.listContentContainer}
           />
         )}
@@ -113,8 +125,10 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    marginTop: 50,
+    marginTop: 10,
     color: 'grey',
+    fontSize: 19,
+    padding: 8
   },
   listContentContainer: {
     paddingBottom: 80, // Add padding so FAB doesn't cover last item

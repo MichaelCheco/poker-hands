@@ -135,6 +135,27 @@ export interface PlayerStatus {
     isAllIn: boolean;
 }
 
+// Define the structure of the data returned from the 'hands' table
+// Adjust based on your actual table columns and desired data
+export interface SavedHandSummary {
+    id: string;
+    played_at: string;
+    game_type: string;
+    stake_level?: string | null;
+    small_blind: number;
+    big_blind: number;
+    location?: string | null;
+    num_players: number;
+    hero_position?: string | null;
+    hero_cards?: string | null;
+    final_pot_size?: number | null;
+    currency: string;
+    notes?: string | null;
+    created_at: string;
+    // You might want to add a field indicating if it went to showdown,
+    // or the winner if known without querying other tables, if useful for display.
+}
+
 export interface HandSetupInfo extends FieldValues {
     smallBlind: number;
     bigBlind: number;
@@ -174,4 +195,55 @@ export interface GameState {
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
     showdown: ShowdownDetails | null;
+}
+
+// Type for rows from the 'actions' table
+export interface ActionRecord {
+    id: number;
+    hand_id: string;
+    action_index: number;
+    stage: number;
+    position: string;
+    decision: string;
+    action_amount: number | null;
+    player_stack_before: number | null;
+    pot_size_before: number | null;
+    text_description: string | null;
+    created_at: string;
+  }
+  
+  // Type for rows from the 'showdown_hands' table
+export interface ShowdownHandRecord {
+    id: number;
+    hand_id: string;
+    position: string;
+    hole_cards: string;
+    is_winner: boolean;
+    hand_description: string;
+    created_at: string;
+  }
+  
+  // Combined type for the function's return value
+export interface DetailedHandData {
+    // All columns from the 'hands' table
+    id: string;
+    user_id: string;
+    played_at: string;
+    game_type: string;
+    stake_level?: string | null;
+    small_blind: number;
+    big_blind: number;
+    location?: string | null;
+    num_players: number;
+    hero_position?: string | null;
+    hero_cards?: string | null;
+    final_pot_size?: number | null;
+    final_street: Stage;
+    stacks: string;
+    currency: string;
+    notes?: string | null;
+    created_at: string;
+    // Nested arrays for related data
+    actions: ActionRecord[];
+    showdown_hands: ShowdownHandRecord[];
 }

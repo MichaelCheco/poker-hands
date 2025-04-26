@@ -1,33 +1,21 @@
 TODOS:
-- Collect cards after all in and a call
-- Multiway: Ensure multiple villain cards supported
-- Multiway: Remove player from sequence if all-in but still collect cards
-- add placeholder text for villain cards
-- Support villain mucking cards
-- preflop actions must contain position
-* bug inputting multiple values for villain hand
-* test multiway pots with shorthand notation and fast forward hands where bets put players all in
+* Display showdown result in hand page
+* Display relevant stacks
+* Display hand metadata
+* Login screen revamp
+* ensure notes works correctly
+* Fix input flicker
 * fix reset
-* support all in and stack size
-* Make Save actions work
 * Handle multiple winners for a pot
 * Add RemoveTrailingPunctuation helper
 * Use Paper.HelperText for error display
-* Basic SavedHandRow component
-* Basic view of Saved Hand
-* Supabase + watermelon offline first approach
-* Testflight
-* if bet size is more than player stack, reduce bet total to player total
--- player bets 200 and i only have 95 so reduce bet to 95
-*  calls 395 and go all in vs calls 395
-* When all-ins and a call happens we need to collect remaining cards and go to showdown.
-* negative effective stack size bug due to player calling a bet but not having enough chips
-* Handle case where player calls a bet but has less chips than total bet size
 * What if stack sizes are missing?
 * Location text truncation
 * preflop all-ins?
 * logo idea - white diagonal line across intersecting (???), black background
+
 VALIDATION TODOS:
+* preflop actions must contain position
 * Hero must be in preflop action sequence
 * what if a user selects text in middle of string, highlights it and deletes it
 * confirm gameQueue reset

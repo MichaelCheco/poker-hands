@@ -1,14 +1,14 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Button, Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo } from '@/types';
 import { CommunityCards, MyHand } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils/hand-utils';
-import { determinePokerWinnerManual} from '@/hand-evaluator';
+import { determinePokerWinnerManual } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import { ImmutableStack } from '@/ImmutableStack';
@@ -16,6 +16,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'; // 1. Import the hook
 import { useNavigation } from '@react-navigation/native'; // Or get navigation from props if using older class components/navigation versions
 import HeroHandInfo from '@/components/HeroHandInfo';
+import { saveHandToSupabase } from '@/api/hands';
 
 const logging = false;
 
@@ -24,12 +25,10 @@ interface GameAppState {
     history: ImmutableStack<GameState>; // The stack holding previous states
 }
 
-
 function removeAfterLastComma(input: string): string {
     const lastIndex = input.lastIndexOf(",");
     return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
 }
-
 
 function hasActionBeenAddedAlready(playerActions: PlayerAction[], currentAction: PlayerAction): boolean {
     return playerActions.some(action => action.id === currentAction.id);
@@ -163,7 +162,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             } else if (currentState.currentAction.actionType === ActionType.kVillainCards) {
                 const handText = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const position = currentState.currentAction.position as Position;
-                const villainHand = isMuck(handText) ? {playerId: position, holeCards: "muck"} as PokerPlayerInput : getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), position);
+                const villainHand = isMuck(handText) ? { playerId: position, holeCards: "muck" } as PokerPlayerInput : getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), position);
                 const hands = [...currentState.showdownHands, villainHand];
                 // All hands have been collected, determine winner information.
                 if (!nextAction) {
@@ -372,6 +371,7 @@ export default function App() {
     const theme = useTheme();
     const headerHeight = useHeaderHeight();
     const navigation = useNavigation();
+    const router = useRouter();
     const gameInfo: HandSetupInfo = JSON.parse(data);
     const [inputValue, setInputValue] = useState('');
     // const [handSetupInfo, setHandSetupInfo] = useState<HandSetupInfo>();
@@ -425,6 +425,22 @@ export default function App() {
     };
 
     useEffect(() => {
+        console.log(`in useEffect for stage`)
+        async function saveHand() {
+            const result = await saveHandToSupabase(state.current, gameInfo);
+            console.log(result, 'result')
+            return result.handId
+        }
+        if (state.current.stage === Stage.Showdown) {
+            console.log('in showdown block')
+            saveHand().then((id) => {
+                console.log('in then')
+                router.replace(`/${id}`)
+            });
+        }
+    }, [state.current.stage])
+
+    useEffect(() => {
         if (state.current.playerActions.length > 0) {
             // Use setTimeout to ensure layout is updated before scrolling
             setTimeout(() => {
@@ -472,11 +488,11 @@ export default function App() {
                         />
                     )}
 
-                    {state.current.stage === Stage.Showdown && (
+                    {/* {state.current.stage === Stage.Showdown && (
                         <Showdown
                             gameState={state.current}
                             gameInfo={gameInfo} />
-                    )}
+                    )} */}
                 </ScrollView>
 
                 {/* Input container remains visually at the bottom, pushed by KAV */}
@@ -506,6 +522,19 @@ export default function App() {
                         />
                     </SafeAreaView>
                 )}
+                {/* {state.current.stage == Stage.Showdown && (
+                    <SafeAreaView style={[
+                        styles.inputContainer
+                        // { paddingBottom: baseInputPaddingBottom + insets.bottom }
+                        // We add the safe area bottom inset to our base padding
+                        // This ensures the container itself respects the safe area,
+                        // lifting the TextInput inside it above the home indicator.
+                    ]}>
+                        <Button mode="contained" onPress={() => { }} style={{ ...styles.button, ...theme.button }}>
+                            Save
+                        </Button>
+                    </SafeAreaView>
+                )} */}
             </KeyboardAvoidingView>
         </View>
     );
@@ -821,6 +850,11 @@ function extractCards(str: string): string[] {
 }
 
 const styles = StyleSheet.create({
+    button: {
+        borderRadius: 4,
+        minHeight: 40,
+        padding: 2
+    },
     container: {
         flex: 1,
     },

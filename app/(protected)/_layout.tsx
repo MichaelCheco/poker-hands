@@ -24,12 +24,14 @@ export default function ProtectedLayout() {
         name="index"
         options={{
           headerTitle: "Saved Hands",
+          
         }}
       />
       <Stack.Screen
         name="add-hand"
         options={{
-          headerTitle: "Saved Hands",
+               headerBackButtonDisplayMode: "minimal",
+            headerTitle: ''
         }}
       />
     </Stack>
