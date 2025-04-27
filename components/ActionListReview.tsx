@@ -5,7 +5,6 @@ import { Divider, List, Text } from 'react-native-paper';
 
 export default function ActionListReview({ actionList }: { actionList: ActionRecord[] }) {
     // const filteredActions = actionList.filter(action => !action.shouldHideFromUi);
-    console.log(actionList)
     const groupedActions = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
             const stage = action.stage;
@@ -30,17 +29,17 @@ export default function ActionListReview({ actionList }: { actionList: ActionRec
             marginLeft: -10,
             marginInline: 0, padding: 0,
             fontWeight: '700',
-            color: '#555',
+            color: '#000000E8',
         }}>
-            Hand History
+            HAND HISTORY
         </List.Subheader>
             {sortedStages.map((stage) => (
                 <View key={`stage-container-${stage}`}>
-                    <List.Subheader style={{
+                    <List.Subheader variant='bodySmall' style={{
                         marginLeft: -10,
                         marginInline: 0, padding: 0,
                         fontWeight: '700',
-                        color: '#555',
+                        color: '#0000009A',
                     }}>
                         {`${getStageName(stage)}`}
                     </List.Subheader>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { List, Text, Button, useTheme, TextInput, Portal, Snackbar } from 'react-native-paper';
+import { List, Text, Button, useTheme, TextInput, Portal, Snackbar, Icon } from 'react-native-paper';
 import { MyHand } from './Cards';
 import { HandSetupInfo, GameState, ShowdownHandRecord, Stage, ActionRecord } from '@/types';
 import { formatAndCopyHandHistory, getHandSummary } from '@/utils/hand-utils';
@@ -20,7 +20,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
     actions: ActionRecord[],
     pot: number
 }) => {
-    console.log(showdownHands, finalStreet, actions, pot)
+    // console.log(showdownHands, finalStreet, actions, pot)
     const theme = useTheme();
     const router = useRouter()
     const [portalSnackbarVisible, setPortalSnackbarVisible] = React.useState(false);
@@ -44,9 +44,9 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
                 <List.Subheader style={{
                     marginLeft: -10, marginInline: 0, padding: 0,
                     fontWeight: '700',
-                    color: '#555',
+                    color: '#000000E8',
                 }}>
-                    Hand Result
+                    SHOWDOWN
                 </List.Subheader>
                 {showdownHands ? showdownHands.map((hand, index) => {
                     // const isHand = !(typeof hand.hole_cards === "string");
@@ -65,7 +65,16 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
                                 )
                             }}
                             left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
-                            right={() => <Text style={{ marginInlineStart: 4, alignSelf: 'center' }} variant='labelMedium'>/ {hand.hand_description}</Text>}
+                            right={() => (
+                                <View style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', flex: 1}}>
+                                    <Text style={{ marginInlineStart: 4, alignSelf: 'center' }} variant='labelMedium'>/ {hand.hand_description}</Text>
+                                    <View style={{display: 'flex', flexDirection: 'row'}}>
+
+                                    <Icon source={"plus"} color='#6CDA76' size={16}/> 
+                                    <Text variant='labelSmall'>342</Text>
+                                    </View>
+                                </View>
+                        )}
                         />
                     )
                 }

@@ -4,6 +4,7 @@ import { MD3LightTheme as DefaultTheme, PaperProvider, Text } from 'react-native
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "@/utils/authContext";
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const theme = {
   ...DefaultTheme,
@@ -24,6 +25,7 @@ const theme = {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <GestureHandlerRootView>
       <PaperProvider theme={theme} >
         <AuthProvider>
         <Stack>
@@ -35,6 +37,7 @@ export default function RootLayout() {
         </Stack>
         </AuthProvider>
       </PaperProvider>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   )
 }
