@@ -113,6 +113,7 @@ export async function saveHandToSupabase(
             player_stack_before: action.playerStackBefore,
             pot_size_before: action.potSizeBefore,
             text_description: action.text,
+            was_auto_folded: action.shouldHideFromUi
         }));
 
         const { error: actionsError } = await supabase
@@ -138,7 +139,7 @@ export async function saveHandToSupabase(
                  position: playerHand.playerId,
                  hole_cards: typeof playerHand.holeCards === "string" ? playerHand.holeCards : playerHand.holeCards.join(''),
                  is_winner: isWinner,
-                 hand_description: isWinner ? handHistoryData.showdown?.text : '',
+                 hand_description: playerHand.description,
              };
         });
 

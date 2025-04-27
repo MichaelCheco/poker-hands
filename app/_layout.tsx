@@ -24,7 +24,7 @@ const theme = {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
+      <PaperProvider theme={theme} >
         <AuthProvider>
         <Stack>
           <Stack.Screen name="(protected)" options={{

@@ -33,6 +33,41 @@ function decisionToText(decision: Decision): string {
     }
 }
 
+
+import { format, parseISO } from 'date-fns';
+
+/**
+ * Formats a date into MM/DD hh:mm a format (e.g., 04/26 01:41 PM).
+ * Handles Date objects, ISO 8601 strings, and Unix timestamps (milliseconds).
+ * Displays time in the user's local timezone.
+ *
+ * @param dateInput The date to format (Date object, ISO string, or timestamp number).
+ * @returns The formatted date string or "Invalid Date" on error.
+ */
+export function formatDateMMDDHHMM(dateInput: string | Date | number): string {
+  try {
+    // Ensure we have a valid Date object
+    // parseISO is good for strings like '2025-04-26T20:41:00.000Z' from Supabase
+    const date = typeof dateInput === 'string' ? parseISO(dateInput) : new Date(dateInput);
+
+    // Check if the date is valid after parsing/creation
+    if (isNaN(date.getTime())) {
+      throw new Error("Invalid date input provided");
+    }
+
+    // MM: Month, 2-digit (01-12)
+    // dd: Day, 2-digit (01-31)
+    // hh: Hour, 12-hour clock, 2-digit (01-12)
+    // mm: Minute, 2-digit (00-59)
+    // a: AM/PM marker (uppercase: AM/PM)
+    return format(date, 'MM/dd hh:mm a');
+
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "Invalid Date";
+  }
+}
+
 function getWinner(actionSequence: string[]): string {
     if (actionSequence.length > 1) {
         console.error(`action sequence should only contain 1 player. `, actionSequence)

@@ -13,7 +13,7 @@ async function handleOnSavePress(gameState: GameState, gameInfo: HandSetupInfo):
     const result = await saveHandToSupabase(gameState, gameInfo);
     return result;
 }
-
+// wins ${pot} with 
 const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
     showdownHands: ShowdownHandRecord[],
     finalStreet: Stage,
@@ -38,18 +38,26 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
     // };
     const winner = showdownHands.find(hand => hand.is_winner);
     return (
-        <View style={{ marginInline: 8 }}>
+        <View style={{  }}>
+             {/* title='Hand Result' titleStyle={{marginLeft: 0, paddingLeft: 0}} */}
             <List.Section>
+                <List.Subheader style={{
+                    marginLeft: -10, marginInline: 0, padding: 0,
+                    fontWeight: '700',
+                    color: '#555',
+                }}>
+                    Hand Result
+                </List.Subheader>
                 {showdownHands ? showdownHands.map((hand, index) => {
                     // const isHand = !(typeof hand.hole_cards === "string");
                     return (
                         <List.Item
-                            contentStyle={{ flexGrow: 0, alignItems: 'center' }}
+                            contentStyle={{ flexGrow: 0, alignItems: 'center', }}
                             key={`${hand.position}-${hand.hole_cards}-${index}`}
                             title={() => {
                                 if (hand.hole_cards !== "muck") {
                                   return (
-                                    <MyHand cards={hand.hole_cards} />
+                                    <MyHand cards={hand.hole_cards} textStyle={{fontSize: 14, fontWeight: 400}}/>
                                   )
                                 }
                                 return (
@@ -57,7 +65,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
                                 )
                             }}
                             left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
-                            right={hand.is_winner ? () => <Text style={{ marginInlineStart: 8, alignSelf: 'center' }}>wins ${pot} with {hand.hand_description}</Text> : undefined}
+                            right={() => <Text style={{ marginInlineStart: 4, alignSelf: 'center' }} variant='labelMedium'>/ {hand.hand_description}</Text>}
                         />
                     )
                 }
@@ -107,20 +115,20 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
 /> */}
 const styles = StyleSheet.create({
     actionText: {
-        fontSize: 16,
+        fontSize: 13,
         marginRight: 0,
     },
     actionItem: {
-        paddingVertical: 4,
-        paddingLeft: 2,
+        paddingVertical: 0,
+        paddingLeft: 0,
         paddingInlineStart: 0,
         paddingInline: 0,
         padding: 0,
     },
     actionPosition: {
         fontWeight: 'bold',
-        // marginLeft: 8,
-        minWidth: 24,
+        marginLeft: 8,
+        // minWidth: 20,
         textAlign: 'center',
         alignSelf: 'center',
         color: '#555',

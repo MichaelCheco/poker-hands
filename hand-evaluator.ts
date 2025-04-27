@@ -275,9 +275,10 @@ export function determinePokerWinnerManual(
     // Get the cards from one of the winners (they all have the same rank/value)
     const winningHandCards = evaluatedPlayers[0].best5Cards;
 
-
+// ShowdownDetails hands: PokerPlayerInput[];
     return {
-        winners: winnersData.map(({ playerId, holeCards }) => ({ playerId, holeCards })),
+        details: evaluatedPlayers.map((val) => ({description: mapRankToDescription(val.bestEvaluation?.rank), playerId: val.playerId, holeCards: val.holeCards})),
+        winners: winnersData.map(({ playerId, holeCards }) => ({ playerId, holeCards, description: mapRankToDescription(winningEvaluation.rank) })),
         winningHandDescription: mapRankToDescription(winningEvaluation.rank),
         bestHandCards: winningHandCards, // Return the specific 5 cards
     };

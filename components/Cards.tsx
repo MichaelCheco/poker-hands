@@ -62,25 +62,25 @@ export const SimpleCard: React.FC<CardProps> = ({ card, style, textStyle }) => {
       <Text style={[styles.cardText, { color: suitColor }, textStyle]}>
         {rank}
       </Text>
-      <Text style={[styles.cardText, { color: suitColor }, textStyle, {fontSize: 14}]}>
+      <Text style={[styles.cardText, { color: suitColor }, {fontSize: 14}, textStyle]}>
         {suitSymbol}
       </Text>
     </View>
   );
 };
 
-export const MyHand = ({ cards }: { cards: string }) => {
+export const MyHand = ({ cards, textStyle }: { cards: string }) => {
   return (
     <View style={{ flexDirection: 'row' }}>
-      <SimpleCard textStyle={{marginEnd: 2}} card={cards.substring(0, 2)} />
-      <SimpleCard card={cards.substring(2)} />
+      <SimpleCard textStyle={{marginEnd: 2, ...textStyle}} card={cards.substring(0, 2)} />
+      <SimpleCard textStyle={{...textStyle}} card={cards.substring(2)} />
     </View>
   )
 };
 
-export const ShowdownCards = ({ cards }: { cards: string[] }) => {
+export const ShowdownCards = ({ cards, style }: { cards: string[] }) => {
   return (
-    <View style={{ flexDirection: 'row', gap: 4 }}>
+    <View style={{ flexDirection: 'row', gap: 4, ...style }}>
       {cards.map((card, i) => (
         <SimpleCard card={card} key={i} />
       ))}

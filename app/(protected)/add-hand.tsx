@@ -172,9 +172,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                         formatCommunityCards(currentState.cards)) as WinnerInfo;
                     propertyUpdates.showdown = {
                         combination: result.bestHandCards,
-                        hands: showdownHands,
+                        hands: result.details,
                         text: result.winningHandDescription,
-                        winner: `${result.winners.map(w => w.playerId)[0]}`
+                        winner: `${result.winners.map(w => w.playerId)[0]}`,
                     };
                 } else {
                     console.log(`updating showdownHands`)
@@ -424,13 +424,18 @@ export default function App() {
         }
     };
 
+    async function saveHand() {
+        const result = await saveHandToSupabase(state.current, gameInfo);
+        console.log(result, 'result')
+        return result.handId
+    }
     useEffect(() => {
         console.log(`in useEffect for stage`)
-        async function saveHand() {
-            const result = await saveHandToSupabase(state.current, gameInfo);
-            console.log(result, 'result')
-            return result.handId
-        }
+        // async function saveHand() {
+        //     const result = await saveHandToSupabase(state.current, gameInfo);
+        //     console.log(result, 'result')
+        //     return result.handId
+        // }
         if (state.current.stage === Stage.Showdown) {
             console.log('in showdown block')
             saveHand().then((id) => {
@@ -524,13 +529,19 @@ export default function App() {
                 )}
                 {/* {state.current.stage == Stage.Showdown && (
                     <SafeAreaView style={[
-                        styles.inputContainer
+                        styles.inputContainer,
+                        {flex: 1}
                         // { paddingBottom: baseInputPaddingBottom + insets.bottom }
                         // We add the safe area bottom inset to our base padding
                         // This ensures the container itself respects the safe area,
                         // lifting the TextInput inside it above the home indicator.
                     ]}>
-                        <Button mode="contained" onPress={() => { }} style={{ ...styles.button, ...theme.button }}>
+                        <Button mode="contained" onPress={() => { 
+                            saveHand().then((id) => {
+                                console.log('in then')
+                                router.replace(`/${id}`)
+                            })
+                        }} style={{ ...styles.button, ...theme.button }}>
                             Save
                         </Button>
                     </SafeAreaView>

@@ -1,14 +1,18 @@
 import React, { useEffect, useState, useLayoutEffect } from 'react';
-import { View, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, Stack, useNavigation } from 'expo-router';
 import { getHandDetailsById } from '@/api/hands';
 import CopyableTextBlock from '@/components/CopyableTextBlock';
-import { formatAndGetTextToCopy } from '@/utils/hand-utils';
+import { formatAndGetTextToCopy, formatDateMMDDHHMM } from '@/utils/hand-utils';
 import { DetailedHandData, HandSetupInfo } from '@/types';
-import { IconButton, List, TextInput } from 'react-native-paper';
+import { IconButton, List, TextInput, Text, Divider } from 'react-native-paper';
 import GameInfo from '@/components/GameInfo';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import Showdown from '@/components/Showdown';
+import { CommunityCards, MyHand, ShowdownCards } from '@/components/Cards';
+import ActionList from '@/components/ActionList';
+import ActionListReview from '@/components/ActionListReview';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 function HandActions() {
@@ -19,9 +23,10 @@ function HandActions() {
             gap: 0,
             justifyContent: 'center',
             alignItems: 'center',
-            marginInline: 0,}}>
-        <IconButton icon="content-copy" size={20} style={{padding: 0, marginRight: -5}}/>
-        <IconButton icon="delete-outline" size={20} iconColor='#DA3036'/>
+            marginInline: 0,
+        }}>
+            <IconButton icon="content-copy" size={20} style={{ padding: 0, marginRight: -5 }} />
+            <IconButton icon="delete-outline" size={24} iconColor='#DA3036' />
         </View>
     )
 }
@@ -61,8 +66,9 @@ export default function HandDetailScreen() {
                 console.log(details?.actions.filter((val) => val.decision !== "F"))
                 setHandDetails(details);
                 navigation.setOptions({
-                    headerLeft: () => <GameInfo info={info} />,
-                    headerRight: () => <HandActions />,
+                    headerBackButtonDisplayMode: "default",
+                    headerLeft: () => <Text variant='titleMedium'>{details.location} - ${details.small_blind}/${details.big_blind} {details.game_type} {details.num_players}-handed</Text>,
+                    headerRight: () => <Text>{formatDateMMDDHHMM(details.played_at)}</Text>,
                     headerTitle: '',
                 });
 
@@ -93,42 +99,30 @@ export default function HandDetailScreen() {
     console.log(handDetails ?? "loading")
     return (
         <View style={styles.container}>
-            {/* Use Stack.Screen to configure this screen's header */}
-            {/* <Stack.Screen options={{ title: `Hand Detail ${id ? '- ' + id.substring(0, 8) : ''}` }} /> */}
-
             {isLoading && <ActivityIndicator size="large" style={styles.loader} />}
             {error && <Text style={styles.errorText}>Error: {error}</Text>}
-
             {!isLoading && !error && handDetails && (
                 <ScrollView>
-                    <Showdown 
-                    showdownHands={handDetails.showdown_hands} 
-                    finalStreet={handDetails.final_street} 
-                    actions={handDetails.actions}
-                    pot={handDetails.final_pot_size}/>
-                    {/* <Text style={styles.title}>Hand Details</Text> */}
-                    {/* <List.Section title="" >
-                        <List.Accordion
+                <Showdown
+                        showdownHands={handDetails.showdown_hands}
+                        finalStreet={handDetails.final_street}
+                        actions={handDetails.actions}
+                        pot={handDetails.final_pot_size as number} />
+                    {/* {handDetails.actions.map((action) => (
+                        <React.Fragment key={action.id}>
+                            <Text>{action.position} - {action.text_description}</Text>
+                        </React.Fragment>
+                    ))} */}
+                    <Divider bold />
+                    <ActionListReview actionList={handDetails.actions}/>
+                    {/* <TextInput
+                        mode="outlined"
+                        multiline
+                        label="Notes"
+                        style={{ minHeight: 90, flex: 1 }}
+                        activeOutlineColor='#000000'
+                    /> */}
 
-                            title="Hand History"
-                            left={props => <List.Icon {...props} icon="folder" />}>
-                            <List.Item title="" descriptionNumberOfLines={50} description={`PREFLOP: \nCO: opens to $20 \nBB: calls\n \nFLOP: ak8ssx \nBB: checks \nCO: checks\n\nTURN: 9d \nBB: bets $40 \nCO: calls \n\nRIVER: Kd \nBB: checks \nCO: bets $80 \nBB: calls \n\nVillain: 2s2c`}/>
-                        </List.Accordion>
-                    </List.Section> */}
-
-                    <CopyableTextBlock textToCopy={
-                        `PREFLOP: \nCO: opens to $20 \nBB: calls\n \nFLOP: ak8ssx \nBB: checks \nCO: checks\n\nTURN: 9d \nBB: bets $40 \nCO: calls \n\nRIVER: Kd \nBB: checks \nCO: bets $80 \nBB: calls \n\nVillain: 2s2c`
-                    } />
-                    <TextInput
-                    mode="outlined"
-                    multiline
-                    label="Notes"
-                    style={{ minHeight: 90, flex: 1, marginBottom: 16 }}
-                    activeOutlineColor='#000000'
-                    />
-                    {/* <Text>Hand ID: {handDetails.id}</Text> */}
-                    {/* TODO: Render the actual hand details, actions, showdown info */}
-                    {/* <Text>{JSON.stringify(handDetails, null, 2)}</Text> */}
                 </ScrollView>
             )}
             {!isLoading && !error && !handDetails && (
@@ -141,7 +135,7 @@ export default function HandDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 15,
+        padding: 12,
     },
     loader: {
         marginTop: 50,
@@ -158,17 +152,32 @@ const styles = StyleSheet.create({
     }
 });
 
-// big_blind
-// created_at
-// currency
-// final_pot_size
-// game_type
-// hero_cards
-// hero_position
-// id
-// location
-// notes
-// num_players
-// played_at
-// showdown_hands
-// small_blind
+{/* <Stack.Screen options={{ title: 'Hand Details', headerRight: () => <HandActions />,  }} /> */ }
+{/* <View style={{display: 'flex', justifyContent: 'space-between', flexDirection: 'row'}}> */ }
+{/* <View style={{display: 'flex',alignItems:'flex-start' }}> */ }
+{/* <Text variant="labelMedium">{formatDateMMDDHHMM(handDetails.played_at)}</Text> */ }
+{/* <Text variant="labelMedium">{handDetails.location} - ${handDetails.small_blind}/${handDetails.big_blind} {handDetails.game_type} {handDetails.num_players}-handed</Text> */ }
+{/* <Text variant="titleSmall">{handDetails.stacks}</Text> */ }
+{/* </View> */ }
+{/* <HandActions /> */ }
+{/* <ShowdownCards cards={handDetails.community_cards} style={{gap: 2, fontSize: 12}}/> */ }
+{/* <MyHand cards={handDetails.hero_cards}/> */ }
+{/* <View style={{display: 'flex',alignItems:'flex-end' }}> */ }
+{/* <Text variant="titleSmall">{handDetails.location}</Text> */ }
+{/* <Text variant="titleSmall">{formatDateMMDDHHMM(handDetails.played_at)}</Text> */ }
+{/* </View> */ }
+{/* </View> */ }
+{/* <Divider bold/> */ }
+{/* <Text style={styles.title}>Hand Details</Text> */ }
+{/* <List.Section title="" >
+    <List.Accordion
+
+        title="Hand History"
+        left={props => <List.Icon {...props} icon="folder" />}>
+        <List.Item title="" descriptionNumberOfLines={50} description={`PREFLOP: \nCO: opens to $20 \nBB: calls\n \nFLOP: ak8ssx \nBB: checks \nCO: checks\n\nTURN: 9d \nBB: bets $40 \nCO: calls \n\nRIVER: Kd \nBB: checks \nCO: bets $80 \nBB: calls \n\nVillain: 2s2c`}/>
+    </List.Accordion>
+</List.Section> */}
+
+{/* <CopyableTextBlock textToCopy={
+    `PREFLOP: \nCO: opens to $20 \nBB: calls\n \nFLOP: ak8ssx \nBB: checks \nCO: checks\n\nTURN: 9d \nBB: bets $40 \nCO: calls \n\nRIVER: Kd \nBB: checks \nCO: bets $80 \nBB: calls \n\nVillain: 2s2c`
+} /> */}

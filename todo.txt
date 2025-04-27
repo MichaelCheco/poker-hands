@@ -1,4 +1,5 @@
 TODOS:
+* bottom sheet for notes
 * Display showdown result in hand page
 * Display relevant stacks
 * Display hand metadata

@@ -34,9 +34,11 @@ export interface PokerPlayerInput {
     playerId: string;
     // TODO improve type safety
     holeCards: string[]|"muck";
+    description: string;
 }
 
 export interface WinnerInfo {
+    details: PokerPlayerInput[];
     winners: PokerPlayerInput[];
     winningHandDescription: string;
     bestHandCards: string[]; // The 5 cards forming the best hand
@@ -210,6 +212,7 @@ export interface ActionRecord {
     pot_size_before: number | null;
     text_description: string | null;
     created_at: string;
+    was_auto_folded: boolean;
   }
   
   // Type for rows from the 'showdown_hands' table
