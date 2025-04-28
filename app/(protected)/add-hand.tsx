@@ -1,20 +1,19 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
-import { router, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo } from '@/types';
-import { CommunityCards, MyHand } from '@/components/Cards';
+import { CommunityCards } from '@/components/Cards';
 import { initialState, numPlayersToActionSequenceList } from '@/constants';
 import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils/hand-utils';
 import { determinePokerWinnerManual } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
-import Showdown from '@/components/Showdown';
 import { ImmutableStack } from '@/ImmutableStack';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'; // 1. Import the hook
-import { useNavigation } from '@react-navigation/native'; // Or get navigation from props if using older class components/navigation versions
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
 
@@ -127,9 +126,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 ...addActionState.stacks,
                 [actingPlayer]: newStackSize
             };
-            if (logging) {
-                console.log(`${playerAction.position}'s stack: ${addActionState.stacks[playerAction.position]}`);
-            }
             const newHistory = state.history.push(currentGameState);
             console.log(addActionState, ' add')
             const newStateAfterAdd = {
@@ -264,7 +260,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     currentBetFacing: 0,
                 };
             }
-            // !nextAction && !currentState.currentAction.position && currentState.showdownHands.length === 0
             if (currentState.currentAction.id === GameQueueItemType.kRiverAction) {
                 // add villains to queue for card collection
                 updatedGameQueue = AddVillainsToGameQueue(currentState.actionSequence.filter(v => v.position !== currentState.hero.position).map(v => v.position));
@@ -374,9 +369,7 @@ export default function App() {
     const router = useRouter();
     const gameInfo: HandSetupInfo = JSON.parse(data);
     const [inputValue, setInputValue] = useState('');
-    // const [handSetupInfo, setHandSetupInfo] = useState<HandSetupInfo>();
     const [state, dispatch] = useReducer(reducer, initialAppState);
-    const ref = useRef({ smallBlind: gameInfo.smallBlind, bigBlind: gameInfo.bigBlind });
     const scrollViewRef = useRef<ScrollView>(null);
 
     useLayoutEffect(() => {
@@ -413,14 +406,11 @@ export default function App() {
 
         if (isTransition) {
             type = DispatchActionType.kTransition;
-            // setInputValue(text)
             dispatch({ type, payload: { input: text } });
         } else if (isAddAction && (state.current.currentAction.actionType !== ActionType.kCommunityCard && state.current.currentAction.actionType !== ActionType.kVillainCards)) {
             type = DispatchActionType.kAddAction;
-            // setInputValue(text)
             dispatch({ type, payload: { input: text } });
         } else {
-            // setInputValue(text)
         }
     };
 
@@ -430,14 +420,7 @@ export default function App() {
         return result.handId
     }
     useEffect(() => {
-        console.log(`in useEffect for stage`)
-        // async function saveHand() {
-        //     const result = await saveHandToSupabase(state.current, gameInfo);
-        //     console.log(result, 'result')
-        //     return result.handId
-        // }
         if (state.current.stage === Stage.Showdown) {
-            console.log('in showdown block')
             saveHand().then((id) => {
                 console.log('in then')
                 router.replace(`/${id}`)
@@ -457,7 +440,11 @@ export default function App() {
     const handleUndo = () => {
         dispatch({ type: DispatchActionType.kUndo, payload: {} });
     };
-
+    //     if (success) {
+    //         setPortalSnackbarVisible(true)
+    //         setTimeout(() => {
+    //             router.back();
+    //         }, 500);
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             <KeyboardAvoidingView
@@ -492,12 +479,6 @@ export default function App() {
                             currentStage={state.current.stage}
                         />
                     )}
-
-                    {/* {state.current.stage === Stage.Showdown && (
-                        <Showdown
-                            gameState={state.current}
-                            gameInfo={gameInfo} />
-                    )} */}
                 </ScrollView>
 
                 {/* Input container remains visually at the bottom, pushed by KAV */}
@@ -527,25 +508,6 @@ export default function App() {
                         />
                     </SafeAreaView>
                 )}
-                {/* {state.current.stage == Stage.Showdown && (
-                    <SafeAreaView style={[
-                        styles.inputContainer,
-                        {flex: 1}
-                        // { paddingBottom: baseInputPaddingBottom + insets.bottom }
-                        // We add the safe area bottom inset to our base padding
-                        // This ensures the container itself respects the safe area,
-                        // lifting the TextInput inside it above the home indicator.
-                    ]}>
-                        <Button mode="contained" onPress={() => { 
-                            saveHand().then((id) => {
-                                console.log('in then')
-                                router.replace(`/${id}`)
-                            })
-                        }} style={{ ...styles.button, ...theme.button }}>
-                            Save
-                        </Button>
-                    </SafeAreaView>
-                )} */}
             </KeyboardAvoidingView>
         </View>
     );

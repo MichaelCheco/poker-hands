@@ -1,4 +1,4 @@
-import { PlayerAction, Position, Stage } from '@/types';
+import { PlayerAction, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Divider, List, Text } from 'react-native-paper';

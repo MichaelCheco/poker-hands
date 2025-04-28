@@ -1,11 +1,10 @@
-import { ActionRecord, PlayerAction, Position, ShowdownHandRecord, Stage } from '@/types';
+import { ActionRecord, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Divider, IconButton, List, Text } from 'react-native-paper';
+import { IconButton, List, Text } from 'react-native-paper';
 
 
 function getSuit(suit: string) {
-    // 7♠️6♦️6♥️ ♣️
     switch (suit.toLowerCase()) {
         case 'h':
             return '♥️';
@@ -69,11 +68,10 @@ export default function ActionListReview({ actionList, communityCards }: {
     return (
         <List.Section>
             <View style={styles.subheaderContainer}>
-                {/* Subheader Text */}
                 <List.Subheader
                     style={[
-                        styles.subheaderText, // Use new style
-                        { color: '#000000E8' } // Apply specific color if needed
+                        styles.subheaderText,
+                        { color: '#000000E8' }
                     ]}
                 >
                     History
@@ -83,7 +81,6 @@ export default function ActionListReview({ actionList, communityCards }: {
                     icon="content-copy"
                     size={20}
                     onPress={() => console.log('pressed')}
-                    // iconColor={theme.colors.onSurfaceVariant}
                     style={styles.subheaderIcon}
                 />
             </View>
@@ -125,15 +122,7 @@ export default function ActionListReview({ actionList, communityCards }: {
     );
 }
 
-const getStageName = (stage: Stage) => {
-    switch (stage) {
-        case Stage.Preflop: return 'PREFLOP';
-        case Stage.Flop: return 'FLOP';
-        case Stage.Turn: return 'TURN';
-        case Stage.River: return 'RIVER';
-        default: return '';
-    }
-};
+
 const getStageName2 = (stage: Stage) => {
     switch (stage) {
         case Stage.Preflop: return 'Preflop';
@@ -143,6 +132,7 @@ const getStageName2 = (stage: Stage) => {
         default: return '';
     }
 };
+
 const styles = StyleSheet.create({
     actionItem: {
         paddingVertical: 4,
@@ -151,36 +141,27 @@ const styles = StyleSheet.create({
     actionPosition: {
         fontWeight: '500',
         marginLeft: 8,
-        // minWidth: 24,
         textAlign: 'center',
         alignSelf: 'center',
     },
     actionText: {
-        // fontSize: 16,
     },
     subheaderContainer: {
-        flexDirection: 'row', // Arrange items horizontally
-        justifyContent: 'space-between', // Push items to opposite ends
-        alignItems: 'center', // Align items vertically in the center
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginLeft: 4,
-        // paddingHorizontal: 16, // Standard Paper padding (adjust as needed)
-        // Add paddingVertical if needed, List.Subheader has some default vertical padding/margin
-        // backgroundColor: 'lightgrey', // Uncomment to visualize container bounds
       },
       subheaderText: {
-        // Remove negative margins that might interfere with flex layout
         marginLeft: 0,
-        marginRight: 0, // Allow space for the icon
-        marginVertical: 0, // Adjust vertical margin if needed
-        paddingVertical: 0, // Adjust vertical padding if needed
-        paddingHorizontal: 0, // Subheader text doesn't need horizontal padding here
-        // Apply font weight and other text styles
+        marginRight: 0,
+        marginVertical: 0,
+        paddingVertical: 0,
+        paddingHorizontal: 0,
         fontWeight: '700',
-        // Let the container handle alignment, text should just take its space
-        flexShrink: 1, // Allow text to shrink if needed, though unlikely here
+        flexShrink: 1,
       },
       subheaderIcon: {
-        // IconButton has default margins, reset them if you want tighter spacing
         margin: 0,
       },
 });

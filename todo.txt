@@ -1,6 +1,8 @@
 TODOS:
 * debug KeyboardAvoidingView issue
 * bottom sheet for notes
+* side pots
+* test hand without showdown
 * Display showdown result in hand page
 * Display relevant stacks
 * Display hand metadata

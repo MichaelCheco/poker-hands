@@ -2,38 +2,37 @@ import { AuthContext } from "@/utils/authContext";
 import { Redirect, Stack } from "expo-router";
 import { useContext } from "react";
 
-
 export const unstable_settings = {
-  initialRouteName: "index", // anchor
+    initialRouteName: "index",
 };
 
 export default function ProtectedLayout() {
-  const authState = useContext(AuthContext);
+    const authState = useContext(AuthContext);
 
-  if (!authState.isReady) {
-    return null;
-  }
+    if (!authState.isReady) {
+        return null;
+    }
 
-  if (!authState.isLoggedIn()) {
-    return <Redirect href="/login" />;
-  }
+    if (!authState.isLoggedIn()) {
+        return <Redirect href="/login" />;
+    }
 
-  return (
-    <Stack>
-      <Stack.Screen
-        name="index"
-        options={{
-          headerTitle: "Saved Hands",
-          
-        }}
-      />
-      <Stack.Screen
-        name="add-hand"
-        options={{
-               headerBackButtonDisplayMode: "minimal",
-            headerTitle: ''
-        }}
-      />
-    </Stack>
-  );
+    return (
+        <Stack>
+            <Stack.Screen
+                name="index"
+                options={{
+                    headerTitle: "Saved Hands",
+
+                }}
+            />
+            <Stack.Screen
+                name="add-hand"
+                options={{
+                    headerBackButtonDisplayMode: "minimal",
+                    headerTitle: ''
+                }}
+            />
+        </Stack>
+    );
 }

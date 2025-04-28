@@ -29,7 +29,6 @@ export interface HandEvaluation {
     values: number[]; // Relevant card ranks for tie-breaking, highest first
 }
 
-// Input/Output Interfaces (same as library example)
 export interface PokerPlayerInput {
     playerId: string;
     // TODO improve type safety
@@ -41,7 +40,7 @@ export interface WinnerInfo {
     details: PokerPlayerInput[];
     winners: PokerPlayerInput[];
     winningHandDescription: string;
-    bestHandCards: string[]; // The 5 cards forming the best hand
+    bestHandCards: string[];
 }
 
 export enum Stage {
@@ -154,8 +153,6 @@ export interface SavedHandSummary {
     currency: string;
     notes?: string | null;
     created_at: string;
-    // You might want to add a field indicating if it went to showdown,
-    // or the winner if known without querying other tables, if useful for display.
 }
 
 export interface HandSetupInfo extends FieldValues {
@@ -166,18 +163,8 @@ export interface HandSetupInfo extends FieldValues {
     relevantStacks: string;
     location: string;
     hand: string;
-    playedAt?: Date | string; // Optional specific time
+    playedAt?: Date | string;
 }
-
-// export interface HandSetupInfo {
-//     smallBlind: number;
-//     bigBlind: number;
-//     location: string | null;
-//     numPlayers: number;
-//     currency?: string;
-//     notes?: string | null;
-//     playedAt?: Date | string; // Optional specific time
-// }
 
 export interface GameState {
     gameQueue: GameQueueItem[];
@@ -226,7 +213,6 @@ export interface ShowdownHandRecord {
     created_at: string;
   }
   
-  // Combined type for the function's return value
 export interface DetailedHandData {
     // All columns from the 'hands' table
     id: string;
@@ -246,7 +232,7 @@ export interface DetailedHandData {
     currency: string;
     notes?: string | null;
     created_at: string;
-    // Nested arrays for related data
     actions: ActionRecord[];
     showdown_hands: ShowdownHandRecord[];
+    community_cards: string[];
 }
