@@ -3,7 +3,7 @@ import { View, StyleSheet, FlatList } from 'react-native'; // Import View and St
 import { Icon, Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider } from 'react-native-paper';
 import PokerHandForm from '../../components/PokerHandForm';
 import Fab from '@/components/Fab';
-import { parsePokerHandString } from '@/utils/hand-utils';
+import { formatDateMMDDHHMM, parsePokerHandString } from '@/utils/hand-utils';
 import { MyHand } from '@/components/Cards';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getSavedHands } from '@/api/hands';
@@ -64,7 +64,7 @@ export default function Index() {
     <>
     <List.Item
       title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind} • ${item.location}`}
-      description={`${new Date(item.played_at).toLocaleDateString()}`}
+      description={`${formatDateMMDDHHMM(item.played_at)}`}
       // onPress={() => {/* Navigate to hand detail? */}}
       left={props => <List.Icon {...props} icon="cards-playing" />}
       onPress={() => {

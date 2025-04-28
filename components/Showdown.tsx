@@ -1,11 +1,22 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme, Icon } from 'react-native-paper';
-import { MyHand } from './Cards';
+import { MyHand, ShowdownCard } from './Cards';
 import { ShowdownHandRecord, Stage, ActionRecord, Position } from '@/types';
 import { getHandSummary } from '@/utils/hand-utils';
 import { useRouter } from 'expo-router';
-
+function getSuit2(suit: string) {
+    switch (suit.toLowerCase()) {
+        case 'h':
+            return '♥️';
+        case 'd':
+            return '♦️';
+        case 's':
+            return '♠️';
+        case 'c':
+            return '♣️';
+    }
+}
 const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBlind }: {
     showdownHands: ShowdownHandRecord[],
     finalStreet: Stage,
@@ -30,10 +41,9 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
     const theme = useTheme();
     const winner = showdownHands.find(hand => hand.is_winner);
     const amt = Object.values(stacksMap).reduce((acc, val) => acc += val.end, 0);
-    function StackChange({hand}: {hand: ShowdownHandRecord}) {
+    function StackChange2({hand}: {hand: ShowdownHandRecord}) {
         return (
-            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', flex: 1 }}>
-            <Text style={{ marginInlineStart: 4, alignSelf: 'center' }} variant='bodyMedium'>- {hand.hand_description}</Text>
+            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1 , position: 'relative', top: 12}}>
             <View style={{ display: 'flex', flexDirection: 'row' }}>
     
                 <Icon source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} />
@@ -41,6 +51,11 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
             </View>
         </View> 
         )
+    }
+
+    function getTitle(hand: ShowdownHandRecord): string {
+        let cards = hand.hole_cards;
+        return `${cards[0]}${getSuit2(cards[1])}${cards[2]}${getSuit2(cards[3])}`
     }
     return (
         <List.Section>
@@ -54,12 +69,19 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
             {showdownHands ? showdownHands.map((hand, index) => {
                 return (
                     <List.Item
-                        contentStyle={{ flexGrow: 0, alignItems: 'center', }}
+                        contentStyle={{ position: 'relative', top: 4 }}
+                        description={hand.hand_description}
+                        descriptionStyle={{fontStyle: 'italic', color: '#00000082'}}
                         key={`${hand.position}-${hand.hole_cards}-${index}`}
+                        // title={getTitle(hand)}
                         title={() => {
                             if (hand.hole_cards !== "muck") {
                                 return (
-                                    <MyHand cards={hand.hole_cards} textStyle={{ fontSize: 14, fontWeight: 400 }} />
+                                    <View style={{display: 'flex', flexDirection: 'row', gap: 2}} >
+                                    <ShowdownCard card={hand.hole_cards.substring(0, 2)} />
+                                    <ShowdownCard card={hand.hole_cards.substring(2)}/>
+                                    </View>
+                                    // <MyHand cards={hand.hole_cards} textStyle={{ marginBottom: 0, position: 'relative', top: 4 }} />
                                 )
                             }
                             return (
@@ -67,7 +89,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
                             )
                         }}
                         left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
-                        right={() => <StackChange hand={hand} />}
+                        right={() => <StackChange2 hand={hand} />}
                     />
                 )
             }

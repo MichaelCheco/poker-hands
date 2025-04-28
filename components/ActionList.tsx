@@ -34,7 +34,7 @@ export default function ActionList({ actionList, currentStage, potForStreetMap }
                         {`${getStageName(stage)}${stage !== Stage.Preflop ? ` ($${potForStreetMap[stage]})` : ''}`}
                     </List.Subheader>
                     {groupedActions[stage].map((item: PlayerAction, index: number) => {
-                        const uniqueItemKey = item.id || `action-${stage}-${item.position}-${index}`;
+                        const uniqueItemKey = item.id || `action-${stage}-${item.position}-${index}-${item.amount}`;
                         return (
                             <React.Fragment key={uniqueItemKey}>
                                 <List.Item

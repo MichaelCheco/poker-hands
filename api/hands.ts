@@ -73,7 +73,7 @@ export async function saveHandToSupabase(
         .insert({
             user_id: userId,
             played_at: setupInfo.playedAt ? new Date(setupInfo.playedAt).toISOString() : new Date().toISOString(),
-            game_type: 'NLHE',
+            game_type: 'NLH',
             small_blind: setupInfo.smallBlind,
             big_blind: setupInfo.bigBlind,
             location: setupInfo.location,

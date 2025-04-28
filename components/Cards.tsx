@@ -69,6 +69,24 @@ export const SimpleCard: React.FC<CardProps> = ({ card, style, textStyle }) => {
   );
 };
 
+export const ShowdownCard: React.FC<CardProps> = ({ card }) => {
+  const rank = card.substring(0, card.length - 1).toUpperCase();
+  const suitChar = card.substring(card.length - 1).toLowerCase();
+
+  const { color: suitColor, symbol: suitSymbol } = getSuitInfo(suitChar);
+
+  return (
+    <View style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
+      <Text style={{color: suitColor}} variant='bodyLarge'>
+        {rank}
+      </Text>
+      <Text style={{ color: suitColor ,fontSize: 14}} variant='bodyLarge'>
+        {suitSymbol}
+      </Text>
+    </View>
+  );
+};
+
 export const MyHand = ({ cards, textStyle }: { cards: string }) => {
   return (
     <View style={{ flexDirection: 'row' }}>

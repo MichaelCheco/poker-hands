@@ -51,7 +51,7 @@ export default function HandDetailScreen() {
         };
 
         fetchDetails();
-    }, [id]);
+    }, [id, navigation]);
     return (
         <View style={styles.container}>
             {isLoading && <ActivityIndicator size="large" style={styles.loader} />}

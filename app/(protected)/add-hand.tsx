@@ -1,6 +1,6 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Text, TextInput, Snackbar } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,8 +20,8 @@ import { saveHandToSupabase } from '@/api/hands';
 const logging = false;
 
 interface GameAppState {
-    current: GameState; // The current state of the game
-    history: ImmutableStack<GameState>; // The stack holding previous states
+    current: GameState;
+    history: ImmutableStack<GameState>;
 }
 
 function removeAfterLastComma(input: string): string {
@@ -63,9 +63,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), state.current.stage)
 
             if (hasActionBeenAddedAlready(state.current.playerActions, playerAction)) {
-                if (logging) {
-                    console.log(`id matched for input: ${mostRecentActionText}`)
-                }
                 return {
                     current: { ...state.current, input: action.payload.input },
                     history: state.history,
@@ -363,6 +360,10 @@ const initialAppState: GameAppState = {
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
+    const [visible, setVisible] = React.useState(false);
+    const [snackbarText, setSnackbarText] = React.useState('Saving hand ...');
+    const onToggleSnackBar = () => setVisible(!visible);
+    const onDismissSnackBar = () => setVisible(false);
     const theme = useTheme();
     const headerHeight = useHeaderHeight();
     const navigation = useNavigation();
@@ -421,9 +422,16 @@ export default function App() {
     }
     useEffect(() => {
         if (state.current.stage === Stage.Showdown) {
+            onToggleSnackBar();
             saveHand().then((id) => {
-                console.log('in then')
-                router.replace(`/${id}`)
+                setTimeout(() => {
+                    setSnackbarText("Hand saved successfully! ✅")    
+                }, 800)
+                            setTimeout(() => {
+                                router.replace(`/${id}`)
+            }, 1500);
+                // console.log('in then')
+                // router.replace(`/${id}`)
             });
         }
     }, [state.current.stage])
@@ -447,6 +455,11 @@ export default function App() {
     //         }, 500);
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <Snackbar
+                visible={visible}
+                onDismiss={onDismissSnackBar}>
+                {snackbarText}
+            </Snackbar>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoidingContainer}
