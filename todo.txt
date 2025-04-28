@@ -1,4 +1,5 @@
 TODOS:
+* debug KeyboardAvoidingView issue
 * bottom sheet for notes
 * Display showdown result in hand page
 * Display relevant stacks

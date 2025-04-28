@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { List, Text, Button, useTheme, TextInput, Portal, Snackbar, Icon } from 'react-native-paper';
 import { MyHand } from './Cards';
-import { HandSetupInfo, GameState, ShowdownHandRecord, Stage, ActionRecord } from '@/types';
+import { HandSetupInfo, GameState, ShowdownHandRecord, Stage, ActionRecord, Position } from '@/types';
 import { formatAndCopyHandHistory, getHandSummary } from '@/utils/hand-utils';
 import { useRouter } from 'expo-router';
 import { saveHandToSupabase } from '@/api/hands';
@@ -14,13 +14,29 @@ async function handleOnSavePress(gameState: GameState, gameInfo: HandSetupInfo):
     return result;
 }
 // wins ${pot} with 
-const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
+const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBlind }: {
     showdownHands: ShowdownHandRecord[],
     finalStreet: Stage,
     actions: ActionRecord[],
-    pot: number
+    pot: number,
+    smallBlind: number,
+    bigBlind: number,
 }) => {
     // console.log(showdownHands, finalStreet, actions, pot)
+        const stacksMap = actions.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
+            if (!acc[action.position]) {
+                let startVal = 
+                action.position === Position.SB 
+                ? smallBlind 
+                : action.position === Position.BB 
+                ? bigBlind 
+                : 0;
+                acc[action.position] = {start: action.player_stack_before + startVal, end: 0};
+            }
+            acc[action.position].end = acc[action.position].end + action.action_amount;
+            return acc;
+        }, {});
+        console.log(stacksMap)
     const theme = useTheme();
     const router = useRouter()
     const [portalSnackbarVisible, setPortalSnackbarVisible] = React.useState(false);
@@ -37,6 +53,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
     //     }
     // };
     const winner = showdownHands.find(hand => hand.is_winner);
+    const amt = Object.values(stacksMap).reduce((acc, val) => acc += val.end, 0);
     return (
         <View style={{  }}>
              {/* title='Hand Result' titleStyle={{marginLeft: 0, paddingLeft: 0}} */}
@@ -46,7 +63,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
                     fontWeight: '700',
                     color: '#000000E8',
                 }}>
-                    SHOWDOWN
+                    Result
                 </List.Subheader>
                 {showdownHands ? showdownHands.map((hand, index) => {
                     // const isHand = !(typeof hand.hole_cards === "string");
@@ -67,11 +84,11 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot }: {
                             left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
                             right={() => (
                                 <View style={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', flex: 1}}>
-                                    <Text style={{ marginInlineStart: 4, alignSelf: 'center' }} variant='labelMedium'>/ {hand.hand_description}</Text>
+                                    <Text style={{ marginInlineStart: 4, alignSelf: 'center' }} variant='bodyMedium'>- {hand.hand_description}</Text>
                                     <View style={{display: 'flex', flexDirection: 'row'}}>
 
-                                    <Icon source={"plus"} color='#6CDA76' size={16}/> 
-                                    <Text variant='labelSmall'>342</Text>
+                                    <Icon  source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} /> 
+                                    <Text variant='bodyMedium' style={{color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 2}}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
                                     </View>
                                 </View>
                         )}

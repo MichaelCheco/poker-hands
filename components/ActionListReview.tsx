@@ -1,17 +1,40 @@
 import { ActionRecord, PlayerAction, Position, ShowdownHandRecord, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Divider, List, Text } from 'react-native-paper';
+import { Divider, IconButton, List, Text } from 'react-native-paper';
 
-export default function ActionListReview({ actionList }: { actionList: ActionRecord[] }) {
-    // const filteredActions = actionList.filter(action => !action.shouldHideFromUi);
+
+function getSuit(suit: string) {
+    // 7♠️6♦️6♥️ ♣️
+    switch (suit.toLowerCase()) {
+        case 'h':
+            return '♥️';
+        case 'd':
+            return '♦️';
+        case 's':
+            return '♠️';
+        case 'c':
+            return '♣️';
+    }
+}
+
+function getPreflopText(cards: string[]) {
+    let [card1, card2, card3, ...rest] = cards;
+    return `${card1[0]}${getSuit(card1[1])} ${card2[0]}${getSuit(card2[1])} ${card3[0]}${getSuit(card3[1])}`
+}
+
+function getStageText(card: string) {
+    return `${card[0]}${getSuit(card[1])}`
+}
+
+export default function ActionListReview({ actionList, communityCards }: {
+    actionList: ActionRecord[],
+    communityCards: string[],
+}) {
     const groupedActions = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
             const stage = action.stage;
             acc[stage].push(action);
-            // if (!action.shouldHideFromUi) {
-            //     acc[stage].push(action);
-            // }
             return acc;
         }, {
             [Stage.Preflop]: [],
@@ -21,27 +44,64 @@ export default function ActionListReview({ actionList }: { actionList: ActionRec
         });
     }, [actionList]);
 
+    const groupedPotSizes = React.useMemo(() => {
+        return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
+            const stage = action.stage;
+            acc[stage] = acc[stage] + action.action_amount;
+            return acc;
+        }, {
+            [Stage.Preflop]: 0,
+            [Stage.Flop]: 0,
+            [Stage.Turn]: 0,
+            [Stage.River]: 0,
+        });
+    }, [actionList]);
+    const flopPotSize = groupedPotSizes[Stage.Preflop];
+    const turnPotSize = flopPotSize + groupedPotSizes[Stage.Flop];
+    const riverPotSize = turnPotSize + groupedPotSizes[Stage.Turn];
     const sortedStages = Object.keys(groupedActions).map(Number).sort((a, b) => a - b);
-
+    const stageToPotSizeMap = {
+        [Stage.Preflop]: 0,
+        [Stage.Flop]: flopPotSize,
+        [Stage.Turn]: turnPotSize,
+        [Stage.River]: riverPotSize,
+    }
     return (
         <List.Section>
-                    <List.Subheader style={{
-            marginLeft: -10,
-            marginInline: 0, padding: 0,
-            fontWeight: '700',
-            color: '#000000E8',
-        }}>
-            HAND HISTORY
-        </List.Subheader>
+            <View style={styles.subheaderContainer}>
+                {/* Subheader Text */}
+                <List.Subheader
+                    style={[
+                        styles.subheaderText, // Use new style
+                        { color: '#000000E8' } // Apply specific color if needed
+                    ]}
+                >
+                    History
+                </List.Subheader>
+
+                <IconButton
+                    icon="content-copy"
+                    size={20}
+                    onPress={() => console.log('pressed')}
+                    // iconColor={theme.colors.onSurfaceVariant}
+                    style={styles.subheaderIcon}
+                />
+            </View>
             {sortedStages.map((stage) => (
                 <View key={`stage-container-${stage}`}>
-                    <List.Subheader variant='bodySmall' style={{
+                    <List.Subheader variant='bodyMedium' style={{
                         marginLeft: -10,
                         marginInline: 0, padding: 0,
                         fontWeight: '700',
                         color: '#0000009A',
                     }}>
-                        {`${getStageName(stage)}`}
+                        <Text>{`${getStageName2(stage)}  `}</Text>
+                        {stage !== Stage.Preflop && <Text
+                            style={{ fontWeight: 800, marginInline: 12 }}>
+                            {stage === Stage.Flop ? getPreflopText(communityCards) : getStageText(stage === Stage.Turn ? communityCards[3] : communityCards[4])}
+                            {" "}</Text>}
+                        {stage !== Stage.Preflop && <Text style={{ marginLeft: 8 }}>(${stageToPotSizeMap[stage]})</Text>}
+
                     </List.Subheader>
                     {groupedActions[stage].map((item: ActionRecord, index: number) => {
                         const uniqueItemKey = item.id || `action-${stage}-${item.position}-${index}`;
@@ -74,7 +134,15 @@ const getStageName = (stage: Stage) => {
         default: return '';
     }
 };
-
+const getStageName2 = (stage: Stage) => {
+    switch (stage) {
+        case Stage.Preflop: return 'Preflop';
+        case Stage.Flop: return 'Flop';
+        case Stage.Turn: return 'Turn';
+        case Stage.River: return 'River';
+        default: return '';
+    }
+};
 const styles = StyleSheet.create({
     actionItem: {
         paddingVertical: 4,
@@ -90,4 +158,29 @@ const styles = StyleSheet.create({
     actionText: {
         // fontSize: 16,
     },
+    subheaderContainer: {
+        flexDirection: 'row', // Arrange items horizontally
+        justifyContent: 'space-between', // Push items to opposite ends
+        alignItems: 'center', // Align items vertically in the center
+        marginLeft: 4,
+        // paddingHorizontal: 16, // Standard Paper padding (adjust as needed)
+        // Add paddingVertical if needed, List.Subheader has some default vertical padding/margin
+        // backgroundColor: 'lightgrey', // Uncomment to visualize container bounds
+      },
+      subheaderText: {
+        // Remove negative margins that might interfere with flex layout
+        marginLeft: 0,
+        marginRight: 0, // Allow space for the icon
+        marginVertical: 0, // Adjust vertical margin if needed
+        paddingVertical: 0, // Adjust vertical padding if needed
+        paddingHorizontal: 0, // Subheader text doesn't need horizontal padding here
+        // Apply font weight and other text styles
+        fontWeight: '700',
+        // Let the container handle alignment, text should just take its space
+        flexShrink: 1, // Allow text to shrink if needed, though unlikely here
+      },
+      subheaderIcon: {
+        // IconButton has default margins, reset them if you want tighter spacing
+        margin: 0,
+      },
 });

@@ -7,12 +7,13 @@ import { DetailedHandData, HandSetupInfo } from '@/types';
 import { IconButton, Text, Divider, Button, TextInput } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import ActionListReview from '@/components/ActionListReview';
-import {
-    BottomSheetModal,
-    BottomSheetView,
-    BottomSheetModalProvider,
-    BottomSheetTextInput,
-} from '@gorhom/bottom-sheet';
+// import {
+//     BottomSheetModal,
+//     BottomSheetView,
+//     BottomSheetModalProvider,
+//     BottomSheetTextInput,
+// } from '@gorhom/bottom-sheet';
+// import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // style={{margin: 0, padding: 0, gap: 0}}
 function HandActions({ date }) {
@@ -26,7 +27,7 @@ function HandActions({ date }) {
             // marginInline: 0,
             // paddingBottom: 10
         }}>
-            <Text variant='titleSmall'>{formatDateMMDDHHMM(date)}
+            <Text variant='titleMedium'>{formatDateMMDDHHMM(date)}
                 {/* {<IconButton icon="note-text-outline" size={17} style={{position: 'absolute', left: 25}}/>} 
             {<IconButton icon="delete-outline" size={17} iconColor='#DA3036' style={{position: 'absolute', left: 25, top : 40}}/>} */}
             </Text>
@@ -46,43 +47,43 @@ export default function HandDetailScreen() {
     const [initial, setInitial] = useState(false);
 
     const navigation = useNavigation();
-    const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-    // const { dismiss, dismissAll } = useBottomSheetModal();
+//     const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+//     // const { dismiss, dismissAll } = useBottomSheetModal();
 
-    // callbacks
-     // Callback to open the sheet
-  const handleOpenSheet = useCallback(() => {
-    console.log('here')
-    bottomSheetModalRef.current?.present(); 
-  }, []);
+//     // callbacks
+//      // Callback to open the sheet
+//   const handleOpenSheet = useCallback(() => {
+//     console.log('here')
+//     bottomSheetModalRef.current?.present(); 
+//   }, []);
 
-  // Callback to close the sheet
-  const handleCloseSheet = useCallback(() => {
-    bottomSheetModalRef.current?.close();
-  }, []);
-    const handlePresentModalPress = useCallback(() => {
-        console.log('in handle present modal press')
-        // bottomSheetModalRef.current?.present();
+//   // Callback to close the sheet
+//   const handleCloseSheet = useCallback(() => {
+//     bottomSheetModalRef.current?.close();
+//   }, []);
+//     const handlePresentModalPress = useCallback(() => {
+//         console.log('in handle present modal press')
+//         // bottomSheetModalRef.current?.present();
 
-        // bottomSheetModalRef.current?.present();
-        if (!initial) {
-            handleOpenSheet()
-            setInitial(true);
-            setExpanded(true);
-        }
+//         // bottomSheetModalRef.current?.present();
+//         if (!initial) {
+//             handleOpenSheet()
+//             setInitial(true);
+//             setExpanded(true);
+//         }
 
-        if (expanded) {
-            handleCloseSheet()
-            setExpanded(false);
-        } else {
-            handleOpenSheet()
+//         if (expanded) {
+//             handleCloseSheet()
+//             setExpanded(false);
+//         } else {
+//             handleOpenSheet()
 
-            setExpanded(true);
-        }
-    }, []);
-    const handleSheetChanges = useCallback((index: number) => {
-        console.log('handleSheetChanges', index);
-    }, []);
+//             setExpanded(true);
+//         }
+//     }, []);
+//     const handleSheetChanges = useCallback((index: number) => {
+//         console.log('handleSheetChanges', index);
+//     }, []);
     // Get the dynamic 'id' parameter from the route
     const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -109,7 +110,7 @@ export default function HandDetailScreen() {
                 setHandDetails(details);
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
-                    headerLeft: () => <Text variant='titleSmall'>{details.location} - ${details.small_blind}/${details.big_blind} {details.game_type} {details.num_players}-handed</Text>,
+                    headerLeft: () => <Text variant='titleMedium'>{details.location} - ${details.small_blind}/${details.big_blind} {details.game_type} {details.num_players}-handed</Text>,
                     headerRight: () => <HandActions date={details.played_at} />,
                     headerTitle: '',
                 });
@@ -140,6 +141,7 @@ export default function HandDetailScreen() {
     }
     // console.log(handDetails ?? "loading")
     return (
+        // <GestureHandlerRootView>
         <View style={styles.container}>
             {isLoading && <ActivityIndicator size="large" style={styles.loader} />}
             {error && <Text style={styles.errorText}>Error: {error}</Text>}
@@ -148,17 +150,19 @@ export default function HandDetailScreen() {
                     flex: 1, // Allow ScrollView to take available space
                     paddingHorizontal: 15,
                 }}>
-                    <View style={{
+                    {/* <View style={{
                         display: 'flex', flexDirection: 'row',
                         justifyContent: 'flex-end',
                         marginVertical: -12,
                         // paddingVertical: -2
                     }}>
-                        <IconButton onPress={handleOpenSheet} icon="note-text-outline" size={21} style={{ position: 'relative', left: 10 }} />
+                        <IconButton icon="note-text-outline" size={21} style={{ position: 'relative', left: 10 }} />
                         <IconButton onPress={() => console.log("Press")} icon="delete-outline" size={21} iconColor='#DA3036' />
-                    </View>
+                    </View> */}
                     {/* <Divider /> */}
                     <Showdown
+                                        smallBlind={handDetails.small_blind}
+                                        bigBlind={handDetails.big_blind}
                         showdownHands={handDetails.showdown_hands}
                         finalStreet={handDetails.final_street}
                         actions={handDetails.actions}
@@ -169,7 +173,9 @@ export default function HandDetailScreen() {
                         </React.Fragment>
                         ))} */}
                     <Divider bold />
-                    <ActionListReview actionList={handDetails.actions} />
+                    <ActionListReview 
+                    actionList={handDetails.actions}
+                     communityCards={handDetails.community_cards}/>
                     {/* <TextInput
                         mode="outlined"
                         multiline
@@ -179,24 +185,11 @@ export default function HandDetailScreen() {
                         /> */}
                 </ScrollView>
             )}
-            <BottomSheetModalProvider>
-                <BottomSheetModal
-        //   snapPoints={snapPoints}
-          enablePanDownToClose={true} // Allow swiping down to close
-                    ref={bottomSheetModalRef}
-                    onChange={handleSheetChanges}
-                >
-                    <BottomSheetView style={styles.contentContainer}>
-                        <BottomSheetTextInput style={styles.textInput} placeholder='Notes' placeholderTextColor={"#00000057"}/>
-                        {/* <Button onPress={handleCloseSheet}>Close</Button> */}
-
-                    </BottomSheetView>
-                </BottomSheetModal>
-            </BottomSheetModalProvider>
             {!isLoading && !error && !handDetails && (
                 <Text>Hand not found.</Text>
             )}
         </View>
+        // </GestureHandlerRootView>
     );
 }
 
@@ -209,17 +202,17 @@ const styles = StyleSheet.create({
         marginTop: 50,
     },
     textInput: {
-        alignSelf: "stretch",
-        marginHorizontal: 12,
-        marginBottom: 12,
-        marginTop: 8,
-        padding: 36,
-        borderRadius: 4,
-        backgroundColor: "#F9FAFB",
-        color: "#00000082",
-        // height: 90,
-        textAlign: "center",
-        borderColor: '#000000',
+        // alignSelf: "stretch",
+        // marginHorizontal: 12,
+        // marginBottom: 12,
+        // marginTop: 8,
+        // padding: 8,
+        // borderRadius: 4,
+        // backgroundColor: "#F9FAFB",
+        // color: "#00000082",
+        // // height: 90,
+        // textAlign: "center",
+        // borderColor: '#000000',
         // borderWidth: 1,
 
     },
@@ -239,3 +232,18 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     }
 });
+
+{/* <BottomSheetModalProvider>
+<BottomSheetModal
+//   snapPoints={snapPoints}
+enablePanDownToClose={true} // Allow swiping down to close
+    ref={bottomSheetModalRef}
+    onChange={handleSheetChanges}
+>
+    <BottomSheetView style={styles.contentContainer}>
+        <BottomSheetTextInput style={styles.textInput} placeholder='Notes' placeholderTextColor={"#00000057"}/>
+        {/* <Button onPress={handleCloseSheet}>Close</Button> */}
+// 
+    // </BottomSheetView>
+// </BottomSheetModal>
+// </BottomSheetModalProvider> */}

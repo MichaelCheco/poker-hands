@@ -25,7 +25,6 @@ const theme = {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView>
       <PaperProvider theme={theme} >
         <AuthProvider>
         <Stack>
@@ -37,7 +36,6 @@ export default function RootLayout() {
         </Stack>
         </AuthProvider>
       </PaperProvider>
-      </GestureHandlerRootView>
     </SafeAreaProvider>
   )
 }
