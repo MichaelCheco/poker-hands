@@ -1,5 +1,5 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput, Snackbar } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
@@ -359,6 +359,9 @@ const initialAppState: GameAppState = {
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [isTransitioning, setIsTransitioning] = React.useState(false);
+
     const [visible, setVisible] = React.useState(false);
     const [snackbarText, setSnackbarText] = React.useState('Saving hand ...');
     const onToggleSnackBar = () => setVisible(!visible);
@@ -421,16 +424,17 @@ export default function App() {
     }
     useEffect(() => {
         if (state.current.stage === Stage.Showdown) {
-            onToggleSnackBar();
+            setIsLoading(true)
             saveHand().then((id) => {
+                setIsTransitioning(true);
+                setSnackbarText("Hand saved! ✅")
+                onToggleSnackBar();
                 setTimeout(() => {
-                    setSnackbarText("Hand saved successfully! ✅")    
-                }, 800)
-                            setTimeout(() => {
-                                router.replace(`/${id}`)
-            }, 1500);
-                // console.log('in then')
-                // router.replace(`/${id}`)
+                    router.replace(`/${id}`)
+                    setIsLoading(false)
+                    setIsTransitioning(false);
+                    onToggleSnackBar();
+                }, 1200);
             });
         }
     }, [state.current.stage])
@@ -454,12 +458,13 @@ export default function App() {
     //         }, 500);
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            {isLoading && !isTransitioning && <ActivityIndicator size="large" style={{ marginTop: 50 }} />}
             <Snackbar
                 visible={visible}
                 onDismiss={onDismissSnackBar}>
                 {snackbarText}
             </Snackbar>
-            <KeyboardAvoidingView
+            {!isLoading && !isTransitioning && <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardAvoidingContainer}
                 // Adjust offset for header above this screen component
@@ -520,7 +525,7 @@ export default function App() {
                         />
                     </SafeAreaView>
                 )}
-            </KeyboardAvoidingView>
+            </KeyboardAvoidingView>}
         </View>
     );
 }

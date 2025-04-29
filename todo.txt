@@ -1,5 +1,6 @@
 TODOS:
 * debug KeyboardAvoidingView issue
+* Investigate starting stacks for blinds
 * bottom sheet for notes
 * side pots
 * test hand without showdown

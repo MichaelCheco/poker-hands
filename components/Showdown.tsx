@@ -44,10 +44,12 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
     function StackChange2({hand}: {hand: ShowdownHandRecord}) {
         return (
             <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1 , position: 'relative', top: 12}}>
+            <View style={{ display: 'flex',  justifyContent: 'center', alignItems:'center'}}>
             <View style={{ display: 'flex', flexDirection: 'row' }}>
-    
                 <Icon source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} />
                 <Text variant='bodyMedium' style={{ color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 2 }}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
+            </View>
+            <Text variant='bodySmall' style={{alignSelf: 'flex-end', fontStyle:'italic'}}>{hand.is_winner ? stacksMap[hand.position].start + amt : stacksMap[hand.position].start - amt}</Text>
             </View>
         </View> 
         )
@@ -73,7 +75,6 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
                         description={hand.hand_description}
                         descriptionStyle={{fontStyle: 'italic', color: '#00000082'}}
                         key={`${hand.position}-${hand.hole_cards}-${index}`}
-                        // title={getTitle(hand)}
                         title={() => {
                             if (hand.hole_cards !== "muck") {
                                 return (
@@ -81,7 +82,6 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
                                     <ShowdownCard card={hand.hole_cards.substring(0, 2)} />
                                     <ShowdownCard card={hand.hole_cards.substring(2)}/>
                                     </View>
-                                    // <MyHand cards={hand.hole_cards} textStyle={{ marginBottom: 0, position: 'relative', top: 4 }} />
                                 )
                             }
                             return (
