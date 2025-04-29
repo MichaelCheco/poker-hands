@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { List, Text, useTheme, Icon } from 'react-native-paper';
+import { List, Text, useTheme, Icon, Snackbar } from 'react-native-paper';
 import { MyHand, ShowdownCard } from './Cards';
 import { ShowdownHandRecord, Stage, ActionRecord, Position } from '@/types';
 import { getHandSummary } from '@/utils/hand-utils';
@@ -41,17 +41,17 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
     const theme = useTheme();
     const winner = showdownHands.find(hand => hand.is_winner);
     const amt = Object.values(stacksMap).reduce((acc, val) => acc += val.end, 0);
-    function StackChange2({hand}: {hand: ShowdownHandRecord}) {
-        return (
-            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1 , position: 'relative', top: 12}}>
-            <View style={{ display: 'flex',  justifyContent: 'center', alignItems:'center'}}>
-            <View style={{ display: 'flex', flexDirection: 'row' }}>
-                <Icon source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} />
-                <Text variant='bodyMedium' style={{ color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 2 }}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
+    function StackChange2({ hand }: { hand: ShowdownHandRecord }) {
+        return ( 
+            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1, position: 'relative', top: 12 }}>
+                <View style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ display: 'flex', flexDirection: 'row' }}>
+                        <Icon source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} />
+                        <Text variant='bodyMedium' style={{ color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 2 }}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
+                    </View>
+                    <Text variant='bodySmall' style={{ alignSelf: 'flex-end' }}>{hand.is_winner ? stacksMap[hand.position].start + amt : stacksMap[hand.position].start - amt}</Text>
+                </View>
             </View>
-            <Text variant='bodySmall' style={{alignSelf: 'flex-end', fontStyle:'italic'}}>{hand.is_winner ? stacksMap[hand.position].start + amt : stacksMap[hand.position].start - amt}</Text>
-            </View>
-        </View> 
         )
     }
 
@@ -73,14 +73,14 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
                     <List.Item
                         contentStyle={{ position: 'relative', top: 4 }}
                         description={hand.hand_description}
-                        descriptionStyle={{fontStyle: 'italic', color: '#00000082'}}
+                        descriptionStyle={{ fontStyle: 'italic', color: '#00000082' }}
                         key={`${hand.position}-${hand.hole_cards}-${index}`}
                         title={() => {
                             if (hand.hole_cards !== "muck") {
                                 return (
-                                    <View style={{display: 'flex', flexDirection: 'row', gap: 2}} >
-                                    <ShowdownCard card={hand.hole_cards.substring(0, 2)} />
-                                    <ShowdownCard card={hand.hole_cards.substring(2)}/>
+                                    <View style={{ display: 'flex', flexDirection: 'row', gap: 2 }} >
+                                        <ShowdownCard card={hand.hole_cards.substring(0, 2)} />
+                                        <ShowdownCard card={hand.hole_cards.substring(2)} />
                                     </View>
                                 )
                             }

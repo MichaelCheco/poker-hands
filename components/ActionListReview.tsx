@@ -1,7 +1,7 @@
 import { ActionRecord, ShowdownHandRecord, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { IconButton, List, Text } from 'react-native-paper';
+import { IconButton, List, Snackbar, Text } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
 import { copyHand, getSuit } from '@/utils/hand-utils';
 
@@ -54,6 +54,8 @@ export default function ActionListReview({
     pot: number;
     showdown: ShowdownHandRecord[];
 }) {
+    const [snackbarText, setSnackbarText] = React.useState('Hand Copied! ✅');
+    const [snackbarVisible, setSnackbarVisible] = React.useState(false);
     const groupedActions = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
             const stage = action.stage;
@@ -91,6 +93,12 @@ export default function ActionListReview({
     }
     return (
         <List.Section style={{ paddingBottom: 32 }}>
+            <Snackbar
+                visible={snackbarVisible}
+                onDismiss={() => setSnackbarVisible(false)}
+                duration={1000}>
+                {snackbarText}
+            </Snackbar>
             <View style={styles.subheaderContainer}>
                 <List.Subheader
                     style={[
@@ -104,17 +112,19 @@ export default function ActionListReview({
                 <IconButton
                     icon="content-copy"
                     size={20}
-                    onPress={() => copyHand(
-                        actionList,
-                        communityCards,
-                        smallBlind,
-                        bigBlind,
-                        location,
-                        hand,
-                        position,
-                        pot,
-                        showdown
-                    )}
+                    onPress={async () => {
+                        const success = await copyHand(
+                            actionList,
+                            communityCards,
+                            smallBlind,
+                            bigBlind,
+                            location,
+                            hand,
+                            position,
+                            pot,
+                            showdown);
+                        setSnackbarVisible(success);
+                    }}
                     style={styles.subheaderIcon}
                 />
             </View>

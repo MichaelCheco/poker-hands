@@ -8,6 +8,7 @@ import { MyHand } from '@/components/Cards';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getSavedHands } from '@/api/hands';
 import { SavedHandSummary } from '@/types';
+import EmptyState from '@/components/EmptyState';
 
 export default function Index() {
   const router = useRouter();
@@ -88,7 +89,7 @@ export default function Index() {
             renderItem={renderHandItem}
             keyExtractor={(item) => item.id}
             ListEmptyComponent={
-                <Text style={styles.emptyText}>No hands saved. Tap the button below to start tracking your play!</Text>
+                <EmptyState />
           }
             contentContainerStyle={styles.listContentContainer}
           />
@@ -131,7 +132,8 @@ const styles = StyleSheet.create({
     padding: 8
   },
   listContentContainer: {
-    paddingBottom: 80, // Add padding so FAB doesn't cover last item
+    flex: 1,
+    paddingBottom: 120, // Add padding so FAB doesn't cover last item
   },
   modalContent: { // Style for the area modal content sits within
     margin: 20, // Example margin

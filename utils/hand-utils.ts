@@ -110,7 +110,7 @@ export async function copyHand(
         position: string,
         pot: number,
         showdown: ShowdownHandRecord[]
-) {
+): Promise<boolean> {
     const text = formatAndGetTextToCopy(
         actionList,
         communityCards,

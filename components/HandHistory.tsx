@@ -104,7 +104,6 @@ const styles = StyleSheet.create({
     },
     hiddenActionTitle: { // Optional style to dim actions marked as hidden
         color: '#888',
-        fontStyle: 'italic',
     },
 });
 

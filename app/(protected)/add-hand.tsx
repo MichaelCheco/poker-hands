@@ -363,7 +363,7 @@ export default function App() {
     const [isTransitioning, setIsTransitioning] = React.useState(false);
 
     const [visible, setVisible] = React.useState(false);
-    const [snackbarText, setSnackbarText] = React.useState('Saving hand ...');
+    const [snackbarText, setSnackbarText] = React.useState('');
     const onToggleSnackBar = () => setVisible(!visible);
     const onDismissSnackBar = () => setVisible(false);
     const theme = useTheme();
@@ -374,6 +374,7 @@ export default function App() {
     const [inputValue, setInputValue] = useState('');
     const [state, dispatch] = useReducer(reducer, initialAppState);
     const scrollViewRef = useRef<ScrollView>(null);
+    const insets = useSafeAreaInsets();
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -451,11 +452,6 @@ export default function App() {
     const handleUndo = () => {
         dispatch({ type: DispatchActionType.kUndo, payload: {} });
     };
-    //     if (success) {
-    //         setPortalSnackbarVisible(true)
-    //         setTimeout(() => {
-    //             router.back();
-    //         }, 500);
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             {isLoading && !isTransitioning && <ActivityIndicator size="large" style={{ marginTop: 50 }} />}
@@ -465,10 +461,12 @@ export default function App() {
                 {snackbarText}
             </Snackbar>
             {!isLoading && !isTransitioning && <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardAvoidingContainer}
-                // Adjust offset for header above this screen component
-                keyboardVerticalOffset={headerHeight - 5}
+                style={styles.container}
+                behavior={Platform.OS === "ios" ? "padding" : undefined} // Often disable behavior prop on Android
+                // or sometimes behavior={Platform.OS === "ios" ? "padding" : "height"} // Incorrect - height doesn't work on Android
+                // or conditionally enable the whole component:
+                enabled={Platform.OS === "ios"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0} // Example offset for iOS header
             >
                 <View style={{
                     alignItems: 'center',
@@ -500,9 +498,9 @@ export default function App() {
 
                 {/* Input container remains visually at the bottom, pushed by KAV */}
                 {state.current.stage !== Stage.Showdown && (
-                    <SafeAreaView style={[
-                        styles.inputContainer
-                        // { paddingBottom: baseInputPaddingBottom + insets.bottom }
+                    <View style={[
+                        styles.inputContainer,
+                        // { paddingBottom: 12 + insets.bottom }
                         // We add the safe area bottom inset to our base padding
                         // This ensures the container itself respects the safe area,
                         // lifting the TextInput inside it above the home indicator.
@@ -523,7 +521,7 @@ export default function App() {
                             activeOutlineColor='#000000'
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
-                    </SafeAreaView>
+                    </View>
                 )}
             </KeyboardAvoidingView>}
         </View>
