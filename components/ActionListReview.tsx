@@ -92,7 +92,7 @@ export default function ActionListReview({
         [Stage.River]: riverPotSize,
     }
     return (
-        <List.Section style={{ paddingBottom: 32 }}>
+        <List.Section style={{ paddingBottom: 32, marginTop: 24 }}>
             <Snackbar
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
@@ -106,7 +106,11 @@ export default function ActionListReview({
                         { color: '#000000E8' }
                     ]}
                 >
-                    The Hand - ${smallBlind}/${bigBlind} {gameType} {numPlayers}-handed
+                    <Text variant="titleMedium" style={{
+                        color: '#000000E8',
+                    }}>
+                        The Hand - ${smallBlind}/${bigBlind} {gameType} {numPlayers}-handed
+                    </Text>
                 </List.Subheader>
 
                 <IconButton
@@ -130,24 +134,19 @@ export default function ActionListReview({
             </View>
             {sortedStages.map((stage) => (
                 <View key={`stage-container-${stage}`}>
-                    <List.Subheader variant='bodyMedium' style={{
+                    <List.Subheader variant='bodyLarge' style={{
                         marginLeft: -10,
                         marginInline: 0, padding: 0,
-                        fontWeight: '700',
+                        fontWeight: '500',
                         color: '#0000009A',
                     }}>
                         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ fontWeight: '600' }}>{`${getStageName2(stage)}  `}</Text>
+                            <Text variant='bodyLarge' style={{ fontWeight: '500' }}>{`${getStageName2(stage)}  `}</Text>
                             {stage === Stage.Flop && <FlopCards cards={getFlopCards(communityCards)} />}
                             {stage === Stage.Turn && <FlopCards cards={[communityCards[3]]} />}
                             {stage === Stage.River && <FlopCards cards={[communityCards[4]]} />}
                             {stage !== Stage.Preflop && <Text style={{ marginLeft: 4, fontWeight: '600' }}>(${stageToPotSizeMap[stage]})</Text>}
                         </View>
-
-                        {/* {stage !== Stage.Preflop && <Text
-                            style={{ fontWeight: 800, marginInline: 12 }}>
-                            {stage === Stage.Flop ? getPreflopText(communityCards) : getStageText(stage === Stage.Turn ? communityCards[3] : communityCards[4])}
-                            {" "}</Text>} */}
 
                     </List.Subheader>
                     {groupedActions[stage].map((item: ActionRecord, index: number) => {
@@ -191,7 +190,7 @@ const styles = StyleSheet.create({
         marginLeft: 8
     },
     actionPosition: {
-        fontWeight: '500',
+        fontWeight: '400',
         marginLeft: 6,
         textAlign: 'center',
         alignSelf: 'center',
@@ -215,7 +214,7 @@ const styles = StyleSheet.create({
         marginVertical: 0,
         paddingVertical: 0,
         paddingHorizontal: 0,
-        fontWeight: '700',
+        fontWeight: '600',
         flexShrink: 1,
     },
     subheaderIcon: {

@@ -1,23 +1,29 @@
 import React, { useState, useLayoutEffect } from 'react';
-import { View, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { getHandDetailsById } from '@/api/hands';
 import { formatDateMMDDHHMM } from '@/utils/hand-utils';
 import { DetailedHandData } from '@/types';
-import { Text, Divider } from 'react-native-paper';
+import { Text, Divider, IconButton } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import ActionListReview from '@/components/ActionListReview';
 
 function HandActions({ date }) {
     return (
-        <View style={{
+        <TouchableOpacity style={{
             display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            flexDirection: 'row',
         }}>
-            <Text variant='titleMedium'>{formatDateMMDDHHMM(date)}
-            </Text>
-        </View>
+            <IconButton 
+            onTouchEnd={() => console.log('note')}
+            icon={"note-outline"} style={{margin: 0, padding: 0, position: 'absolute', right: 42}} size={26}/>
+            <IconButton 
+            icon={"delete"} 
+            style={{margin:0}} 
+            onTouchEnd={() => console.log('delete')}
+            size={26}
+            />
+        </TouchableOpacity>
     )
 }
 export default function HandDetailScreen() {
@@ -35,10 +41,16 @@ export default function HandDetailScreen() {
             try {
                 const details: DetailedHandData = await getHandDetailsById(id);
                 setHandDetails(details);
-                console.log(details)
+                // console.log(details)
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
-                    headerLeft: () => <Text variant='titleMedium'>{details.location}</Text>,
+                    headerLeft: () => <Text variant='titleMedium'>{details.location} - {formatDateMMDDHHMM(details.played_at)}</Text>,
+                    // headerRight: () => (            <IconButton 
+                    //     icon={"delete"} 
+                    //     style={{margin:0,}} 
+                    //     onTouchEnd={() => console.log('t')}
+                    //     size={24}
+                    //     />),
                     headerRight: () => <HandActions date={details.played_at} />,
                     headerTitle: '',
                 });

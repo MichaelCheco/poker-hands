@@ -43,13 +43,13 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
     const amt = Object.values(stacksMap).reduce((acc, val) => acc += val.end, 0);
     function StackChange2({ hand }: { hand: ShowdownHandRecord }) {
         return ( 
-            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1, position: 'relative', top: 12 }}>
+            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1, position: 'relative', top: 2 }}>
                 <View style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <View style={{ display: 'flex', flexDirection: 'row' }}>
                         <Icon source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} />
-                        <Text variant='bodyMedium' style={{ color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 2 }}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
+                        <Text variant='bodyLarge' style={{ color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 4 }}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
                     </View>
-                    <Text variant='bodySmall' style={{ alignSelf: 'flex-end' }}>{hand.is_winner ? stacksMap[hand.position].start + amt : stacksMap[hand.position].start - amt}</Text>
+                    <Text variant='bodyMedium' style={{ alignSelf: 'flex-end', position: 'relative', bottom: 4 }}>{hand.is_winner ? stacksMap[hand.position].start + amt : stacksMap[hand.position].start - amt}</Text>
                 </View>
             </View>
         )
@@ -61,19 +61,22 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
     }
     return (
         <List.Section>
-            <List.Subheader style={{
+            <List.Subheader
+            variant='headlineLarge'
+            style={{
                 marginLeft: -10, marginInline: 0, padding: 0,
-                fontWeight: '700',
+                fontWeight: '600',
                 color: '#000000E8',
             }}>
-                Result
+              <Text variant="titleMedium" style={{fontWeight: '600',
+                color: '#000000E8',}}>Result</Text>
             </List.Subheader>
             {showdownHands ? showdownHands.map((hand, index) => {
                 return (
                     <List.Item
-                        contentStyle={{ position: 'relative', top: 4 }}
+                        contentStyle={{  }}
                         description={hand.hand_description}
-                        descriptionStyle={{ fontStyle: 'italic', color: '#00000082' }}
+                        descriptionStyle={{ color: '#00000082' }}
                         key={`${hand.position}-${hand.hole_cards}-${index}`}
                         title={() => {
                             if (hand.hole_cards !== "muck") {
