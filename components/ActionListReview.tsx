@@ -37,15 +37,22 @@ function FlopCards({ cards }: { cards: string[] }) {
 
         <View style={{ display: 'flex', flexDirection: 'row', gap: 2, alignItems: 'center', justifyContent: 'center' }} >
             {cards.map(c => (
-                <ShowdownCard card={c} key={c}/>
+                <ShowdownCard card={c} key={c} />
             ))}
         </View>
     )
 }
-export default function ActionListReview({ actionList, communityCards }: {
-    actionList: ActionRecord[],
-    communityCards: string[],
-}) {
+export default function ActionListReview({ actionList, communityCards, smallBlind,
+    bigBlind,
+    gameType,
+    numPlayers, }: {
+        actionList: ActionRecord[],
+        communityCards: string[],
+        smallBlind: number;
+        bigBlind: number;
+        gameType: string;
+        numPlayers: number;
+    }) {
     const groupedActions = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
             const stage = action.stage;
@@ -90,7 +97,7 @@ export default function ActionListReview({ actionList, communityCards }: {
                         { color: '#000000E8' }
                     ]}
                 >
-                    The Hand
+                    The Hand - ${smallBlind}/${bigBlind} {gameType} {numPlayers}-handed
                 </List.Subheader>
 
                 <IconButton
@@ -107,15 +114,13 @@ export default function ActionListReview({ actionList, communityCards }: {
                         marginInline: 0, padding: 0,
                         fontWeight: '700',
                         color: '#0000009A',
-                        // borderColor: 'black',
-                        // borderWidth: 1,
                     }}>
-                        <View style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
+                        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ fontWeight: '600' }}>{`${getStageName2(stage)}  `}</Text>
                             {stage === Stage.Flop && <FlopCards cards={getFlopCards(communityCards)} />}
                             {stage === Stage.Turn && <FlopCards cards={[communityCards[3]]} />}
                             {stage === Stage.River && <FlopCards cards={[communityCards[4]]} />}
-                            {stage !== Stage.Preflop && <Text style={{ marginLeft: 8, fontWeight: '600' }}>(${stageToPotSizeMap[stage]})</Text>}
+                            {stage !== Stage.Preflop && <Text style={{ marginLeft: 4, fontWeight: '600' }}>(${stageToPotSizeMap[stage]})</Text>}
                         </View>
 
                         {/* {stage !== Stage.Preflop && <Text

@@ -35,9 +35,10 @@ export default function HandDetailScreen() {
             try {
                 const details: DetailedHandData = await getHandDetailsById(id);
                 setHandDetails(details);
+                console.log(details)
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
-                    headerLeft: () => <Text variant='titleMedium'>{details.location} - ${details.small_blind}/${details.big_blind} {details.game_type} {details.num_players}-handed</Text>,
+                    headerLeft: () => <Text variant='titleMedium'>{details.location}</Text>,
                     headerRight: () => <HandActions date={details.played_at} />,
                     headerTitle: '',
                 });
@@ -71,7 +72,11 @@ export default function HandDetailScreen() {
                     <Divider bold />
                     <ActionListReview
                         actionList={handDetails.actions}
-                        communityCards={handDetails.community_cards} />
+                        communityCards={handDetails.community_cards}
+                        smallBlind={handDetails.small_blind}
+                        bigBlind={handDetails.big_blind}
+                        gameType={handDetails.game_type}
+                        numPlayers={handDetails.num_players} />
                 </ScrollView>
             )}
             {!isLoading && !error && !handDetails && (

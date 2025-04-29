@@ -9,6 +9,7 @@ TODOS:
 * Login screen revamp
 * ensure notes works correctly
 * Fix input flicker
+* preflop blind = sb 3!
 * fix reset
 * Handle multiple winners for a pot
 * Add RemoveTrailingPunctuation helper

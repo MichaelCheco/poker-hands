@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       // simulate a delay, e.g. for an API request
       await new Promise((res) => setTimeout(() => res(null), 2000));
       try {
+        // AsyncStorage.clear()
         const value = await AsyncStorage.getItem(authStorageKey);
         console.log(`Value retrieved from AsyncStorage: ${value}`)
         setUserId(value ?? '');

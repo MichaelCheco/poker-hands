@@ -77,7 +77,7 @@ export const ShowdownCard: React.FC<CardProps> = ({ card }) => {
 
   return (
     <View style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
-      <Text style={{color: suitColor}} variant='bodyLarge'>
+      <Text style={{color: suitColor, fontWeight: '600'}} variant='bodyLarge'>
         {rank}
       </Text>
       <Text style={{ color: suitColor ,fontSize: 14}} variant='bodyLarge'>
