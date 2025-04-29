@@ -76,7 +76,13 @@ export default function HandDetailScreen() {
                         smallBlind={handDetails.small_blind}
                         bigBlind={handDetails.big_blind}
                         gameType={handDetails.game_type}
-                        numPlayers={handDetails.num_players} />
+                        numPlayers={handDetails.num_players}
+                        location={handDetails.location as string}
+                        hand={handDetails.hero_cards as string}
+                        position={handDetails.hero_position as string}
+                        pot={handDetails.final_pot_size as number}
+                        showdown={handDetails.showdown_hands}
+                        />
                 </ScrollView>
             )}
             {!isLoading && !error && !handDetails && (

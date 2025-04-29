@@ -1,5 +1,6 @@
 import { initialState } from "../constants";
-import { ActionRecord, Decision, GameState, HandSetupInfo, PlayerAction, PlayerStatus, Position, ShowdownDetails, Stage } from "../types";
+import { ActionRecord, Decision, DetailedHandData, GameState, HandSetupInfo, PlayerAction, PlayerStatus, Position, ShowdownDetails, ShowdownHandRecord, Stage } from "../types";
+import * as Clipboard from 'expo-clipboard';
 
 function getStageName(stage: Stage): string {
     switch (stage) {
@@ -45,27 +46,27 @@ import { format, parseISO } from 'date-fns';
  * @returns The formatted date string or "Invalid Date" on error.
  */
 export function formatDateMMDDHHMM(dateInput: string | Date | number): string {
-  try {
-    // Ensure we have a valid Date object
-    // parseISO is good for strings like '2025-04-26T20:41:00.000Z' from Supabase
-    const date = typeof dateInput === 'string' ? parseISO(dateInput) : new Date(dateInput);
+    try {
+        // Ensure we have a valid Date object
+        // parseISO is good for strings like '2025-04-26T20:41:00.000Z' from Supabase
+        const date = typeof dateInput === 'string' ? parseISO(dateInput) : new Date(dateInput);
 
-    // Check if the date is valid after parsing/creation
-    if (isNaN(date.getTime())) {
-      throw new Error("Invalid date input provided");
+        // Check if the date is valid after parsing/creation
+        if (isNaN(date.getTime())) {
+            throw new Error("Invalid date input provided");
+        }
+
+        // MM: Month, 2-digit (01-12)
+        // dd: Day, 2-digit (01-31)
+        // hh: Hour, 12-hour clock, 2-digit (01-12)
+        // mm: Minute, 2-digit (00-59)
+        // a: AM/PM marker (uppercase: AM/PM)
+        return format(date, 'MM/dd hh:mm a');
+
+    } catch (error) {
+        console.error("Error formatting date:", error);
+        return "Invalid Date";
     }
-
-    // MM: Month, 2-digit (01-12)
-    // dd: Day, 2-digit (01-31)
-    // hh: Hour, 12-hour clock, 2-digit (01-12)
-    // mm: Minute, 2-digit (00-59)
-    // a: AM/PM marker (uppercase: AM/PM)
-    return format(date, 'MM/dd hh:mm a');
-
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return "Invalid Date";
-  }
 }
 
 function getWinner(actionSequence: string[]): string {
@@ -82,9 +83,9 @@ export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], winn
 }
 
 function getStageCards(stage: Stage, communityCards: string[]): string {
-    const flopCardStr = communityCards.slice(0, 3).join(', ');
-    const turnCardStr = communityCards[3];
-    const riverCardStr = communityCards[4];
+    const flopCardStr = communityCards.slice(0, 3).map(c => `${c[0]}${getSuit(c[1])}`).join(', ');
+    const turnCardStr = communityCards[3].split(' ').map(c => `${c[0]}${getSuit(c[1])}`);
+    const riverCardStr = communityCards[4].split(' ').map(c => `${c[0]}${getSuit(c[1])}`);;
     switch (stage) {
         case Stage.Preflop: return '';
         case Stage.Flop: return `: ${flopCardStr}`;
@@ -99,119 +100,31 @@ function getLastStageName(actionList: PlayerAction[]): string {
     return getStageName(actionList[actionList.length - 1].stage);
 }
 
-/**
- * Formats a poker hand history from actions and showdown info into a string
- * and copies it to the clipboard using Expo Clipboard.
- *
- * @param actions - Array of action objects for the hand.
- * @param showdown - Showdown information object, or null if no showdown.
- * @returns Promise<boolean> - True if copy was successful, false otherwise.
- */
-export async function formatAndCopyHandHistory(
-    actions: PlayerAction[],
-    gameInfo: HandSetupInfo,
-    communityCards: string[],
-    showdown: ShowdownDetails | null,
-    pot: number
-): Promise<boolean> {
-    if (!actions || actions.length === 0) {
-        console.warn("No actions provided to format.");
-        // Optionally set clipboard to empty or show user feedback
-        // await Clipboard.setStringAsync("");
-        return false;
-    }
-
-    const lines: string[] = [];
-    lines.push(`${gameInfo.smallBlind}/${gameInfo.bigBlind} • ${gameInfo.location}`);
-    lines.push(`\nHero: ${gameInfo.hand} ${gameInfo.position}`);
-
-    // Group actions by stage
-    const groupedActions: { [stage: number]: PlayerAction[] } = {};
-    for (const action of actions) {
-        // Only include stages relevant to betting rounds for action listing
-        if (action.stage <= Stage.River) {
-            if (!groupedActions[action.stage]) {
-                groupedActions[action.stage] = [];
-            }
-            groupedActions[action.stage].push(action);
-        }
-    }
-    const flopCardStr = communityCards.slice(0, 3).join(', ');
-    const turnCardStr = communityCards[3];
-    const riverCardStr = communityCards[4];
-
-    // Define the order of stages
-    const stageOrder: Stage[] = [Stage.Preflop, Stage.Flop, Stage.Turn, Stage.River];
-
-    // Process stages in order
-    for (const stageNum of stageOrder) {
-        const stageActions = groupedActions[stageNum];
-
-        if (stageActions && stageActions.length > 0) {
-            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}`);
-
-            // Filter out actions typically hidden from UI for summary (e.g., folds)
-            const visibleActions = stageActions.filter(a => !a.shouldHideFromUi);
-
-            if (visibleActions.length === 0 && stageNum !== Stage.Preflop) {
-                // If only hidden actions occurred (e.g. everyone folded pre-bet on flop)
-                // Or if it was checked around (and checks aren't hidden)
-                // You might want different logic here, but this indicates no major action shown.
-                // We'll rely on visibleActions loop below instead.
-            }
-
-            if (visibleActions.length > 0) {
-                visibleActions.forEach(action => {
-                    // Use a consistent format: Position: text
-                    // The 'text' field in your data seems quite descriptive already
-                    lines.push(`${action.position}: ${action.text}`);
-                });
-            } else if (stageNum > Stage.Preflop) {
-                // Check if the *only* actions were checks (which aren't hidden)
-                const onlyChecks = stageActions.every(a => a.decision === 'X');
-                if (onlyChecks) {
-                    lines.push("(Checked around)");
-                } else {
-                    lines.push("(No significant action shown)"); // Or adjust as needed
-                }
-
-            }
-        }
-    }
-
-    // Add Showdown info if available
-    if (showdown) {
-        lines.push("\nSHOWDOWN");
-
-        // Note: The 'combination' field isn't clearly defined as board cards vs winning hand cards.
-        // For clarity, we'll just show who showed cards and who won. Add board separately if you have that data.
-        // lines.push(`Board: [ ${communityCardsArray.join(' ')} ]`); // <-- Add if you have board cards separately
-
-        if (showdown.hands && showdown.hands.length > 0) {
-            showdown.hands.forEach(handInfo => {
-                const cardsString = Array.isArray(handInfo.holeCards) ? handInfo.holeCards.join(' ') : '??';
-                lines.push(`- ${handInfo.playerId} shows [ ${cardsString} ]`);
-            });
-        }
-
-        if (showdown.winner && showdown.text) {
-            lines.push(`\nWinner: ${showdown.winner} wins ${pot} with ${showdown.text}`);
-            lines.push(`\nCombination: ${showdown.combination.join(', ')}`)
-        } else if (showdown.winner) {
-            lines.push(`\nWinner: ${showdown.winner}`); // Fallback if description missing
-        }
-    } else {
-        // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
-        // This would require analysing the last actions. For simplicity, we omit this for now.
-    }
-
-    // Join lines into a single string
-    const historyString = lines.join('\n');
-    console.log("Formatted History:\n", historyString); // For debugging
-
+export async function copyHand(
+        actionList: ActionRecord[],
+        communityCards: string[],
+        smallBlind: number,
+        bigBlind: number,
+        location: string,
+        hand: string,
+        position: string,
+        pot: number,
+        showdown: ShowdownHandRecord[]
+) {
+    const text = formatAndGetTextToCopy(
+        actionList,
+        communityCards,
+        smallBlind,
+        bigBlind,
+        location,
+        hand,
+        position,
+        pot,
+        showdown
+    );
     // Copy to clipboard
     try {
-        await Clipboard.setStringAsync(historyString);
+        await Clipboard.setStringAsync(text);
         console.log("Hand history copied to clipboard.");
         // You could add user feedback here (e.g., a toast message)
         return true;
@@ -222,12 +135,29 @@ export async function formatAndCopyHandHistory(
     }
 }
 
+export function getSuit(suit: string) {
+    switch (suit.toLowerCase()) {
+        case 'h':
+            return '♥️';
+        case 'd':
+            return '♦️';
+        case 's':
+            return '♠️';
+        case 'c':
+            return '♣️';
+    }
+}
+
 export function formatAndGetTextToCopy(
-    actions: PlayerAction[],
-    gameInfo: HandSetupInfo,
+    actions: ActionRecord[],
     communityCards: string[],
-    showdown: ShowdownDetails | null,
-    pot: number
+    smallBlind: number,
+    bigBlind: number,
+    location: string,
+    hand: string,
+    position: string,
+    pot: number,
+    showdown: ShowdownHandRecord[]
 ): string {
     if (!actions || actions.length === 0) {
         console.warn("No actions provided to format.");
@@ -237,11 +167,12 @@ export function formatAndGetTextToCopy(
     }
 
     const lines: string[] = [];
-    lines.push(`${gameInfo.smallBlind}/${gameInfo.bigBlind} • ${gameInfo.location}`);
-    lines.push(`\nHero: ${gameInfo.hand} ${gameInfo.position}`);
+    lines.push('\n')
+    lines.push(`$${smallBlind}/$${bigBlind} • ${location}`.trimStart());
+    lines.push(`\nHero: ${hand} ${position}`.trimStart());
 
     // Group actions by stage
-    const groupedActions: { [stage: number]: PlayerAction[] } = {};
+    const groupedActions: { [stage: number]: ActionRecord[] } = {};
     for (const action of actions) {
         // Only include stages relevant to betting rounds for action listing
         if (action.stage <= Stage.River) {
@@ -263,76 +194,59 @@ export function formatAndGetTextToCopy(
         const stageActions = groupedActions[stageNum];
 
         if (stageActions && stageActions.length > 0) {
-            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}`);
+            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}\n`);
 
-            // Filter out actions typically hidden from UI for summary (e.g., folds)
-            const visibleActions = stageActions.filter(a => !a.shouldHideFromUi);
+            const visibleActions = stageActions.filter(a => !a.was_auto_folded);
 
             if (visibleActions.length === 0 && stageNum !== Stage.Preflop) {
-                // If only hidden actions occurred (e.g. everyone folded pre-bet on flop)
-                // Or if it was checked around (and checks aren't hidden)
-                // You might want different logic here, but this indicates no major action shown.
-                // We'll rely on visibleActions loop below instead.
             }
 
             if (visibleActions.length > 0) {
                 visibleActions.forEach(action => {
-                    // Use a consistent format: Position: text
-                    // The 'text' field in your data seems quite descriptive already
-                    lines.push(`${action.position}: ${action.text}`);
+                    lines.push(`${action.position}: ${action.text_description}`);
                 });
             } else if (stageNum > Stage.Preflop) {
-                // Check if the *only* actions were checks (which aren't hidden)
                 const onlyChecks = stageActions.every(a => a.decision === 'X');
                 if (onlyChecks) {
                     lines.push("(Checked around)");
                 } else {
-                    lines.push("(No significant action shown)"); // Or adjust as needed
+                    lines.push("(No significant action shown)");
                 }
 
             }
         }
     }
 
-    // Add Showdown info if available
-    if (showdown) {
+    if (showdown.length > 0) {
         lines.push("\nSHOWDOWN");
 
-        // Note: The 'combination' field isn't clearly defined as board cards vs winning hand cards.
-        // For clarity, we'll just show who showed cards and who won. Add board separately if you have that data.
-        // lines.push(`Board: [ ${communityCardsArray.join(' ')} ]`); // <-- Add if you have board cards separately
-
-        if (showdown.hands && showdown.hands.length > 0) {
-            showdown.hands.forEach(handInfo => {
-                const cardsString = Array.isArray(handInfo.holeCards) ? handInfo.holeCards.join(' ') : '??';
-                lines.push(`- ${handInfo.playerId} shows [ ${cardsString} ]`);
+        showdown.forEach(handInfo => {
+                const cardsString = handInfo.hole_cards
+                lines.push(`- ${handInfo.position} shows [ ${cardsString} ]`);
             });
-        }
 
-        if (showdown.winner && showdown.text) {
-            lines.push(`\nWinner: ${showdown.winner} wins ${pot} with ${showdown.text}`);
-            lines.push(`\nCombination: ${showdown.combination.join(', ')}`)
-        } else if (showdown.winner) {
-            lines.push(`\nWinner: ${showdown.winner}`); // Fallback if description missing
-        }
+        const winner = showdown.find(h => h.is_winner);
+        if (winner) {
+            lines.push(`\nWinner: ${winner.position} wins ${pot} with ${winner.hand_description}`);
     } else {
         // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
         // This would require analysing the last actions. For simplicity, we omit this for now.
     }
+    }
 
     // Join lines into a single string
     const historyString = lines.join('\n');
-    console.log("Formatted History:\n", historyString); // For debugging
+    console.log("\n", historyString); // For debugging
     return historyString;
 }
 
 export function parseStackSizes(stackString: string, sequence: string[],
     smallBlind: number, bigBlind: number
-): {[position: string]: number} {
+): { [position: string]: number } {
     if (!stackString) {
         return {};
     }
-    const stackObjects: {[position: string]: number} = {};
+    const stackObjects: { [position: string]: number } = {};
     const stackEntries = stackString.split(',').map(entry => entry.trim());
     for (const entry of stackEntries) {
         const match = entry.match(/^([a-zA-Z]+)\s+(\d+)$/);
@@ -468,78 +382,78 @@ export function convertRRSS_to_RSRS(rrssHandString: string | null | undefined): 
 * @throws Error if the input string is invalid (length, format, characters).
 */
 export function parsePokerHandString(handString: string): string {
-   // 1. Validate input type and length
-   if (typeof handString !== 'string' || handString.length !== 4) {
-       throw new Error(
-           `Invalid input: Hand string must be exactly 4 characters long. Received: "${handString}"`
-       );
-   }
-
-   // 2. Extract characters
-   const c1 = handString[0]; // Potential Rank 1
-   const c2 = handString[1]; // Potential Suit 1 or Rank 2
-   const c3 = handString[2]; // Potential Rank 2 or Suit 1
-   const c4 = handString[3]; // Potential Suit 2
-
-   // 3. Preliminary validation: First char must be Rank, last must be Suit
-   if (!isRank(c1)) {
-       throw new Error(
-           `Invalid input: First character "${c1}" must be a valid rank (${VALID_RANKS}).`
-       );
-   }
-   if (!isSuit(c4)) {
+    // 1. Validate input type and length
+    if (typeof handString !== 'string' || handString.length !== 4) {
         throw new Error(
-           `Invalid input: Last character "${c4}" must be a valid suit (${VALID_SUITS}).`
-       );
-   }
+            `Invalid input: Hand string must be exactly 4 characters long. Received: "${handString}"`
+        );
+    }
 
-   let card1: string;
-   let card2: string;
+    // 2. Extract characters
+    const c1 = handString[0]; // Potential Rank 1
+    const c2 = handString[1]; // Potential Suit 1 or Rank 2
+    const c3 = handString[2]; // Potential Rank 2 or Suit 1
+    const c4 = handString[3]; // Potential Suit 2
 
-   // 4. Determine format based on the character at index 1 (c2)
-   if (isSuit(c2)) {
-       // --- Format 1: R1 S1 R2 S2 ---
-       // Example: "AsQs"
-       // Validate remaining structure: c3 must be Rank
-       if (!isRank(c3)) {
+    // 3. Preliminary validation: First char must be Rank, last must be Suit
+    if (!isRank(c1)) {
+        throw new Error(
+            `Invalid input: First character "${c1}" must be a valid rank (${VALID_RANKS}).`
+        );
+    }
+    if (!isSuit(c4)) {
+        throw new Error(
+            `Invalid input: Last character "${c4}" must be a valid suit (${VALID_SUITS}).`
+        );
+    }
+
+    let card1: string;
+    let card2: string;
+
+    // 4. Determine format based on the character at index 1 (c2)
+    if (isSuit(c2)) {
+        // --- Format 1: R1 S1 R2 S2 ---
+        // Example: "AsQs"
+        // Validate remaining structure: c3 must be Rank
+        if (!isRank(c3)) {
             throw new Error(
-               `Invalid input: Format appears to be RSRS, but character at index 2 "${c3}" is not a valid rank (${VALID_RANKS}).`
-           );
-       }
-       const rank1 = c1;
-       const suit1 = c2;
-       const rank2 = c3;
-       const suit2 = c4; // c4 already validated as suit
+                `Invalid input: Format appears to be RSRS, but character at index 2 "${c3}" is not a valid rank (${VALID_RANKS}).`
+            );
+        }
+        const rank1 = c1;
+        const suit1 = c2;
+        const rank2 = c3;
+        const suit2 = c4; // c4 already validated as suit
 
-       card1 = rank1 + suit1; // e.g., "A" + "s"
-       card2 = rank2 + suit2; // e.g., "Q" + "s"
+        card1 = rank1.toUpperCase() + suit1.toLowerCase(); // e.g., "A" + "s"
+        card2 = rank2.toUpperCase() + suit2.toLowerCase(); // e.g., "Q" + "s"
 
-   } else if (isRank(c2)) {
-       // --- Format 2: R1 R2 S1 S2 ---
-       // Examples: "AQss", "T9ch"
-       // Validate remaining structure: c3 must be Suit
-       if (!isSuit(c3)) {
-           throw new Error(
-               `Invalid input: Format appears to be RRSS, but character at index 2 "${c3}" is not a valid suit (${VALID_SUITS}).`
-          );
-       }
-       const rank1 = c1;
-       const rank2 = c2;
-       const suit1 = c3;
-       const suit2 = c4; // c4 already validated as suit
+    } else if (isRank(c2)) {
+        // --- Format 2: R1 R2 S1 S2 ---
+        // Examples: "AQss", "T9ch"
+        // Validate remaining structure: c3 must be Suit
+        if (!isSuit(c3)) {
+            throw new Error(
+                `Invalid input: Format appears to be RRSS, but character at index 2 "${c3}" is not a valid suit (${VALID_SUITS}).`
+            );
+        }
+        const rank1 = c1;
+        const rank2 = c2;
+        const suit1 = c3;
+        const suit2 = c4; // c4 already validated as suit
 
-       card1 = rank1 + suit1; // e.g., "A" + "s"
-       card2 = rank2 + suit2; // e.g., "Q" + "s" or "9" + "h"
+        card1 = rank1.toUpperCase() + suit1.toLowerCase(); // e.g., "A" + "s"
+        card2 = rank2.toUpperCase() + suit2.toLowerCase(); // e.g., "Q" + "s" or "9" + "h"
 
-   } else {
-       // Character at index 1 is neither a valid Rank nor a valid Suit
-       throw new Error(
-           `Invalid input: Character at index 1 "${c2}" must be a valid rank (${VALID_RANKS}) or suit (${VALID_SUITS}).`
-       );
-   }
+    } else {
+        // Character at index 1 is neither a valid Rank nor a valid Suit
+        throw new Error(
+            `Invalid input: Character at index 1 "${c2}" must be a valid rank (${VALID_RANKS}) or suit (${VALID_SUITS}).`
+        );
+    }
 
-   // 5. Return the result as a tuple
-   return `${card1}${card2}`;
+    // 5. Return the result as a tuple
+    return `${card1}${card2}`;
 }
 
 /**
@@ -572,9 +486,9 @@ export function parseFlopString(flopString: string | null | undefined): [string,
     if (!isRank(c1)) {
         throw new Error(`Invalid input: First character "${c1}" must be a valid rank (${VALID_RANKS}).`);
     }
-     if (!isSuit(c6)) {
-         throw new Error(`Invalid input: Last character "${c6}" must be a valid suit (${VALID_SUITS}).`);
-     }
+    if (!isSuit(c6)) {
+        throw new Error(`Invalid input: Last character "${c6}" must be a valid suit (${VALID_SUITS}).`);
+    }
 
     let card1: string;
     let card2: string;
@@ -600,7 +514,7 @@ export function parseFlopString(flopString: string | null | undefined): [string,
         if (!isRank(c3)) throw new Error(`Invalid RRRSSS format: Character 3 "${c3}" must be a rank.`);
         if (!isSuit(c4)) throw new Error(`Invalid RRRSSS format: Character 4 "${c4}" must be a suit.`);
         if (!isSuit(c5)) throw new Error(`Invalid RRRSSS format: Character 5 "${c5}" must be a suit.`);
-         // c6 already validated as suit
+        // c6 already validated as suit
 
         // Assign cards pairing Ranks with corresponding Suits
         card1 = c1 + c4; // Rank 1 + Suit 1

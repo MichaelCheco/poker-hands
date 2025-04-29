@@ -11,6 +11,7 @@ TODOS:
 * Fix input flicker
 * preflop blind = sb 3!
 * fix reset
+* Revamp card formatting code
 * Handle multiple winners for a pot
 * Add RemoveTrailingPunctuation helper
 * Use Paper.HelperText for error display

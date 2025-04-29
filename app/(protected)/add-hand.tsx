@@ -307,7 +307,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
                 playerActions: [],
                 stage: Stage.Preflop,
-                cards: [...initialState.cards],
                 input: '',
                 betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
                 currentBetFacing: bigBlind,
@@ -709,7 +708,9 @@ function getCards(communityCards: string[], currentDeck: string[], newCards: str
             }
         }
     }
-    return communityCards
+    console.log(communityCards)
+    console.log('return value, ', communityCards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}}`))
+    return communityCards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}}`);
 }
 
 function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: number, stage: Stage): string {

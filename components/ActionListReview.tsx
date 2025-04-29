@@ -1,22 +1,9 @@
-import { ActionRecord, Stage } from '@/types';
+import { ActionRecord, ShowdownHandRecord, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { IconButton, List, Text } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
-
-
-function getSuit(suit: string) {
-    switch (suit.toLowerCase()) {
-        case 'h':
-            return '♥️';
-        case 'd':
-            return '♦️';
-        case 's':
-            return '♠️';
-        case 'c':
-            return '♣️';
-    }
-}
+import { copyHand, getSuit } from '@/utils/hand-utils';
 
 function getPreflopText(cards: string[]) {
     let [card1, card2, card3, ...rest] = cards;
@@ -42,17 +29,31 @@ function FlopCards({ cards }: { cards: string[] }) {
         </View>
     )
 }
-export default function ActionListReview({ actionList, communityCards, smallBlind,
+export default function ActionListReview({
+    actionList,
+    communityCards,
+    smallBlind,
     bigBlind,
     gameType,
-    numPlayers, }: {
-        actionList: ActionRecord[],
-        communityCards: string[],
-        smallBlind: number;
-        bigBlind: number;
-        gameType: string;
-        numPlayers: number;
-    }) {
+    numPlayers,
+    location,
+    hand,
+    position,
+    pot,
+    showdown
+}: {
+    actionList: ActionRecord[],
+    communityCards: string[],
+    smallBlind: number;
+    bigBlind: number;
+    gameType: string;
+    numPlayers: number;
+    location: string;
+    hand: string;
+    position: string;
+    pot: number;
+    showdown: ShowdownHandRecord[];
+}) {
     const groupedActions = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
             const stage = action.stage;
@@ -103,7 +104,17 @@ export default function ActionListReview({ actionList, communityCards, smallBlin
                 <IconButton
                     icon="content-copy"
                     size={20}
-                    onPress={() => console.log('pressed')}
+                    onPress={() => copyHand(
+                        actionList,
+                        communityCards,
+                        smallBlind,
+                        bigBlind,
+                        location,
+                        hand,
+                        position,
+                        pot,
+                        showdown
+                    )}
                     style={styles.subheaderIcon}
                 />
             </View>

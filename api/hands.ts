@@ -1,5 +1,5 @@
 import { GameState, HandSetupInfo, Position, SavedHandSummary } from "@/types";
-import { parsePokerHandString } from "@/utils/hand-utils";
+import { parsePokerHandString, transFormCardsToFormattedString } from "@/utils/hand-utils";
 import { supabase } from "@/utils/supabase";
 
 export async function getHandDetailsById(handId: string) {
@@ -60,7 +60,7 @@ export async function saveHandToSupabase(
     setupInfo: HandSetupInfo
 ): Promise<{ success: boolean; message: string; handId: string; }> {
 
-    console.log("Attempting to save hand...", handHistoryData, setupInfo);
+    // console.log("Attempting to save hand...");
 
     // 1. Get Authenticated User ID
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -84,7 +84,7 @@ export async function saveHandToSupabase(
             currency: setupInfo.currency || '$',
             notes: setupInfo.notes,
             stacks: setupInfo.relevantStacks,
-            community_cards: handHistoryData.cards,
+            community_cards: handHistoryData.cards.map(c => transFormCardsToFormattedString(c)),
             final_street: handHistoryData.playerActions[handHistoryData.playerActions.length - 1].stage,
         })
         .select('id') // Select the ID of the newly inserted row
@@ -127,7 +127,7 @@ export async function saveHandToSupabase(
                     message: `Failed to insert actions: ${actionsError.message}`,
                     handId};
         }
-        console.log(`Inserted ${actionsToInsert.length} actions.`);
+        // console.log(`Inserted ${actionsToInsert.length} actions.`);
     }
 
     // 4. Insert into 'showdown_hands' table (if showdown occurred)
@@ -152,10 +152,10 @@ export async function saveHandToSupabase(
              // Consider deleting the hand record if actions fail? (Or use transaction)
              return {handId: '', success: false, message: `Failed to insert showdown hands: ${showdownError.message}`};
         }
-         console.log(`Inserted ${showdownHandsToInsert.length} showdown hands.`);
+        //  console.log(`Inserted ${showdownHandsToInsert.length} showdown hands.`);
     }
 
-    console.log("Hand saved successfully!");
+    // console.log("Hand saved successfully!");
     return {success: true, message: '', handId};
     // No return value needed if using void promise, caller handles success/error
 }
