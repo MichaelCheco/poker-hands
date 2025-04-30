@@ -1,14 +1,15 @@
 import React, { useState, useLayoutEffect } from 'react';
 import { View, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { getHandDetailsById } from '@/api/hands';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { deleteHand, getHandDetailsById } from '@/api/hands';
 import { formatDateMMDDHHMM } from '@/utils/hand-utils';
 import { DetailedHandData } from '@/types';
 import { Text, Divider, IconButton } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import ActionListReview from '@/components/ActionListReview';
+import DeleteHandConfirmationDialog from '@/components/DeleteHandConfirmationDialog';
 
-function HandActions({ date }) {
+function HandActions({ date, onDeleteClick }) {
     return (
         <TouchableOpacity style={{
             display: 'flex',
@@ -20,7 +21,7 @@ function HandActions({ date }) {
             <IconButton
                 icon={"delete"}
                 style={{ margin: 0 }}
-                onTouchEnd={() => console.log('delete')}
+                onTouchEnd={onDeleteClick}
                 size={26}
             />
         </TouchableOpacity>
@@ -28,10 +29,14 @@ function HandActions({ date }) {
 }
 export default function HandDetailScreen() {
     const navigation = useNavigation();
+    const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
 
     const [handDetails, setHandDetails] = useState<DetailedHandData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+    const onDismissDialog = () => setDeleteDialogVisible(false);
+
     const [error, setError] = useState<string | null>(null);
 
     useLayoutEffect(() => {
@@ -41,17 +46,10 @@ export default function HandDetailScreen() {
             try {
                 const details: DetailedHandData = await getHandDetailsById(id);
                 setHandDetails(details);
-                // console.log(details)
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
                     headerLeft: () => <Text variant='titleMedium'>{details.location} - {formatDateMMDDHHMM(details.played_at)}</Text>,
-                    // headerRight: () => (            <IconButton 
-                    //     icon={"delete"} 
-                    //     style={{margin:0,}} 
-                    //     onTouchEnd={() => console.log('t')}
-                    //     size={24}
-                    //     />),
-                    headerRight: () => <HandActions date={details.played_at} />,
+                    headerRight: () => <HandActions date={details.played_at} onDeleteClick={() => setDeleteDialogVisible(true)} />,
                     headerTitle: '',
                 });
 
@@ -67,6 +65,17 @@ export default function HandDetailScreen() {
     }, [id, navigation]);
     return (
         <View style={styles.container}>
+            <DeleteHandConfirmationDialog 
+             hideDialog={onDismissDialog}
+            visible={deleteDialogVisible} 
+            onDeletePress={async () => {
+                const success = await deleteHand(handDetails.id);
+                if (success) {
+                    onDismissDialog();
+                    router.back();
+                }
+            }}
+            />
             {isLoading && <ActivityIndicator size="large" style={styles.loader} />}
             {error && <Text style={styles.errorText}>Error: {error}</Text>}
             {!isLoading && !error && handDetails && (

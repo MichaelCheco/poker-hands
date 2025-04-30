@@ -21,8 +21,8 @@ export async function getHandDetailsById(handId: string) {
             console.error(`Error fetching hand details for ID ${handId}:`, error);
             // Distinguish between "not found" (RLS or non-existent ID) and actual DB errors
             if (error.code === 'PGRST116') { // PostgREST code for "relation does not exist or constraint violation" (often indicates not found/no access)
-                 console.warn(`Hand ${handId} not found or access denied.`);
-                 return null;
+                console.warn(`Hand ${handId} not found or access denied.`);
+                return null;
             }
             // Rethrow other potentially critical errors? Or just return null?
             // Returning null is often safer for the UI.
@@ -30,8 +30,8 @@ export async function getHandDetailsById(handId: string) {
         }
 
         if (!data) {
-             console.warn(`Hand ${handId} not found.`);
-             return null;
+            console.warn(`Hand ${handId} not found.`);
+            return null;
         }
 
         // Ensure related data is sorted if Supabase doesn't guarantee it
@@ -53,6 +53,14 @@ export async function getHandDetailsById(handId: string) {
         console.error(`Unexpected error in getHandDetailsById for ID ${handId}:`, err);
         return null;
     }
+}
+
+export async function deleteHand(handId: string): Promise<boolean> {
+    const { error, count, status, statusText, data } = await supabase
+        .from('hands')
+        .delete()
+        .eq('id', handId)
+        return error === null
 }
 
 export async function saveHandToSupabase(
@@ -92,10 +100,10 @@ export async function saveHandToSupabase(
 
     if (handError) {
         console.error("Supabase hand insert error:", handError);
-        return {handId: '', success: false, message: `Failed to insert hand: ${handError.message}`};
+        return { handId: '', success: false, message: `Failed to insert hand: ${handError.message}` };
     }
     if (!handData) {
-        return {handId: '', success: false, message: `Failed to insert hand: No data returned`};
+        return { handId: '', success: false, message: `Failed to insert hand: No data returned` };
     }
 
     const handId = handData.id;
@@ -123,9 +131,11 @@ export async function saveHandToSupabase(
         if (actionsError) {
             console.error("Supabase actions insert error:", actionsError);
             // Consider deleting the hand record if actions fail? (Or use transaction)
-            return {success: false,
-                    message: `Failed to insert actions: ${actionsError.message}`,
-                    handId};
+            return {
+                success: false,
+                message: `Failed to insert actions: ${actionsError.message}`,
+                handId
+            };
         }
         // console.log(`Inserted ${actionsToInsert.length} actions.`);
     }
@@ -133,30 +143,30 @@ export async function saveHandToSupabase(
     // 4. Insert into 'showdown_hands' table (if showdown occurred)
     if (handHistoryData.showdown && handHistoryData.showdown.hands && handHistoryData.showdown.hands.length > 0) {
         const showdownHandsToInsert = handHistoryData.showdown.hands.map(playerHand => {
-             const isWinner = playerHand.playerId === handHistoryData.showdown?.winner; // Basic winner check
-             return {
-                 hand_id: handId,
-                 position: playerHand.playerId,
-                 hole_cards: typeof playerHand.holeCards === "string" ? playerHand.holeCards : playerHand.holeCards.join(''),
-                 is_winner: isWinner,
-                 hand_description: playerHand.description,
-             };
+            const isWinner = playerHand.playerId === handHistoryData.showdown?.winner; // Basic winner check
+            return {
+                hand_id: handId,
+                position: playerHand.playerId,
+                hole_cards: typeof playerHand.holeCards === "string" ? playerHand.holeCards : playerHand.holeCards.join(''),
+                is_winner: isWinner,
+                hand_description: playerHand.description,
+            };
         });
 
-         const { error: showdownError } = await supabase
+        const { error: showdownError } = await supabase
             .from('showdown_hands')
             .insert(showdownHandsToInsert);
 
         if (showdownError) {
             console.error("Supabase showdown_hands insert error:", showdownError);
-             // Consider deleting the hand record if actions fail? (Or use transaction)
-             return {handId: '', success: false, message: `Failed to insert showdown hands: ${showdownError.message}`};
+            // Consider deleting the hand record if actions fail? (Or use transaction)
+            return { handId: '', success: false, message: `Failed to insert showdown hands: ${showdownError.message}` };
         }
         //  console.log(`Inserted ${showdownHandsToInsert.length} showdown hands.`);
     }
 
     // console.log("Hand saved successfully!");
-    return {success: true, message: '', handId};
+    return { success: true, message: '', handId };
     // No return value needed if using void promise, caller handles success/error
 }
 

@@ -16,6 +16,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
+import SuccessAnimation from '@/components/AnimatedSuccess';
 
 const logging = false;
 
@@ -364,6 +365,7 @@ export default function App() {
 
     const [visible, setVisible] = React.useState(false);
     const [snackbarText, setSnackbarText] = React.useState('');
+    const [savedId, setSavedId] = React.useState('');
     const onToggleSnackBar = () => setVisible(!visible);
     const onDismissSnackBar = () => setVisible(false);
     const theme = useTheme();
@@ -423,19 +425,25 @@ export default function App() {
         console.log(result, 'result')
         return result.handId
     }
+    const goToDetailPage = () => {
+        router.replace(`/${savedId}`);
+        setIsLoading(false)
+        // setIsTransitioning(false);
+    }
     useEffect(() => {
         if (state.current.stage === Stage.Showdown) {
             setIsLoading(true)
             saveHand().then((id) => {
-                setIsTransitioning(true);
-                setSnackbarText("Hand saved! ✅")
-                onToggleSnackBar();
-                setTimeout(() => {
-                    router.replace(`/${id}`)
-                    setIsLoading(false)
-                    setIsTransitioning(false);
-                    onToggleSnackBar();
-                }, 1200);
+                setSavedId(id);
+                // setIsTransitioning(true);
+                // setSnackbarText("Hand saved! ✅")
+                // onToggleSnackBar();
+                // setTimeout(() => {
+                //     router.replace(`/${id}`)
+                //     setIsLoading(false)
+                //     setIsTransitioning(false);
+                //     onToggleSnackBar();
+                // }, 1200);
             });
         }
     }, [state.current.stage])
@@ -454,19 +462,26 @@ export default function App() {
     };
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            {isLoading && !isTransitioning && <ActivityIndicator size="large" style={{ marginTop: 50 }} />}
-            <Snackbar
+
+            {isLoading && (
+                <View style={styles.successContainer}>
+                    <SuccessAnimation visible={isLoading} onAnimationComplete={goToDetailPage} />
+                </View>
+            )}
+
+            {/* {isLoading && !isTransitioning && <ActivityIndicator size="large" style={{ marginTop: 50 }} />} */}
+            {/* <Snackbar
                 visible={visible}
                 onDismiss={onDismissSnackBar}>
                 {snackbarText}
-            </Snackbar>
-            {!isLoading && !isTransitioning && <KeyboardAvoidingView
+            </Snackbar> */}
+            {!isLoading && <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === "ios" ? "padding" : undefined} // Often disable behavior prop on Android
                 // or sometimes behavior={Platform.OS === "ios" ? "padding" : "height"} // Incorrect - height doesn't work on Android
                 // or conditionally enable the whole component:
                 enabled={Platform.OS === "ios"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0} // Example offset for iOS header
+                keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0} // Example offset for iOS header
             >
                 <View style={{
                     alignItems: 'center',
@@ -498,8 +513,9 @@ export default function App() {
 
                 {/* Input container remains visually at the bottom, pushed by KAV */}
                 {state.current.stage !== Stage.Showdown && (
-                    <View style={[
+                    <SafeAreaView style={[
                         styles.inputContainer,
+                        { paddingBottom: 12 }
                         // { paddingBottom: 12 + insets.bottom }
                         // We add the safe area bottom inset to our base padding
                         // This ensures the container itself respects the safe area,
@@ -521,7 +537,7 @@ export default function App() {
                             activeOutlineColor='#000000'
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
-                    </View>
+                    </SafeAreaView>
                 )}
             </KeyboardAvoidingView>}
         </View>
@@ -880,5 +896,12 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+    },
+
+    successContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
     },
 });

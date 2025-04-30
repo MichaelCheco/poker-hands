@@ -3,6 +3,7 @@ TODOS:
 * Investigate starting stacks for blinds
 * bottom sheet for notes
 * side pots
+* update hand save animations and add error handling
 * test hand without showdown
 * Display showdown result in hand page
 * Display relevant stacks
