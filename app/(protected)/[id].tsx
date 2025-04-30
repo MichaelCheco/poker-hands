@@ -14,14 +14,14 @@ function HandActions({ date }) {
             display: 'flex',
             flexDirection: 'row',
         }}>
-            <IconButton 
-            onTouchEnd={() => console.log('note')}
-            icon={"note-outline"} style={{margin: 0, padding: 0, position: 'absolute', right: 42}} size={26}/>
-            <IconButton 
-            icon={"delete"} 
-            style={{margin:0}} 
-            onTouchEnd={() => console.log('delete')}
-            size={26}
+            <IconButton
+                onTouchEnd={() => console.log('note')}
+                icon={"note-outline"} style={{ margin: 0, position: 'absolute', right: 42 }} size={26} />
+            <IconButton
+                icon={"delete"}
+                style={{ margin: 0 }}
+                onTouchEnd={() => console.log('delete')}
+                size={26}
             />
         </TouchableOpacity>
     )
@@ -94,7 +94,7 @@ export default function HandDetailScreen() {
                         position={handDetails.hero_position as string}
                         pot={handDetails.final_pot_size as number}
                         showdown={handDetails.showdown_hands}
-                        />
+                    />
                 </ScrollView>
             )}
             {!isLoading && !error && !handDetails && (
