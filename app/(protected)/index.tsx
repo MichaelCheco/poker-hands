@@ -26,7 +26,6 @@ export default function Index() {
 
     // --- Fetching Logic ---
     const loadHands = React.useCallback(async (showLoadingIndicator = true) => {
-      console.log("Loading hands...");
       // Only show full loading indicator on initial load or manual refresh
       if (showLoadingIndicator) setIsLoading(true);
       setError(null);
@@ -48,7 +47,6 @@ export default function Index() {
   useFocusEffect(
     React.useCallback(() => {
           // Runs when the screen comes into focus
-          console.log('Index screen focused, loading/refreshing hands.');
           // Load hands, show loading indicator only if savedHands is currently null (initial load)
           loadHands(savedHands === null);
 
@@ -69,7 +67,6 @@ export default function Index() {
       // onPress={() => {/* Navigate to hand detail? */}}
       left={props => <List.Icon {...props} icon="cards-playing" />}
       onPress={() => {
-        console.log(`Navigating to hand: ${item.id}`);
         router.push(`${item.id}`)
       }}
       right={() => <MyHand cards={parsePokerHandString(item.hero_cards.toUpperCase())} />}

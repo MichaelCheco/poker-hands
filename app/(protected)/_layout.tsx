@@ -29,7 +29,7 @@ export default function ProtectedLayout() {
             <Stack.Screen
                 name="add-hand"
                 options={{
-                    headerBackButtonDisplayMode: "minimal",
+                    // headerBackButtonDisplayMode: "minimal",
                     headerTitle: ''
                 }}
             />

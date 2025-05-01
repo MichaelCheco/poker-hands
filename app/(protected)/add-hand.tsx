@@ -1,4 +1,4 @@
-import React, { useReducer, useRef, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useReducer, useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { ActivityIndicator, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput, Snackbar } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
@@ -12,7 +12,7 @@ import { determinePokerWinnerManual } from '@/hand-evaluator';
 import { useTheme } from 'react-native-paper';
 import { ImmutableStack } from '@/ImmutableStack';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
@@ -366,6 +366,7 @@ export default function App() {
     const [visible, setVisible] = React.useState(false);
     const [snackbarText, setSnackbarText] = React.useState('');
     const [savedId, setSavedId] = React.useState('');
+    const [inputError, setInputError] = React.useState('');
     const onToggleSnackBar = () => setVisible(!visible);
     const onDismissSnackBar = () => setVisible(false);
     const theme = useTheme();
@@ -376,7 +377,67 @@ export default function App() {
     const [inputValue, setInputValue] = useState('');
     const [state, dispatch] = useReducer(reducer, initialAppState);
     const scrollViewRef = useRef<ScrollView>(null);
-    const insets = useSafeAreaInsets();
+    const VALID_POSITIONS = numPlayersToActionSequenceList[gameInfo.numPlayers];
+    const VALID_ACTIONS = Object.values(Decision);
+   
+    const isInputValid = useCallback((input: string) => {
+        console.log(input, ' input')
+        
+        const isAlphanumeric = /^[a-zA-Z0-9]+$/;
+        const disallowedChars = /[deikmnpqvwyzDEIKMNPQVWYZ]/;
+        console.log(`in disallowed: ${disallowedChars.test(input) }`)
+        console.log(`is Alpha: ${isAlphanumeric.test(input)}`)
+        // return (!disallowedChars.test(input) && isAlphanumeric.test(input))
+        return isAlphanumeric.test(input) && !disallowedChars.test(input);
+
+    }, []);
+    const validatePreflopActionSegments = useCallback((input: string) => {
+        if (!input || input.trim() === '') {
+            return { isValid: true }; // Or handle empty input as needed
+        }
+
+        const segments = input.toUpperCase().split(',').map(s => s.trim()).filter(s => s !== '');
+        // console.log(segments)
+        for (const segment of segments) {
+            const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
+            console.log(parts, ' parts ')
+            if (parts.some(part => !isInputValid(part))) {
+                return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
+            }
+            if (parts[0].length < 2) {
+                return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
+            }
+
+            const position = parts[0];
+            const action = parts[1];
+            const amount = parts.length > 2 ? parts[2] : null;
+
+            // Validate Position
+            if (!VALID_POSITIONS.includes(position)) {
+                return { isValid: false,
+                         error: `Invalid position: "${position}" in segment "${segment}"`,
+                         flagErrorToUser: true
+                        };
+            }
+
+            // Validate Action
+            if (!VALID_ACTIONS.includes(action)) {
+                return { isValid: false, error: `Invalid action: "${action}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
+            }
+
+            // Validate Amount (if applicable for the action)
+            if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
+                return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
+            }
+            if ((action === Decision.kCall || action === Decision.kFold) && amount) {
+                return { isValid: false, error: `Amount not allowed for ${action} in segment "${segment}"`, flagErrorToUser: true };
+            }
+
+            // Add more specific rules as needed...
+        }
+
+        return { isValid: true, error: '', flagErrorToUser: false };
+    }, []);
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -407,6 +468,15 @@ export default function App() {
     const handleInputChange = (text: string) => {
         const isTransition = text.endsWith('.');
         setInputValue(isTransition ? '' : text);
+
+        const result = validatePreflopActionSegments(text);
+        console.log(result);
+        if (result.isValid && inputError || (!result.isValid && inputError && !result.flagErrorToUser)) {
+            setInputError('');
+        }
+        if (result.error && result.flagErrorToUser && !result.isValid) {
+            setInputError(result.error);
+        }
         const isAddAction = text.endsWith(',');
         let type: DispatchActionType;
 
@@ -435,15 +505,6 @@ export default function App() {
             setIsLoading(true)
             saveHand().then((id) => {
                 setSavedId(id);
-                // setIsTransitioning(true);
-                // setSnackbarText("Hand saved! ✅")
-                // onToggleSnackBar();
-                // setTimeout(() => {
-                //     router.replace(`/${id}`)
-                //     setIsLoading(false)
-                //     setIsTransitioning(false);
-                //     onToggleSnackBar();
-                // }, 1200);
             });
         }
     }, [state.current.stage])
@@ -513,28 +574,25 @@ export default function App() {
 
                 {/* Input container remains visually at the bottom, pushed by KAV */}
                 {state.current.stage !== Stage.Showdown && (
-                    <SafeAreaView style={[
-                        styles.inputContainer,
-                        { paddingBottom: 12 }
-                        // { paddingBottom: 12 + insets.bottom }
-                        // We add the safe area bottom inset to our base padding
-                        // This ensures the container itself respects the safe area,
-                        // lifting the TextInput inside it above the home indicator.
-                    ]}>
+                    <SafeAreaView style={[styles.inputContainer]}>
+                        <Text style={styles.instructionText}>{inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}</Text>
                         <TextInput
                             mode="outlined"
-                            label={state.current.currentAction?.placeholder || ''}
+                            // label={state.current.currentAction?.placeholder || ''}
+                            // label={inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}
+                            placeholderTextColor={inputError ? theme.colors.error : undefined} // Make error placeholder red (optional)
+                            activeOutlineColor={inputError ? theme.colors.error : '#000000'}
                             onChangeText={handleInputChange}
                             // submitBehavior={'newline'}
                             value={inputValue}
                             style={styles.input}
+                            dense={true}
                             autoFocus
                             blurOnSubmit={false}
                             returnKeyType="next"
                             onSubmitEditing={() => {
                                 console.log(state.current.input);
                             }}
-                            activeOutlineColor='#000000'
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
                     </SafeAreaView>
@@ -727,8 +785,6 @@ function getCards(communityCards: string[], currentDeck: string[], newCards: str
             }
         }
     }
-    console.log(communityCards)
-    console.log('return value, ', communityCards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}}`))
     return communityCards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}}`);
 }
 
@@ -855,6 +911,7 @@ function extractCards(str: string): string[] {
     return result;
 }
 
+
 const styles = StyleSheet.create({
     button: {
         borderRadius: 4,
@@ -888,16 +945,30 @@ const styles = StyleSheet.create({
         color: '#555'
     },
     inputContainer: {
-        paddingHorizontal: 16,
+        // borderTopWidth: 1,
+        // borderTopColor: 'red',
+        paddingHorizontal: 8,
+        marginTop: 0,
         paddingVertical: 0,
-        paddingBottom: Platform.OS === 'ios' ? 6 : 12,
-        flexDirection: 'row',
-        alignItems: 'center',
+        paddingBottom: Platform.OS === 'ios' ? 3 : 6,
+        flexDirection: 'column',
     },
     input: {
-        flex: 1,
+        // flex: 1,
+        // minHeight: 42
     },
-
+    instructionText: {
+        // --- Reduce margin ---
+        marginBottom: 4, // Reduced from 6
+        // marginTop: 0,
+        marginLeft: 4,
+        // textAlign: 'center',
+        // fontWeight: '500',
+        // position: 'relative',
+        // bottom: 4, left: 4
+        // You could also force a smaller font size:
+        // fontSize: 12,
+    },
     successContainer: {
         flex: 1,
         justifyContent: 'center',
