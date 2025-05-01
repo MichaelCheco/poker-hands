@@ -70,7 +70,6 @@ export enum Position {
 }
 
 export enum DispatchActionType {
-    kSetGameInfo,
     kTransition,
     kAddAction,
     kSetInput,
@@ -184,6 +183,7 @@ export interface GameState {
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
     showdown: ShowdownDetails | null;
+    preflopSequence: PlayerStatus[] | undefined;
 }
 
 // Type for rows from the 'actions' table

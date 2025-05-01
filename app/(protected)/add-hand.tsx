@@ -52,6 +52,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 history: updatedHistory,
             };
         case DispatchActionType.kSetInput:
+            console.log(state.current)
             return {
                 current: { ...state.current, input: action.payload.input },
                 history: state.history,
@@ -126,7 +127,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: addActionState,
                 history: newHistory,
             };
-            console.log(addActionState.stacks, ' add')
+            console.log(addActionState.preflopSequence)
             return newStateAfterAdd;
         }
         case DispatchActionType.kTransition: {
@@ -290,34 +291,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             console.log('newTransitionState ', newTransitionState);
             return newTransitionState;
         }
-        case DispatchActionType.kSetGameInfo: {
-            const { actionSequence, heroPosition, hand, smallBlind, bigBlind, relevantStacks } = action.payload;
-            const upperCasedHand = hand.toUpperCase();
-            const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position) => ({
-                position,
-                isAllIn: false,
-            }));
-            const initialGameState: GameState = {
-                ...state.current,
-                actionSequence: moveFirstTwoToEnd(initialPlayerStatuses),
-                pot: smallBlind + bigBlind,
-                hero: { position: heroPosition, hand: parsePokerHandString(upperCasedHand) },
-                deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
-                playerActions: [],
-                stage: Stage.Preflop,
-                input: '',
-                betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
-                currentBetFacing: bigBlind,
-                stacks: parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind),
-            };
-            state.history.pop();
-            state.history.push(initialGameState);
-            const gameInfoStateInitial = {
-                current: initialGameState,
-                history: state.history,
-            };
-            return gameInfoStateInitial;
-        }
         case DispatchActionType.kReset:
             return {
                 current: getInitialGameState(),
@@ -359,22 +332,45 @@ const initialAppState: GameAppState = {
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
+    const gameInfo: HandSetupInfo = JSON.parse(data);
+    const [state, dispatch] = useReducer(reducer, initialAppState, (state) => {
+        const { heroPosition, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
+        const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
+        const upperCasedHand = hand.toUpperCase();
+        const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position) => ({
+            position,
+            isAllIn: false,
+        }));
+        const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
+        const initialGameState: GameState = {
+            ...state.current,
+            actionSequence: initialSequence,
+            preflopSequence: initialSequence,
+            pot: smallBlind + bigBlind,
+            hero: { position: heroPosition, hand: parsePokerHandString(upperCasedHand) },
+            deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
+            playerActions: [],
+            stage: Stage.Preflop,
+            input: '',
+            betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
+            currentBetFacing: bigBlind,
+            stacks: parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind),
+        };
+        state.history.pop();
+        state.history.push(initialGameState);
+        return {
+            current: { ...initialGameState },
+            history: state.history,
+        };
+    });
     const [isLoading, setIsLoading] = React.useState(false);
-    const [isTransitioning, setIsTransitioning] = React.useState(false);
-
-    const [visible, setVisible] = React.useState(false);
-    const [snackbarText, setSnackbarText] = React.useState('');
     const [savedId, setSavedId] = React.useState('');
     const [inputError, setInputError] = React.useState('');
-    const onToggleSnackBar = () => setVisible(!visible);
-    const onDismissSnackBar = () => setVisible(false);
     const theme = useTheme();
     const headerHeight = useHeaderHeight();
     const navigation = useNavigation();
     const router = useRouter();
-    const gameInfo: HandSetupInfo = JSON.parse(data);
     const [inputValue, setInputValue] = useState('');
-    const [state, dispatch] = useReducer(reducer, initialAppState);
     const scrollViewRef = useRef<ScrollView>(null);
     const VALID_POSITIONS = numPlayersToActionSequenceList[gameInfo.numPlayers];
     const VALID_ACTIONS = Object.values(Decision);
@@ -425,7 +421,7 @@ export default function App() {
                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
             }
             if ((action === Decision.kRaise || action === Decision.kBet)) {
-                console.log(amount , state.current.stacks)
+                console.log(amount , state.current)
                 if (amount > state.current.stacks[position]) {
                     return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.current.stacks[position]}`, flagErrorToUser: parts.length > 2 };
                 }
@@ -454,20 +450,6 @@ export default function App() {
         // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
         setInputValue(state.current.input);
     }, [state.current.input, state.current.gameQueue.length]);
-
-    useEffect(() => {
-        dispatch({
-            type: DispatchActionType.kSetGameInfo,
-            payload: {
-                actionSequence: numPlayersToActionSequenceList[gameInfo.numPlayers],
-                heroPosition: gameInfo.position,
-                hand: gameInfo.hand,
-                smallBlind: gameInfo.smallBlind,
-                bigBlind: gameInfo.bigBlind,
-                relevantStacks: gameInfo.relevantStacks,
-            },
-        });
-    }, [navigation]);
 
     const handleInputChange = (text: string) => {
         if (inputError && text > inputValue) {

@@ -150,6 +150,7 @@ export const initialState: GameState = {
     [Stage.Turn]: 0,
     [Stage.River]: 0,
   },
+  preflopSequence: [],
   deck: initialDeck,
   betsThisStreet: {},
   currentBetFacing: 0,
