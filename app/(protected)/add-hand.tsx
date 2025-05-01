@@ -394,7 +394,6 @@ export default function App() {
         }
 
         // how should i validate multiple actions, most recent action or entire sequence?
-        // lastAction?.endsWith('.') ? lastAction.slice(0, -1)
         const segments = (input.endsWith('.') ? input.slice(0, -1) : input).toUpperCase().split(',').map(s => s.trim()).filter(s => s !== '');
         for (const segment of segments) {
             const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
@@ -424,6 +423,12 @@ export default function App() {
             // Validate Amount (if applicable for the action)
             if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
+            }
+            if ((action === Decision.kRaise || action === Decision.kBet)) {
+                console.log(amount , state.current.stacks)
+                if (amount > state.current.stacks[position]) {
+                    return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.current.stacks[position]}`, flagErrorToUser: parts.length > 2 };
+                }
             }
             if ((action === Decision.kCall || action === Decision.kFold) && amount) {
                 return { isValid: false, error: `Amount not allowed for ${action} in segment "${segment}"`, flagErrorToUser: true };
@@ -462,9 +467,12 @@ export default function App() {
                 relevantStacks: gameInfo.relevantStacks,
             },
         });
-    }, []);
+    }, [navigation]);
 
     const handleInputChange = (text: string) => {
+        if (inputError && text > inputValue) {
+            return;
+        }
         const isTransition = text.endsWith('.');
         setInputValue(isTransition ? '' : text);
 
