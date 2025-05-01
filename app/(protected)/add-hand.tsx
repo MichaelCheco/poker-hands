@@ -79,7 +79,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
                 getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, currentStack, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
-            playerAction.amount = amountToAdd;
+            playerAction.amount = newPlayerBetTotal;
             playerAction.potSizeBefore = currentGameState.pot;
             playerAction.playerStackBefore = currentStack;
             // Calculate the player's new stack size
@@ -126,7 +126,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: addActionState,
                 history: newHistory,
             };
-            // console.log(addActionState.actionSequence, ' add')
+            console.log(addActionState.stacks, ' add')
             return newStateAfterAdd;
         }
         case DispatchActionType.kTransition: {
@@ -393,7 +393,9 @@ export default function App() {
             return { isValid: true }; // Or handle empty input as needed
         }
 
-        const segments = input.toUpperCase().split(',').map(s => s.trim()).filter(s => s !== '');
+        // how should i validate multiple actions, most recent action or entire sequence?
+        // lastAction?.endsWith('.') ? lastAction.slice(0, -1)
+        const segments = (input.endsWith('.') ? input.slice(0, -1) : input).toUpperCase().split(',').map(s => s.trim()).filter(s => s !== '');
         for (const segment of segments) {
             const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
             if (parts[0].length < 2 && parts.length < 2) {
@@ -413,7 +415,7 @@ export default function App() {
                     flagErrorToUser: true
                 };
             }
-            
+            // console.log(parts)
             // Validate Action
             if (!VALID_ACTIONS.includes(action)) {
                 return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
@@ -445,7 +447,6 @@ export default function App() {
 
     useEffect(() => {
         // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
-        console.log(`in useEffect: setting ${state.current.input}`)
         setInputValue(state.current.input);
     }, [state.current.input, state.current.gameQueue.length]);
 
@@ -656,6 +657,10 @@ function getUpdatedBettingInfo(
             break;
 
         case Decision.kRaise:
+            // console.log(betsThisStreet[playerAction.position], ' betsThisStreet for: ', playerAction.position)
+            // console.log(currentBetFacing, ' currentBetFacing')
+            // console.log(playerStack, ' playerStack')
+            // console.log(playerAction, ' playerAction')
             // Amount to add is the raise amount MINUS what was already bet
             // Example: Raise to 60, already bet 20. Add 40.
             amountToAdd = playerAction.amount - alreadyBet;
@@ -663,6 +668,7 @@ function getUpdatedBettingInfo(
             newPlayerBetTotal = playerAction.amount;
             // This sets the new bet level
             newCurrentBetFacing = playerAction.amount;
+            // console.log(`amountToAdd: ${amountToAdd} newPlayerBetTotal: ${newPlayerBetTotal} newCurrentBetFacing: ${newCurrentBetFacing}`)
             break;
 
         case Decision.kCall:
