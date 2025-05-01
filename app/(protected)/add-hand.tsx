@@ -386,6 +386,8 @@ export default function App() {
         return isAlphanumeric.test(input) && !disallowedChars.test(input);
 
     }, []);
+
+    const canPerformAction = () => {};
     const validatePreflopActionSegments = useCallback((input: string) => {
         if (!input || input.trim() === '') {
             return { isValid: true }; // Or handle empty input as needed
@@ -405,8 +407,6 @@ export default function App() {
 
             // validate amounts and action sequence
             // Validate Position
-            // handle "." ","
-            // update undo to work with partial input for first segment
             if (!VALID_POSITIONS.includes(position)) {
                 return { isValid: false,
                     error: `Invalid Pos: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
@@ -468,10 +468,10 @@ export default function App() {
         setInputValue(isTransition ? '' : text);
 
         const result = validatePreflopActionSegments(text);
-        if (result.error) {
+        if (result.flagErrorToUser) {
             console.log(result);
         }
-        if (result.isValid && inputError || (!result.isValid && inputError && !result.flagErrorToUser)) {
+        if (result.isValid && inputError || (inputError && !result.flagErrorToUser)) {
             setInputError('');
         }
         if (result.error && result.flagErrorToUser && !result.isValid) {
@@ -479,7 +479,9 @@ export default function App() {
         }
         const isAddAction = text.endsWith(',');
         let type: DispatchActionType;
-
+        if (!result.isValid) {
+            return;
+        }
         if (isTransition) {
             type = DispatchActionType.kTransition;
             dispatch({ type, payload: { input: text } });
