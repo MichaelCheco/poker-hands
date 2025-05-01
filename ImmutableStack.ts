@@ -96,10 +96,12 @@ export class ImmutableStack<T> {
 
     /**
      * Checks if the stack is empty.
+     * An "empty" queue should have a length of 1 since we push the
+     * initial state onto the queue during initialization
      * @returns true if the stack is empty, false otherwise.
      */
     isEmpty(): boolean {
-        return this.#items.length === 0;
+        return this.#items.length === 1;
     }
 
     /**

@@ -43,7 +43,7 @@ function getNumBetsForStage(playerActions: PlayerAction[], stage: Stage): number
 function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
         case DispatchActionType.kUndo:
-            if (state.history.size === 1) {
+            if (state.history.isEmpty()) {
                 return state;
             }
             const { stack: updatedHistory, value: previousState } = state.history.pop();
@@ -92,10 +92,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 
             let newActionSequence: PlayerStatus[] = [...state.current.actionSequence];
             if (state.current.stage !== Stage.Preflop) {
-                // const remainingPlayers = state.current.actionSequence.slice(1);
                 const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex + 1)]
-                // fix action sequence
-                // If the player didn't fold, add them to the end of the remaining sequence
                 const addPlayerBack = playerAction.decision !== Decision.kFold;
                 const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
                 newActionSequence = [
@@ -125,11 +122,11 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 [actingPlayer]: newStackSize
             };
             const newHistory = state.history.push(currentGameState);
-            console.log(addActionState, ' add')
             const newStateAfterAdd = {
                 current: addActionState,
                 history: newHistory,
             };
+            // console.log(addActionState.actionSequence, ' add')
             return newStateAfterAdd;
         }
         case DispatchActionType.kTransition: {
@@ -313,8 +310,10 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 currentBetFacing: bigBlind,
                 stacks: parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind),
             };
+            state.history.pop();
+            state.history.push(initialGameState);
             const gameInfoStateInitial = {
-                current: { ...initialGameState },
+                current: initialGameState,
                 history: state.history,
             };
             return gameInfoStateInitial;
@@ -381,13 +380,9 @@ export default function App() {
     const VALID_ACTIONS = Object.values(Decision);
    
     const isInputValid = useCallback((input: string) => {
-        console.log(input, ' input')
         
         const isAlphanumeric = /^[a-zA-Z0-9]+$/;
         const disallowedChars = /[deikmnpqvwyzDEIKMNPQVWYZ]/;
-        console.log(`in disallowed: ${disallowedChars.test(input) }`)
-        console.log(`is Alpha: ${isAlphanumeric.test(input)}`)
-        // return (!disallowedChars.test(input) && isAlphanumeric.test(input))
         return isAlphanumeric.test(input) && !disallowedChars.test(input);
 
     }, []);
@@ -397,40 +392,42 @@ export default function App() {
         }
 
         const segments = input.toUpperCase().split(',').map(s => s.trim()).filter(s => s !== '');
-        // console.log(segments)
         for (const segment of segments) {
             const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
-            console.log(parts, ' parts ')
-            if (parts.some(part => !isInputValid(part))) {
-                return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
-            }
-            if (parts[0].length < 2) {
+            if (parts[0].length < 2 && parts.length < 2) {
                 return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
             }
-
+            
             const position = parts[0];
             const action = parts[1];
             const amount = parts.length > 2 ? parts[2] : null;
+            
 
+            // validate amounts and action sequence
             // Validate Position
+            // handle "." ","
+            // update undo to work with partial input for first segment
             if (!VALID_POSITIONS.includes(position)) {
                 return { isValid: false,
-                         error: `Invalid position: "${position}" in segment "${segment}"`,
-                         flagErrorToUser: true
-                        };
+                    error: `Invalid Pos: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
+                    flagErrorToUser: true
+                };
             }
-
+            
             // Validate Action
             if (!VALID_ACTIONS.includes(action)) {
-                return { isValid: false, error: `Invalid action: "${action}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
+                return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
             }
-
+            
             // Validate Amount (if applicable for the action)
             if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
             }
             if ((action === Decision.kCall || action === Decision.kFold) && amount) {
                 return { isValid: false, error: `Amount not allowed for ${action} in segment "${segment}"`, flagErrorToUser: true };
+            }
+            if (parts.some(part => !isInputValid(part))) {
+                return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
             }
 
             // Add more specific rules as needed...
@@ -448,6 +445,7 @@ export default function App() {
 
     useEffect(() => {
         // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
+        console.log(`in useEffect: setting ${state.current.input}`)
         setInputValue(state.current.input);
     }, [state.current.input, state.current.gameQueue.length]);
 
@@ -470,7 +468,9 @@ export default function App() {
         setInputValue(isTransition ? '' : text);
 
         const result = validatePreflopActionSegments(text);
-        console.log(result);
+        if (result.error) {
+            console.log(result);
+        }
         if (result.isValid && inputError || (!result.isValid && inputError && !result.flagErrorToUser)) {
             setInputError('');
         }
@@ -519,7 +519,12 @@ export default function App() {
     }, [state.current.playerActions.length]);
 
     const handleUndo = () => {
-        dispatch({ type: DispatchActionType.kUndo, payload: {} });
+        if (state.history.isEmpty()) {
+            setInputValue('');
+            setInputError('');
+        } else {
+            dispatch({ type: DispatchActionType.kUndo, payload: {} });    
+        }
     };
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -529,13 +534,6 @@ export default function App() {
                     <SuccessAnimation visible={isLoading} onAnimationComplete={goToDetailPage} />
                 </View>
             )}
-
-            {/* {isLoading && !isTransitioning && <ActivityIndicator size="large" style={{ marginTop: 50 }} />} */}
-            {/* <Snackbar
-                visible={visible}
-                onDismiss={onDismissSnackBar}>
-                {snackbarText}
-            </Snackbar> */}
             {!isLoading && <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === "ios" ? "padding" : undefined} // Often disable behavior prop on Android
@@ -575,7 +573,7 @@ export default function App() {
                 {/* Input container remains visually at the bottom, pushed by KAV */}
                 {state.current.stage !== Stage.Showdown && (
                     <SafeAreaView style={[styles.inputContainer]}>
-                        <Text style={styles.instructionText}>{inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}</Text>
+                        <Text variant='labelLarge' style={styles.instructionText}>{inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}</Text>
                         <TextInput
                             mode="outlined"
                             // label={state.current.currentAction?.placeholder || ''}
