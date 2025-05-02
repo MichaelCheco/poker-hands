@@ -18,8 +18,6 @@ import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
 import SuccessAnimation from '@/components/AnimatedSuccess';
 
-const logging = false;
-
 interface GameAppState {
     current: GameState;
     history: ImmutableStack<GameState>;
@@ -139,7 +137,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: addActionState,
                 history: newHistory,
             };
-            // console.log(newStateAfterAdd, ' add')
             return newStateAfterAdd;
         }
         case DispatchActionType.kTransition: {
@@ -181,7 +178,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                         winner: `${result.winners.map(w => w.playerId)[0]}`,
                     };
                 } else {
-                    console.log(`updating showdownHands`)
                     propertyUpdates.showdownHands = hands;
                 }
             } else if (action.payload.input.trim().length > 1) {
@@ -286,14 +282,12 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             // Should this and the statement above be conditional and ordered?
             if (playersLeft <= 1) {
                 const allInAndACall = didAllInAndACallOccurOnStreet(finalState.playerActions);
-                console.log(allInAndACall, ' allInAndACall value')
                 if (allInAndACall) {
                     finalState.gameQueue = getRemainingCardActions(finalState.gameQueue)
                     if (!finalState.currentAction) {
                         finalState.stage = Stage.Showdown;
                     }
                 } else {
-                    console.log('skipping to showdown state because no one called ... ')
                     finalState.stage = Stage.Showdown;
                 }
             }
@@ -302,7 +296,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: { ...finalState },
                 history: newHistory,
             }
-            // console.log('newTransitionState ', newTransitionState);
             return newTransitionState;
         }
         case DispatchActionType.kReset:
@@ -316,7 +309,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
 }
 
 function didAllInAndACallOccurOnStreet(playerActions: PlayerAction[]): boolean {
-    // console.log('====== didAllInAndACallOccurOnStreet ======')
     let allInIndex = playerActions.findIndex((action: PlayerAction) => action.decision === Decision.kAllIn);
     if (allInIndex === -1) {
         return false;
@@ -327,8 +319,6 @@ function didAllInAndACallOccurOnStreet(playerActions: PlayerAction[]): boolean {
 }
 
 function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueItem[] {
-    // console.log('====== getRemainingCardActions ======')
-    // console.log(gameQueue, ' queue')
     return gameQueue.filter((item: GameQueueItem) => item.actionType !== ActionType.kActionSequence);
 }
 
@@ -415,8 +405,6 @@ export default function App() {
             } = state.current;
             const nextPlayerToActPos = preflopSequence ? preflopSequence[0].position : '' // .findIndex(a => !a.isAllIn)
             const playerAction = getPlayerAction(nextPlayerToActPos, getLastAction(input), stage)
-            // buildBasePlayerAction
-            console.log(playerAction)
             const playerPos = playerAction.position;
             const currentStack = state.current.stacks[playerAction.position];
             const { newPlayerBetTotal } =
@@ -465,7 +453,6 @@ export default function App() {
                     flagErrorToUser: true
                 };
             }
-            // console.log(parts)
             // Validate Action
             if (!VALID_ACTIONS.includes(action)) {
                 return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
@@ -511,7 +498,6 @@ export default function App() {
             return;
         }
         const isTransition = text.endsWith('.');
-        // setInputValue(isTransition ? text.slice(0, -1): text);
         setInputValue(text)
         let result: {
             isValid: boolean;
@@ -521,9 +507,6 @@ export default function App() {
         if (state.current.stage === Stage.Preflop) {
 
             result = validatePreflopActionSegments(text);
-        }
-        if (result.flagErrorToUser) {
-            // console.log(result);
         }
         if (result.isValid && inputError || (inputError && !result.flagErrorToUser)) {
             setInputError('');
@@ -548,13 +531,11 @@ export default function App() {
 
     async function saveHand() {
         const result = await saveHandToSupabase(state.current, gameInfo);
-        console.log(result, 'result')
         return result.handId
     }
     const goToDetailPage = () => {
         router.replace(`/${savedId}`);
         setIsLoading(false)
-        // setIsTransitioning(false);
     }
     useEffect(() => {
         if (state.current.stage === Stage.Showdown) {
@@ -644,9 +625,7 @@ export default function App() {
                             autoFocus
                             blurOnSubmit={false}
                             returnKeyType="next"
-                            onSubmitEditing={() => {
-                                console.log(state.current.input);
-                            }}
+                            onSubmitEditing={() => {}}
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
                     </SafeAreaView>
@@ -668,7 +647,6 @@ function calculateEffectiveStack(
     // 1. Map the list of positions directly to their stack sizes
     //    (Assumes every position exists in stacks and the value is a number)
     const relevantStacks = positionsLeft.map(position => stacks[position]);
-    // console.log(`${positionsLeft.join(', ')} : ${relevantStacks.join(', ')}`)
     // 2. Find the minimum value among those stack sizes
     //    Math.min() returns Infinity if relevantStacks is empty (shouldn't happen if positionsLeft isn't empty)
     //    Math.min() returns NaN if any value in relevantStacks is not a number (e.g., undefined from a bad lookup)
@@ -688,9 +666,6 @@ function getUpdatedBettingInfo(
     currentBetFacing: number,
     playerStack: number,
     playerAction: PlayerAction) {
-    if (logging) {
-        console.log(`${playerAction.position} stack sz before action: ${playerStack}`)
-    }
     const actingPlayer = playerAction.position;
     // How much player already bet this street
     const alreadyBet = betsThisStreet[actingPlayer] || 0;
@@ -710,10 +685,6 @@ function getUpdatedBettingInfo(
             break;
 
         case Decision.kRaise:
-            // console.log(betsThisStreet[playerAction.position], ' betsThisStreet for: ', playerAction.position)
-            // console.log(currentBetFacing, ' currentBetFacing')
-            // console.log(playerStack, ' playerStack')
-            // console.log(playerAction, ' playerAction')
             // Amount to add is the raise amount MINUS what was already bet
             // Example: Raise to 60, already bet 20. Add 40.
             amountToAdd = playerAction.amount - alreadyBet;
@@ -721,7 +692,6 @@ function getUpdatedBettingInfo(
             newPlayerBetTotal = playerAction.amount;
             // This sets the new bet level
             newCurrentBetFacing = playerAction.amount;
-            // console.log(`amountToAdd: ${amountToAdd} newPlayerBetTotal: ${newPlayerBetTotal} newCurrentBetFacing: ${newCurrentBetFacing}`)
             break;
 
         case Decision.kCall:
@@ -751,9 +721,6 @@ function getUpdatedBettingInfo(
         case Decision.kFold:
             amountToAdd = 0;
             break;
-    }
-    if (logging) {
-        console.log(`${playerAction.position} ~ amountToAdd: ${amountToAdd}, newPlayerBetTotal: ${newPlayerBetTotal}, newCurrentBetFacing: ${newCurrentBetFacing}`)
     }
     return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
 }
