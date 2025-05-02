@@ -52,7 +52,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 history: updatedHistory,
             };
         case DispatchActionType.kSetInput:
-            console.log(state.current)
             return {
                 current: { ...state.current, input: action.payload.input },
                 history: state.history,
@@ -62,8 +61,9 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             const mostRecentActionText = getLastAction(action.payload.input);
             const nextPlayerToActIndex = currentGameState.actionSequence.findIndex(a => !a.isAllIn);
             const playerToAct = currentGameState.actionSequence[nextPlayerToActIndex] as PlayerStatus
-            const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), state.current.stage)
 
+            const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), state.current.stage, currentGameState.playerActions.length + 1)
+            // TODO, add this to transition?
             if (hasActionBeenAddedAlready(state.current.playerActions, playerAction)) {
                 return {
                     current: { ...state.current, input: action.payload.input },
@@ -92,6 +92,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 state.current.stage);
 
             let newActionSequence: PlayerStatus[] = [...state.current.actionSequence];
+            let intermediateList = state.current.stage === Stage.Preflop ? [] : undefined;
             if (state.current.stage !== Stage.Preflop) {
                 const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex + 1)]
                 const addPlayerBack = playerAction.decision !== Decision.kFold;
@@ -100,6 +101,16 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     ...remainingPlayers,
                     ...(addPlayerBack ? [{ position: actingPlayer, isAllIn }] : [])
                 ];
+            } else {
+                const actionIndex = currentGameState.preflopSequence.findIndex(({ position }) => playerAction.position === position);
+                const p = currentGameState.preflopSequence[actionIndex];
+                intermediateList = [...currentGameState.preflopSequence.slice(actionIndex + 1)];
+                const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
+                const addPlayerBack = playerAction.decision !== Decision.kFold && !isAllIn;
+                if (addPlayerBack) {
+                    intermediateList.push({ ...p, hasActed: true })
+                    // hasActed
+                }
             }
             // Pre-flop: Action sequence is handled differently, often based on who is left
             // after the betting round, so we don't modify it here per-action.
@@ -109,6 +120,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 input: action.payload.input,
                 playerActions: newPlayerActions,
                 actionSequence: newActionSequence,
+                preflopSequence: intermediateList,
                 pot: state.current.pot + amountToAdd,
                 currentBetFacing: newCurrentBetFacing,
                 betsThisStreet: {
@@ -127,7 +139,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: addActionState,
                 history: newHistory,
             };
-            console.log(addActionState.preflopSequence)
+            // console.log(newStateAfterAdd, ' add')
             return newStateAfterAdd;
         }
         case DispatchActionType.kTransition: {
@@ -176,14 +188,15 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 const currentGameState = state.current;
                 const nextPlayerToActIndex = currentGameState.actionSequence.findIndex(a => !a.isAllIn);
                 const playerToAct = currentGameState.actionSequence[nextPlayerToActIndex] as PlayerStatus
-                const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), currentGameState.stage)
+                const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), currentGameState.stage, currentGameState.playerActions.length + 1)
                 // Used to display a divider between stages in action list.
+                // playerAction.id = getIdForPlayerAction(playerAction, ++currentGameState.playerActions.length);
                 playerAction.isLastActionForStage = initialStage !== nextStage;
                 const playerPos = playerAction.position;
                 const currentStack = state.current.stacks[playerAction.position];
                 const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
                     getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, currentStack, playerAction)
-                playerAction.amount = amountToAdd;
+                playerAction.amount = newPlayerBetTotal;
                 playerAction.potSizeBefore = currentGameState.pot;
                 playerAction.playerStackBefore = currentStack;
 
@@ -196,6 +209,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                     initialStage);
                 finalPlayerActions = [...finalPlayerActions, playerAction];
                 // Update action sequence if post-flop (mirroring kAddAction logic)
+
                 if (currentState.stage !== Stage.Preflop) {
                     const remainingPlayers = [
                         ...state.current.actionSequence.slice(0, nextPlayerToActIndex),
@@ -288,7 +302,7 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
                 current: { ...finalState },
                 history: newHistory,
             }
-            console.log('newTransitionState ', newTransitionState);
+            // console.log('newTransitionState ', newTransitionState);
             return newTransitionState;
         }
         case DispatchActionType.kReset:
@@ -334,7 +348,7 @@ export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const gameInfo: HandSetupInfo = JSON.parse(data);
     const [state, dispatch] = useReducer(reducer, initialAppState, (state) => {
-        const { heroPosition, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
+        const { position, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
         const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
         const upperCasedHand = hand.toUpperCase();
         const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position) => ({
@@ -345,9 +359,9 @@ export default function App() {
         const initialGameState: GameState = {
             ...state.current,
             actionSequence: initialSequence,
-            preflopSequence: initialSequence,
+            preflopSequence: initialSequence.map(s => ({ ...s, hasActed: false })),
             pot: smallBlind + bigBlind,
-            hero: { position: heroPosition, hand: parsePokerHandString(upperCasedHand) },
+            hero: { position, hand: parsePokerHandString(upperCasedHand) },
             deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
             playerActions: [],
             stage: Stage.Preflop,
@@ -374,38 +388,79 @@ export default function App() {
     const scrollViewRef = useRef<ScrollView>(null);
     const VALID_POSITIONS = numPlayersToActionSequenceList[gameInfo.numPlayers];
     const VALID_ACTIONS = Object.values(Decision);
-   
+
     const isInputValid = useCallback((input: string) => {
-        
+
         const isAlphanumeric = /^[a-zA-Z0-9]+$/;
         const disallowedChars = /[deikmnpqvwyzDEIKMNPQVWYZ]/;
         return isAlphanumeric.test(input) && !disallowedChars.test(input);
 
     }, []);
 
-    const canPerformAction = () => {};
+    const canPerformAction = () => { };
     const validatePreflopActionSegments = useCallback((input: string) => {
+
+        // handle: Co r 20.
         if (!input || input.trim() === '') {
             return { isValid: true }; // Or handle empty input as needed
         }
 
+        if (input.endsWith('.')) {
+            // need pos for preflop
+            const {
+                preflopSequence,
+                stage,
+                currentBetFacing,
+                betsThisStreet,
+            } = state.current;
+            const nextPlayerToActPos = preflopSequence ? preflopSequence[0].position : '' // .findIndex(a => !a.isAllIn)
+            const playerAction = getPlayerAction(nextPlayerToActPos, getLastAction(input), stage)
+            // buildBasePlayerAction
+            console.log(playerAction)
+            const playerPos = playerAction.position;
+            const currentStack = state.current.stacks[playerAction.position];
+            const { newPlayerBetTotal } =
+                getUpdatedBettingInfo(betsThisStreet, currentBetFacing, currentStack, playerAction)
+            const updatedBetsThisStreet = {
+                ...betsThisStreet,
+                [playerPos]: newPlayerBetTotal,
+            };
+            const bets: number[] = [];
+            Object.entries(updatedBetsThisStreet).forEach(([pos, val]) => {
+                let match = preflopSequence?.find(p => p.position === pos);
+                if (match && match.hasActed) {
+                    bets.push(val);
+                }
+                // values(updatedBetsThisStreet || 0);
+            });
+            const num = Math.max(...bets);
+            const valid = bets.every(bet => bet === num)
+            if (!valid) {
+                return { isValid: false, error: `invalid`, flagErrorToUser: true };
+            }
+        }
+
         // how should i validate multiple actions, most recent action or entire sequence?
+        // if ends with . i need to validate sequence
+
         const segments = (input.endsWith('.') ? input.slice(0, -1) : input).toUpperCase().split(',').map(s => s.trim()).filter(s => s !== '');
         for (const segment of segments) {
             const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
+            // maybe do this only when segment len == 1
             if (parts[0].length < 2 && parts.length < 2) {
                 return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
             }
-            
+
             const position = parts[0];
             const action = parts[1];
             const amount = parts.length > 2 ? parts[2] : null;
-            
+
 
             // validate amounts and action sequence
             // Validate Position
             if (!VALID_POSITIONS.includes(position)) {
-                return { isValid: false,
+                return {
+                    isValid: false,
                     error: `Invalid Pos: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
                     flagErrorToUser: true
                 };
@@ -415,13 +470,13 @@ export default function App() {
             if (!VALID_ACTIONS.includes(action)) {
                 return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
             }
-            
+
             // Validate Amount (if applicable for the action)
+            // TODO handle multiple raises
             if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
             }
             if ((action === Decision.kRaise || action === Decision.kBet)) {
-                console.log(amount , state.current)
                 if (amount > state.current.stacks[position]) {
                     return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.current.stacks[position]}`, flagErrorToUser: parts.length > 2 };
                 }
@@ -437,7 +492,7 @@ export default function App() {
         }
 
         return { isValid: true, error: '', flagErrorToUser: false };
-    }, []);
+    }, [state.current.playerActions?.length]);
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -456,11 +511,19 @@ export default function App() {
             return;
         }
         const isTransition = text.endsWith('.');
-        setInputValue(isTransition ? '' : text);
+        // setInputValue(isTransition ? text.slice(0, -1): text);
+        setInputValue(text)
+        let result: {
+            isValid: boolean;
+            error?: string | undefined;
+            flagErrorToUser?: boolean | undefined;
+        } = { isValid: true, error: '', flagErrorToUser: false }
+        if (state.current.stage === Stage.Preflop) {
 
-        const result = validatePreflopActionSegments(text);
+            result = validatePreflopActionSegments(text);
+        }
         if (result.flagErrorToUser) {
-            console.log(result);
+            // console.log(result);
         }
         if (result.isValid && inputError || (inputError && !result.flagErrorToUser)) {
             setInputError('');
@@ -516,7 +579,7 @@ export default function App() {
             setInputValue('');
             setInputError('');
         } else {
-            dispatch({ type: DispatchActionType.kUndo, payload: {} });    
+            dispatch({ type: DispatchActionType.kUndo, payload: {} });
         }
     };
     return (
@@ -615,9 +678,9 @@ function calculateEffectiveStack(
 }
 
 
-function getPlayerAction(playerToAct: string, mostRecentActionText: string, stage: Stage): PlayerAction {
+function getPlayerAction(playerToAct: string, mostRecentActionText: string, stage: Stage, len: number): PlayerAction {
     const actionInfo = parseAction(mostRecentActionText, playerToAct);
-    return buildBasePlayerAction(actionInfo, stage);
+    return buildBasePlayerAction(actionInfo, stage, len);
 }
 
 function getUpdatedBettingInfo(
@@ -829,13 +892,13 @@ function getSuitForCard(card: string, currDeck: string[]): string {
     return cardsInDeck[getRandomIndex(cardsInDeck.length)]
 }
 
-function getIdForPlayerAction(action: PlayerAction): string {
-    return `${action.position}-${action.decision}-${action.amount}-${action.stage}`;
+function getIdForPlayerAction(action: PlayerAction, len: number): string {
+    return `${action.position}-${action.decision}-${action.amount}-${action.stage}-${len}`;
 }
 
-function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage): PlayerAction {
+function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage, len: number): PlayerAction {
     const action: PlayerAction = { text: '', stage, isLastActionForStage: false, shouldHideFromUi: false, ...actionInfo, id: '' };
-    action.id = getIdForPlayerAction(action);
+    action.id = getIdForPlayerAction(action, len);
     return action;
 }
 

@@ -135,6 +135,12 @@ export interface PlayerStatus {
     isAllIn: boolean;
 }
 
+export interface PreflopStatus {
+    position: Position;
+    isAllIn: boolean;
+    hasActed: boolean;
+}
+
 // Define the structure of the data returned from the 'hands' table
 // Adjust based on your actual table columns and desired data
 export interface SavedHandSummary {
@@ -183,7 +189,7 @@ export interface GameState {
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
     showdown: ShowdownDetails | null;
-    preflopSequence: PlayerStatus[] | undefined;
+    preflopSequence: PreflopStatus[] | undefined;
 }
 
 // Type for rows from the 'actions' table
