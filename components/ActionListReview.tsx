@@ -3,20 +3,11 @@ import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { IconButton, List, Snackbar, Text } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
-import { copyHand, getSuit } from '@/utils/hand-utils';
-
-function getPreflopText(cards: string[]) {
-    let [card1, card2, card3, ...rest] = cards;
-    return `${card1[0]}${getSuit(card1[1])} ${card2[0]}${getSuit(card2[1])} ${card3[0]}${getSuit(card3[1])}`
-}
+import { copyHand } from '@/utils/hand_utils';
 
 function getFlopCards(cards: string[]) {
     let [card1, card2, card3, ...rest] = cards;
     return [card1, card2, card3];
-}
-
-function getStageText(card: string) {
-    return `${card[0]}${getSuit(card[1])}`
 }
 
 function FlopCards({ cards }: { cards: string[] }) {
@@ -160,9 +151,6 @@ export default function ActionListReview({
                                     left={() => <Text style={styles.actionPosition}>{item.position}</Text>}
                                     style={styles.actionItem}
                                 />
-                                {/* {item.isLastActionForStage && (
-                                    <Divider key={`${uniqueItemKey}-divider`} />
-                                )} */}
                             </React.Fragment>
                         );
                     })}
@@ -195,12 +183,8 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         alignSelf: 'center',
         width: 30,
-        // flexShrink: 1
     },
     actionText: {
-        // borderWidth:1,
-        // borderColor: 'black',
-        // width: '90%'
     },
     subheaderContainer: {
         flexDirection: 'row',

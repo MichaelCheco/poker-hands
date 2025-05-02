@@ -1,6 +1,6 @@
 // --- Constants and Types ---
 
-import { HandEvaluation, HandRank, ParsedCard, PokerPlayerInput, Rank, RankChar, Suit, WinnerInfo } from "./types";
+import { HandEvaluation, HandRank, ParsedCard, PokerPlayerInput, Rank, RankChar, Suit, WinnerInfo } from "../types";
 
 // --- Card Parsing ---
 
@@ -275,7 +275,6 @@ export function determinePokerWinnerManual(
     // Get the cards from one of the winners (they all have the same rank/value)
     const winningHandCards = evaluatedPlayers[0].best5Cards;
 
-// ShowdownDetails hands: PokerPlayerInput[];
     return {
         details: evaluatedPlayers.map((val) => ({description: mapRankToDescription(val.bestEvaluation?.rank), playerId: val.playerId, holeCards: val.holeCards})),
         winners: winnersData.map(({ playerId, holeCards }) => ({ playerId, holeCards, description: mapRankToDescription(winningEvaluation.rank) })),
@@ -283,45 +282,3 @@ export function determinePokerWinnerManual(
         bestHandCards: winningHandCards, // Return the specific 5 cards
     };
 }
-
-
-// --- Example Usage (same as before) ---
-/*
-const players: PokerPlayerInput[] = [
-    { playerId: "Alice", holeCards: ["Ac", "Ad"] },
-    { playerId: "Bob", holeCards: ["Kh", "Qh"] },
-    { playerId: "Charlie", holeCards: ["7s", "8s"] },
-];
-const community: string[] = ["Ah", "Ks", "5h", "Jh", "9s"];
-
-const result = determinePokerWinnerManual(players, community);
-
-if (result) {
-    console.log("--- Manual Implementation Result ---");
-    console.log("Winner(s):", result.winners.map(w => w.playerId).join(', '));
-    // Expected: Winner(s): Alice
-    console.log("Winning Hand:", result.winningHandDescription);
-    // Expected: Winning Hand: Three of a Kind
-    console.log("Best 5 Cards:", result.bestHandCards.sort()); // Sort for consistent comparison
-    // Expected: Best 5 Cards: [ 'Ac', 'Ad', 'Ah', 'Jh', 'Ks' ] (Sorted Ace, Ace, Ace, King, Jack)
-} else {
-    console.log("Could not determine winner.");
-}
-
-const players2: PokerPlayerInput[] = [
-     { playerId: "Player1", holeCards: ["Ah", "Kh"] },
-     { playerId: "Player2", holeCards: ["Ad", "Kd"] },
- ];
- const community2: string[] = ["As", "Ks", "Qh", "Qd", "Js"];
-
- const result2 = determinePokerWinnerManual(players2, community2);
- if (result2) {
-      console.log("\n--- Manual Implementation Result 2 (Split Pot) ---");
-      console.log("Winner(s):", result2.winners.map(w => w.playerId).join(', '));
-      // Expected: Winner(s): Player1, Player2
-      console.log("Winning Hand:", result2.winningHandDescription);
-      // Expected: Winning Hand: Two Pair
-      console.log("Best 5 Cards:", result2.bestHandCards.sort());
-      // Expected: Best 5 Cards: [ 'Ad', 'Ah', 'Kd', 'Kh', 'Js' ] (Sorted Ace, Ace, King, King, Jack)
- }
-*/

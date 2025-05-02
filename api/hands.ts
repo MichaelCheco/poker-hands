@@ -1,5 +1,5 @@
-import { GameState, HandSetupInfo, Position, SavedHandSummary } from "@/types";
-import { parsePokerHandString, transFormCardsToFormattedString } from "@/utils/hand-utils";
+import { GameState, HandSetupInfo, SavedHandSummary } from "@/types";
+import { transFormCardsToFormattedString } from "@/utils/hand_utils";
 import { supabase } from "@/utils/supabase";
 
 export async function getHandDetailsById(handId: string) {
@@ -56,7 +56,7 @@ export async function getHandDetailsById(handId: string) {
 }
 
 export async function deleteHand(handId: string): Promise<boolean> {
-    const { error, count, status, statusText, data } = await supabase
+    const { error } = await supabase
         .from('hands')
         .delete()
         .eq('id', handId)
@@ -67,8 +67,6 @@ export async function saveHandToSupabase(
     handHistoryData: GameState,
     setupInfo: HandSetupInfo
 ): Promise<{ success: boolean; message: string; handId: string; }> {
-
-    // console.log("Attempting to save hand...");
 
     // 1. Get Authenticated User ID
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -137,7 +135,6 @@ export async function saveHandToSupabase(
                 handId
             };
         }
-        // console.log(`Inserted ${actionsToInsert.length} actions.`);
     }
 
     // 4. Insert into 'showdown_hands' table (if showdown occurred)
@@ -162,10 +159,8 @@ export async function saveHandToSupabase(
             // Consider deleting the hand record if actions fail? (Or use transaction)
             return { handId: '', success: false, message: `Failed to insert showdown hands: ${showdownError.message}` };
         }
-        //  console.log(`Inserted ${showdownHandsToInsert.length} showdown hands.`);
     }
 
-    // console.log("Hand saved successfully!");
     return { success: true, message: '', handId };
     // No return value needed if using void promise, caller handles success/error
 }

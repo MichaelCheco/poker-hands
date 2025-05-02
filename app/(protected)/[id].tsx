@@ -2,7 +2,7 @@ import React, { useState, useLayoutEffect } from 'react';
 import { View, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { deleteHand, getHandDetailsById } from '@/api/hands';
-import { formatDateMMDDHHMM } from '@/utils/hand-utils';
+import { formatDateMMDDHHMM } from '@/utils/hand_utils';
 import { DetailedHandData } from '@/types';
 import { Text, Divider, IconButton } from 'react-native-paper';
 import Showdown from '@/components/Showdown';

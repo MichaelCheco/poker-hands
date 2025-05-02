@@ -1,16 +1,16 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
-import { ActivityIndicator, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput, Snackbar } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo } from '@/types';
 import { CommunityCards } from '@/components/Cards';
-import { initialState, numPlayersToActionSequenceList } from '@/constants';
-import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils/hand-utils';
-import { determinePokerWinnerManual } from '@/hand-evaluator';
+import { numPlayersToActionSequenceList } from '@/constants';
+import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils/hand_utils';
+import { determinePokerWinnerManual } from '@/utils/hand_evaluator';
 import { useTheme } from 'react-native-paper';
-import { ImmutableStack } from '@/ImmutableStack';
+import { ImmutableStack } from '@/utils/immutable_stack';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -56,7 +56,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
             };
         case DispatchActionType.kAddAction: {
             const currentGameState = state.current;
-            const mostRecentActionText = getLastAction(action.payload.input);
             const nextPlayerToActIndex = currentGameState.actionSequence.findIndex(a => !a.isAllIn);
             const playerToAct = currentGameState.actionSequence[nextPlayerToActIndex] as PlayerStatus
 
@@ -387,7 +386,6 @@ export default function App() {
 
     }, []);
 
-    const canPerformAction = () => { };
     const validatePreflopActionSegments = useCallback((input: string) => {
 
         // handle: Co r 20.
@@ -613,12 +611,9 @@ export default function App() {
                         <Text variant='labelLarge' style={styles.instructionText}>{inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}</Text>
                         <TextInput
                             mode="outlined"
-                            // label={state.current.currentAction?.placeholder || ''}
-                            // label={inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}
                             placeholderTextColor={inputError ? theme.colors.error : undefined} // Make error placeholder red (optional)
                             activeOutlineColor={inputError ? theme.colors.error : '#000000'}
                             onChangeText={handleInputChange}
-                            // submitBehavior={'newline'}
                             value={inputValue}
                             style={styles.input}
                             dense={true}

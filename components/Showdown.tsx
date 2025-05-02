@@ -1,10 +1,9 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { List, Text, useTheme, Icon, Snackbar } from 'react-native-paper';
-import { MyHand, ShowdownCard } from './Cards';
+import { List, Text, useTheme, Icon } from 'react-native-paper';
+import { ShowdownCard } from './Cards';
 import { ShowdownHandRecord, Stage, ActionRecord, Position } from '@/types';
-import { getHandSummary } from '@/utils/hand-utils';
-import { useRouter } from 'expo-router';
+import { getHandSummary } from '@/utils/hand_utils';
 function getSuit2(suit: string) {
     switch (suit.toLowerCase()) {
         case 'h':
@@ -55,10 +54,6 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
         )
     }
 
-    function getTitle(hand: ShowdownHandRecord): string {
-        let cards = hand.hole_cards;
-        return `${cards[0]}${getSuit2(cards[1])}${cards[2]}${getSuit2(cards[3])}`
-    }
     return (
         <List.Section>
             <List.Subheader
