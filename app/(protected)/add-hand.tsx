@@ -21,18 +21,53 @@ import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const gameInfo: HandSetupInfo = JSON.parse(data);
+
+    // State
     const [state, dispatch] = useReducer(reducer, initialAppState, (arg) => createInitialAppState(arg, gameInfo));
-    const [isLoading, setIsLoading] = React.useState(false);
-    const [savedId, setSavedId] = React.useState('');
-    const [inputError, setInputError] = React.useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [savedId, setSavedId] = useState('');
+    const [inputError, setInputError] = useState('');
+    const [inputValue, setInputValue] = useState('');
+
+    // Hooks
     const theme = useTheme();
     const headerHeight = useHeaderHeight();
     const navigation = useNavigation();
     const router = useRouter();
-    const [inputValue, setInputValue] = useState('');
     const scrollViewRef = useRef<ScrollView>(null);
     const VALID_POSITIONS = numPlayersToActionSequenceList[gameInfo.numPlayers];
     const VALID_ACTIONS = Object.values(Decision);
+
+    // Effects
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerLeft: () => <GameInfo info={gameInfo} />,
+            headerRight: () => <HeroHandInfo info={gameInfo} />,
+        });
+    }, [navigation]);
+
+    useEffect(() => {
+        // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
+        setInputValue(state.current.input);
+    }, [state.current.input, state.current.gameQueue.length]);
+
+    useEffect(() => {
+        if (state.current.stage === Stage.Showdown) {
+            setIsLoading(true)
+            saveHand().then((id) => {
+                setSavedId(id);
+            });
+        }
+    }, [state.current.stage])
+
+    useEffect(() => {
+        if (state.current.playerActions.length > 0) {
+            // Use setTimeout to ensure layout is updated before scrolling
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [state.current.playerActions.length]);
 
     const isInputValid = useCallback((input: string) => {
 
@@ -125,18 +160,6 @@ export default function App() {
         return { isValid: true, error: '', flagErrorToUser: false };
     }, [state.current.playerActions?.length]);
 
-    useLayoutEffect(() => {
-        navigation.setOptions({
-            headerLeft: () => <GameInfo info={gameInfo} />,
-            headerRight: () => <HeroHandInfo info={gameInfo} />,
-        });
-    }, [navigation]);
-
-    useEffect(() => {
-        // Initialize local state when the relevant global state changes (e.g., when currentAction changes)
-        setInputValue(state.current.input);
-    }, [state.current.input, state.current.gameQueue.length]);
-
     const handleInputChange = (text: string) => {
         if (inputError && text > inputValue) {
             return;
@@ -181,23 +204,6 @@ export default function App() {
         router.replace(`/${savedId}`);
         setIsLoading(false)
     }
-    useEffect(() => {
-        if (state.current.stage === Stage.Showdown) {
-            setIsLoading(true)
-            saveHand().then((id) => {
-                setSavedId(id);
-            });
-        }
-    }, [state.current.stage])
-
-    useEffect(() => {
-        if (state.current.playerActions.length > 0) {
-            // Use setTimeout to ensure layout is updated before scrolling
-            setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-        }
-    }, [state.current.playerActions.length]);
 
     const handleUndo = () => {
         if (state.history.isEmpty()) {
@@ -209,7 +215,6 @@ export default function App() {
     };
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-
             {isLoading && (
                 <View style={styles.successContainer}>
                     <SuccessAnimation visible={isLoading} onAnimationComplete={goToDetailPage} />
