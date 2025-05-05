@@ -4,21 +4,18 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo, GameAppState } from '@/types';
+import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
-import { calculateEffectiveStack, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes} from '@/utils/hand_utils';
-import { determinePokerWinnerManual } from '@/utils/hand_evaluator';
+import { calculateEffectiveStack} from '@/utils/hand_utils';
 import { useTheme } from 'react-native-paper';
-import { ImmutableStack } from '@/utils/immutable_stack';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
 import SuccessAnimation from '@/components/AnimatedSuccess';
-import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from '@/utils/card_utils';
-import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, removeAfterLastComma } from '@/utils/action_utils';
+import { getLastAction, getPlayerAction, getUpdatedBettingInfo } from '@/utils/action_utils';
 import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_hand_reducer';
 
 export default function App() {
@@ -47,13 +44,11 @@ export default function App() {
 
     const validatePreflopActionSegments = useCallback((input: string) => {
 
-        // handle: Co r 20.
         if (!input || input.trim() === '') {
-            return { isValid: true }; // Or handle empty input as needed
+            return { isValid: true };
         }
 
         if (input.endsWith('.')) {
-            // need pos for preflop
             const {
                 preflopSequence,
                 stage,
@@ -76,7 +71,6 @@ export default function App() {
                 if (match && match.hasActed) {
                     bets.push(val);
                 }
-                // values(updatedBetsThisStreet || 0);
             });
             const num = Math.max(...bets);
             const valid = bets.every(bet => bet === num)
@@ -100,9 +94,6 @@ export default function App() {
             const action = parts[1];
             const amount = parts.length > 2 ? parts[2] : null;
 
-
-            // validate amounts and action sequence
-            // Validate Position
             if (!VALID_POSITIONS.includes(position)) {
                 return {
                     isValid: false,
@@ -110,12 +101,10 @@ export default function App() {
                     flagErrorToUser: true
                 };
             }
-            // Validate Action
             if (!VALID_ACTIONS.includes(action)) {
                 return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
             }
 
-            // Validate Amount (if applicable for the action)
             // TODO handle multiple raises
             if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
@@ -131,8 +120,6 @@ export default function App() {
             if (parts.some(part => !isInputValid(part))) {
                 return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
             }
-
-            // Add more specific rules as needed...
         }
 
         return { isValid: true, error: '', flagErrorToUser: false };
@@ -230,11 +217,9 @@ export default function App() {
             )}
             {!isLoading && <KeyboardAvoidingView
                 style={styles.container}
-                behavior={Platform.OS === "ios" ? "padding" : undefined} // Often disable behavior prop on Android
-                // or sometimes behavior={Platform.OS === "ios" ? "padding" : "height"} // Incorrect - height doesn't work on Android
-                // or conditionally enable the whole component:
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
                 enabled={Platform.OS === "ios"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0} // Example offset for iOS header
+                keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
             >
                 <View style={{
                     alignItems: 'center',
@@ -248,12 +233,11 @@ export default function App() {
                     </Text>
                     <CommunityCards cards={state.current.cards} />
                 </View>
-                {/* ScrollView now takes up available space within KAV */}
                 <ScrollView
                     ref={scrollViewRef}
                     style={styles.content}
-                    contentContainerStyle={styles.contentContainer} // Add padding inside if needed
-                    keyboardShouldPersistTaps="handled" // Good practice
+                    contentContainerStyle={styles.contentContainer}
+                    keyboardShouldPersistTaps="handled"
                 >
                     {state.current.stage !== Stage.Showdown && (
                         <ActionList
@@ -263,8 +247,6 @@ export default function App() {
                         />
                     )}
                 </ScrollView>
-
-                {/* Input container remains visually at the bottom, pushed by KAV */}
                 {state.current.stage !== Stage.Showdown && (
                     <SafeAreaView style={[styles.inputContainer]}>
                         <Text variant='labelLarge' style={styles.instructionText}>{inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}</Text>
@@ -298,11 +280,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    keyboardAvoidingContainer: { // KAV needs flex: 1 to manage space
+    keyboardAvoidingContainer: {
         flex: 1,
     },
     content: {
-        flex: 1, // Allows ScrollView to grow/shrink within KAV
+        flex: 1,
     },
     contentContainer: {
         paddingBottom: 10,
@@ -322,8 +304,6 @@ const styles = StyleSheet.create({
         color: '#555'
     },
     inputContainer: {
-        // borderTopWidth: 1,
-        // borderTopColor: 'red',
         paddingHorizontal: 8,
         marginTop: 0,
         paddingVertical: 0,
@@ -331,8 +311,6 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
     },
     input: {
-        // flex: 1,
-        // minHeight: 42
     },
     instructionText: {
         marginBottom: 4,
