@@ -45,11 +45,10 @@ export default function ActionListReview({
     pot: number;
     showdown: ShowdownHandRecord[];
 }) {
-    const [snackbarText, setSnackbarText] = React.useState('Hand Copied! ✅');
     const [snackbarVisible, setSnackbarVisible] = React.useState(false);
-    const groupedActions = React.useMemo(() => {
-        return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
-            const stage = action.stage;
+    const groupedActions: Record<Stage, ActionRecord[]> = React.useMemo(() => {
+        return actionList.filter(a => !(a.was_auto_folded)).reduce((acc: Record<Stage, ActionRecord[]>, action: ActionRecord) => {
+            const stage: Stage = action.stage;
             acc[stage].push(action);
             return acc;
         }, {
@@ -57,26 +56,28 @@ export default function ActionListReview({
             [Stage.Flop]: [],
             [Stage.Turn]: [],
             [Stage.River]: [],
+            [Stage.Showdown]: [],
         });
     }, [actionList]);
 
-    const groupedPotSizes = React.useMemo(() => {
-        return actionList.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
-            const stage = action.stage;
-            acc[stage] = acc[stage] + action.action_amount;
+    const groupedPotSizes: Record<Stage, number> = React.useMemo(() => {
+        return actionList.filter(a => !(a.was_auto_folded)).reduce((acc: Record<Stage, number>, action: ActionRecord) => {
+            const stage: Stage = action.stage;
+            acc[stage] = acc[stage] + (action?.action_amount || 0);
             return acc;
         }, {
             [Stage.Preflop]: 0,
             [Stage.Flop]: 0,
             [Stage.Turn]: 0,
             [Stage.River]: 0,
+            [Stage.Showdown]: 0,
         });
     }, [actionList]);
     const flopPotSize = groupedPotSizes[Stage.Preflop];
     const turnPotSize = flopPotSize + groupedPotSizes[Stage.Flop];
     const riverPotSize = turnPotSize + groupedPotSizes[Stage.Turn];
-    const sortedStages = Object.keys(groupedActions).map(Number).sort((a, b) => a - b);
-    const stageToPotSizeMap = {
+    const sortedStages = Object.keys(groupedActions).map(Number).filter(a => a !== Stage.Showdown).sort((a, b) => a - b);
+    const stageToPotSizeMap: Partial<Record<Stage, number>> = {
         [Stage.Preflop]: 0,
         [Stage.Flop]: flopPotSize,
         [Stage.Turn]: turnPotSize,
@@ -88,7 +89,7 @@ export default function ActionListReview({
                 visible={snackbarVisible}
                 onDismiss={() => setSnackbarVisible(false)}
                 duration={1000}>
-                {snackbarText}
+                Hand Copied! ✅
             </Snackbar>
             <View style={styles.subheaderContainer}>
                 <List.Subheader
@@ -123,7 +124,7 @@ export default function ActionListReview({
                     style={styles.subheaderIcon}
                 />
             </View>
-            {sortedStages.map((stage) => (
+            {sortedStages.map((stage: Stage) => (
                 <View key={`stage-container-${stage}`}>
                     <List.Subheader variant='bodyLarge' style={{
                         marginLeft: -10,
