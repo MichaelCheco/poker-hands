@@ -1,5 +1,6 @@
 TODOS:
 * debug KeyboardAvoidingView issue
+* fix state update with eff stack sz calc
 * Investigate starting stacks for blinds
 * bottom sheet for notes
 * side pots

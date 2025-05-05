@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, StyleSheet, FlatList } from 'react-native'; // Import View and StyleSheet
+import { View, StyleSheet, FlatList } from 'react-native';
 import { Icon, Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider } from 'react-native-paper';
 import PokerHandForm from '../../components/PokerHandForm';
 import Fab from '@/components/Fab';
@@ -15,12 +15,12 @@ export default function Index() {
   const router = useRouter();
 
   const [visible, setVisible] = React.useState(false);
-  const theme = useTheme(); // Get the theme object
+  const theme = useTheme();
   const containerStyle = {
     flex: 1,
     backgroundColor: '#FFF',
   };
-  // State for fetched hands
+
   const [savedHands, setSavedHands] = React.useState<SavedHandSummary[] | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<any>(null);
@@ -51,9 +51,7 @@ export default function Index() {
           // Load hands, show loading indicator only if savedHands is currently null (initial load)
           loadHands(savedHands === null);
 
-          // Optional: Cleanup function if needed (e.g., for subscriptions)
-          // return () => console.log('Index screen blurred');
-      }, []) // Depend on loadHands and savedHands to decide if loader shows
+      }, [])
   );
 
   function closeModal() {
@@ -65,7 +63,6 @@ export default function Index() {
     <List.Item
       title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind} • ${item.location}`}
       description={`${formatDateMMDDHHMM(item.played_at)}`}
-      // onPress={() => {/* Navigate to hand detail? */}}
       left={props => <List.Icon {...props} icon="cards-playing" />}
       onPress={() => {
         router.push(`${item.id}`)

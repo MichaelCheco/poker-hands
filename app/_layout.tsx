@@ -1,10 +1,8 @@
 import * as React from 'react'
 import { Stack } from "expo-router";
-import { MD3LightTheme as DefaultTheme, PaperProvider, Text } from 'react-native-paper';
+import { MD3LightTheme as DefaultTheme, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "@/utils/authContext";
-import { View } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const theme = {
   ...DefaultTheme,
@@ -39,6 +37,3 @@ export default function RootLayout() {
     </SafeAreaProvider>
   )
 }
-
-    //  headerBackButtonDisplayMode: "minimal",
-    //         headerTitle: ''

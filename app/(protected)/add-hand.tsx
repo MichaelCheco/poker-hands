@@ -4,7 +4,7 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo } from '@/types';
+import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
 import { calculateEffectiveStack} from '@/utils/hand_utils';
@@ -17,6 +17,7 @@ import { saveHandToSupabase } from '@/api/hands';
 import SuccessAnimation from '@/components/AnimatedSuccess';
 import { getLastAction, getPlayerAction, getUpdatedBettingInfo } from '@/utils/action_utils';
 import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_hand_reducer';
+import { assertIsDefined } from '@/utils/assert';
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
@@ -91,9 +92,9 @@ export default function App() {
                 betsThisStreet,
             } = state.current;
             const nextPlayerToActPos = preflopSequence ? preflopSequence[0].position : '';
-            const playerAction = getPlayerAction(nextPlayerToActPos, getLastAction(input), stage)
+            const playerAction = getPlayerAction(nextPlayerToActPos, getLastAction(input), stage, 0);
             const playerPos = playerAction.position;
-            const currentStack = state.current.stacks[playerAction.position];
+            const currentStack = state.current.stacks[playerAction.position] as number;
             const { newPlayerBetTotal } =
                 getUpdatedBettingInfo(betsThisStreet, currentBetFacing, currentStack, playerAction)
             const updatedBetsThisStreet = {
@@ -125,9 +126,9 @@ export default function App() {
                 return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
             }
 
-            const position = parts[0];
-            const action = parts[1];
-            const amount = parts.length > 2 ? parts[2] : null;
+            const position = parts[0] as Position;
+            const action = parts[1] as Decision;
+            const amount = parts.length > 2 ? Number(parts[2]) : 0;
 
             if (!VALID_POSITIONS.includes(position)) {
                 return {
@@ -145,6 +146,7 @@ export default function App() {
                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
             }
             if ((action === Decision.kRaise || action === Decision.kBet)) {
+                assertIsDefined(state.current.stacks[position]);
                 if (amount > state.current.stacks[position]) {
                     return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.current.stacks[position]}`, flagErrorToUser: parts.length > 2 };
                 }

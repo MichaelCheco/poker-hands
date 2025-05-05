@@ -12,6 +12,30 @@ export const initialAppState: GameAppState = {
     history: ImmutableStack.create<GameState>([getInitialGameState()]),
 };
 
+function calculateNewActionSequence(actionSequence: PlayerStatus[], nextPlayerToActIndex: number, decision: Decision, stack: number, actingPlayer: Position) {
+    let newActionSequence: PlayerStatus[] = [...actionSequence];
+    const remainingPlayers = [...actionSequence.slice(0, nextPlayerToActIndex), ...actionSequence.slice(nextPlayerToActIndex + 1)]
+    const addPlayerBack = decision !== Decision.kFold;
+    newActionSequence = [
+        ...remainingPlayers,
+        ...(addPlayerBack ? [{ position: actingPlayer, isAllIn: decision === Decision.kAllIn || stack === 0 }] : [])
+    ];
+    return newActionSequence;
+}
+function getIntermediatePreflopActionSequence(preflopSequence: PreflopStatus[] | undefined, playerAction: PlayerAction, stack: number) {
+    let intermediateList: PreflopStatus[] = [];
+    assertIsArray(preflopSequence);
+    const actionIndex = preflopSequence.findIndex(({ position }) => playerAction.position === position);
+    const p = preflopSequence[actionIndex];
+    intermediateList = [...preflopSequence.slice(actionIndex + 1)];
+    const isAllIn = playerAction.decision === Decision.kAllIn || stack === 0;
+    const addPlayerBack = playerAction.decision !== Decision.kFold && !isAllIn;
+    if (addPlayerBack) {
+        intermediateList.push({ ...p, hasActed: true })
+    }
+    return intermediateList;
+}
+
 export function createInitialAppState(state: GameAppState, gameInfo: HandSetupInfo) {
     const { position, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
     const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
@@ -61,83 +85,62 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 history: state.history,
             };
         case DispatchActionType.kAddAction: {
-            const currentGameState = state.current;
-            const nextPlayerToActIndex = currentGameState.actionSequence.findIndex(a => !a.isAllIn);
-            const playerToAct = currentGameState.actionSequence[nextPlayerToActIndex] as PlayerStatus
+            // input should validate action + more players left to act before getting here
+            const curr = state.current;
 
-            const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), state.current.stage, currentGameState.playerActions.length + 1)
-            // TODO, add this to transition?
-            if (hasActionBeenAddedAlready(state.current.playerActions, playerAction)) {
+            // 1. Get player info for the current action.
+            const nextPlayerToActIndex = curr.actionSequence.findIndex(a => !a.isAllIn);
+            const playerToAct = curr.actionSequence[nextPlayerToActIndex] as PlayerStatus;
+            const playerAction = getPlayerAction(playerToAct.position, getLastAction(action.payload.input), curr.stage, curr.playerActions.length + 1);
+            const actingPlayer = playerAction.position;
+            // TODO, add this to transition? MOVE THIS TO VALIDATION STEP
+            if (hasActionBeenAddedAlready(curr.playerActions, playerAction)) {
                 return {
-                    current: { ...state.current, input: action.payload.input },
+                    current: { ...curr, input: action.payload.input },
                     history: state.history,
                 };
             }
-
-            // Add new action to list of player actions
-            const newPlayerActions = [...state.current.playerActions, playerAction];
-
-            const actingPlayer = playerAction.position;
-            const currentStack = state.current.stacks[playerAction.position] as number;
-            // Calculate betting information updates (if applicable) based on new player action
+            
+            const currentStack = curr.stacks[actingPlayer] as number;
+            // 3. Calculate betting information updates based on new player action
             const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
-                getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, currentStack, playerAction);
+            getUpdatedBettingInfo(curr.betsThisStreet, curr.currentBetFacing, currentStack, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = newPlayerBetTotal;
-            playerAction.potSizeBefore = currentGameState.pot;
+            playerAction.potSizeBefore = curr.pot;
             playerAction.playerStackBefore = currentStack;
             // Calculate the player's new stack size
             const newStackSize = currentStack - amountToAdd;
-
+            
             playerAction.text = getMeaningfulTextToDisplay(
                 playerAction,
-                getNumBetsForStage(state.current.playerActions, state.current.stage),
-                state.current.stage);
-
-            let newActionSequence: PlayerStatus[] = [...state.current.actionSequence];
-            let intermediateList: PreflopStatus[] | undefined = state.current.stage === Stage.Preflop ? [] : undefined;
-            if (state.current.stage !== Stage.Preflop) {
-                const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex + 1)]
-                const addPlayerBack = playerAction.decision !== Decision.kFold;
-                const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
-                newActionSequence = [
-                    ...remainingPlayers,
-                    ...(addPlayerBack ? [{ position: actingPlayer, isAllIn }] : [])
-                ];
-            } else {
-                assertIsArray(currentGameState.preflopSequence);
-                const actionIndex = currentGameState.preflopSequence.findIndex(({ position }) => playerAction.position === position);
-                const p = currentGameState.preflopSequence[actionIndex];
-                intermediateList = [...currentGameState.preflopSequence.slice(actionIndex + 1)];
-                const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
-                const addPlayerBack = playerAction.decision !== Decision.kFold && !isAllIn;
-                if (addPlayerBack) {
-                    intermediateList.push({ ...p, hasActed: true })
-                }
-            }
-            // Pre-flop: Action sequence is handled differently, often based on who is left
-            // after the betting round, so we don't modify it here per-action.
-            // It gets recalculated during the transition from Preflop.
-            const addActionState: GameState = {
-                ...state.current,
-                input: action.payload.input,
-                playerActions: newPlayerActions,
-                actionSequence: newActionSequence,
-                preflopSequence: intermediateList,
-                pot: state.current.pot + amountToAdd,
-                currentBetFacing: newCurrentBetFacing,
-                betsThisStreet: {
-                    ...state.current.betsThisStreet,
-                    [actingPlayer]: newPlayerBetTotal,
-                },
+                getNumBetsForStage(curr.playerActions, curr.stage),
+                curr.stage);
+                
+                const addActionState: GameState = {
+                    ...state.current,
+                    input: action.payload.input,
+                    // 2. Add new action to list of player actions
+                    playerActions: [...curr.playerActions, playerAction],
+                    // 4. Update action sequence
+                    // Pre-flop: Action sequence is handled differently, often based on who is left
+                    // after the betting round, so we don't modify it here per-action.
+                    // It gets recalculated during the transition from Preflop.
+                    actionSequence: curr.stage !== Stage.Preflop ? calculateNewActionSequence(curr.actionSequence, nextPlayerToActIndex, playerAction.decision, newStackSize, actingPlayer) : [...curr.actionSequence],
+                    preflopSequence: curr.stage !== Stage.Preflop ? undefined : getIntermediatePreflopActionSequence(curr.preflopSequence, playerAction, newStackSize),
+                    pot: curr.pot + amountToAdd,
+                    currentBetFacing: newCurrentBetFacing,
+                    betsThisStreet: {
+                        ...curr.betsThisStreet,
+                        [actingPlayer]: newPlayerBetTotal,
+                    },
+                    stacks: {
+                        ...curr.stacks,
+                        [actingPlayer]: newStackSize,
+                    }
             };
 
-            // update player's stack size
-            addActionState.stacks = {
-                ...addActionState.stacks,
-                [actingPlayer]: newStackSize
-            };
-            const newHistory = state.history.push(currentGameState);
+            const newHistory = state.history.push(curr);
             const newStateAfterAdd = {
                 current: addActionState,
                 history: newHistory,
