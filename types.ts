@@ -58,6 +58,7 @@ export enum ActionType {
     kVillainCards,
 }
 
+export type PlayerStacks = Partial<Record<Position, number>>;
 export interface GameAppState {
     current: GameState;
     history: ImmutableStack<GameState>;
@@ -190,7 +191,7 @@ export interface GameState {
     deck: string[];
     betsThisStreet: { [key in Position]?: number };
     potForStreetMap: { [key in Stage]?: number };
-    stacks: { [key in Position]: number };
+    stacks: PlayerStacks;
     currentBetFacing: number;
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;

@@ -1,6 +1,7 @@
 import { numPlayersToActionSequenceList } from "@/constants";
-import { ActionTextToken, ActionType, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerStatus, PokerPlayerInput, Position, Stage, WinnerInfo } from "@/types";
+import { ActionType, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, Stage, WinnerInfo } from "@/types";
 import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, removeAfterLastComma } from "@/utils/action_utils";
+import { assertIsArray } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
 import { determinePokerWinnerManual } from "@/utils/hand_evaluator";
 import { formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
@@ -20,13 +21,14 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
         isAllIn: false,
     }));
     const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
+    const handAsArray = parsePokerHandString(upperCasedHand);
     const initialGameState: GameState = {
         ...state.current,
         actionSequence: initialSequence,
         preflopSequence: initialSequence.map(s => ({ ...s, hasActed: false })),
         pot: smallBlind + bigBlind,
-        hero: { position, hand: parsePokerHandString(upperCasedHand) },
-        deck: [...filterNewCardsFromDeck(parsePokerHandString(upperCasedHand), [...state.current.deck])],
+        hero: { position, hand: handAsArray },
+        deck: [...filterNewCardsFromDeck(handAsArray, [...state.current.deck])],
         playerActions: [],
         stage: Stage.Preflop,
         input: '',
@@ -76,7 +78,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             const newPlayerActions = [...state.current.playerActions, playerAction];
 
             const actingPlayer = playerAction.position;
-            const currentStack = state.current.stacks[playerAction.position];
+            const currentStack = state.current.stacks[playerAction.position] as number;
             // Calculate betting information updates (if applicable) based on new player action
             const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
                 getUpdatedBettingInfo(state.current.betsThisStreet, state.current.currentBetFacing, currentStack, playerAction);
@@ -93,7 +95,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 state.current.stage);
 
             let newActionSequence: PlayerStatus[] = [...state.current.actionSequence];
-            let intermediateList = state.current.stage === Stage.Preflop ? [] : undefined;
+            let intermediateList: PreflopStatus[] | undefined = state.current.stage === Stage.Preflop ? [] : undefined;
             if (state.current.stage !== Stage.Preflop) {
                 const remainingPlayers = [...state.current.actionSequence.slice(0, nextPlayerToActIndex), ...state.current.actionSequence.slice(nextPlayerToActIndex + 1)]
                 const addPlayerBack = playerAction.decision !== Decision.kFold;
@@ -103,6 +105,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     ...(addPlayerBack ? [{ position: actingPlayer, isAllIn }] : [])
                 ];
             } else {
+                assertIsArray(currentGameState.preflopSequence);
                 const actionIndex = currentGameState.preflopSequence.findIndex(({ position }) => playerAction.position === position);
                 const p = currentGameState.preflopSequence[actionIndex];
                 intermediateList = [...currentGameState.preflopSequence.slice(actionIndex + 1)];
@@ -110,7 +113,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 const addPlayerBack = playerAction.decision !== Decision.kFold && !isAllIn;
                 if (addPlayerBack) {
                     intermediateList.push({ ...p, hasActed: true })
-                    // hasActed
                 }
             }
             // Pre-flop: Action sequence is handled differently, often based on who is left
@@ -192,7 +194,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 // playerAction.id = getIdForPlayerAction(playerAction, ++currentGameState.playerActions.length);
                 playerAction.isLastActionForStage = initialStage !== nextStage;
                 const playerPos = playerAction.position;
-                const currentStack = state.current.stacks[playerAction.position];
+                const currentStack = state.current.stacks[playerAction.position] as number;
                 const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
                     getUpdatedBettingInfo(currentState.betsThisStreet, currentState.currentBetFacing, currentStack, playerAction)
                 playerAction.amount = newPlayerBetTotal;
