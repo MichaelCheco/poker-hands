@@ -1,4 +1,5 @@
 import { FieldValues } from "react-hook-form";
+import { ImmutableStack } from "./utils/immutable_stack";
 
 export type Suit = 's' | 'h' | 'd' | 'c';
 export type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14; // 10=T, 11=J, 12=Q, 13=K, 14=A
@@ -55,6 +56,11 @@ export enum ActionType {
     kCommunityCard,
     kActionSequence,
     kVillainCards,
+}
+
+export interface GameAppState {
+    current: GameState;
+    history: ImmutableStack<GameState>;
 }
 
 export enum Position {

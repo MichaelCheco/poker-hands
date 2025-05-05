@@ -1,5 +1,5 @@
 import { GameState, HandSetupInfo, SavedHandSummary } from "@/types";
-import { transFormCardsToFormattedString } from "@/utils/hand_utils";
+import { transFormCardsToFormattedString } from "@/utils/card_utils";
 import { supabase } from "@/utils/supabase";
 
 export async function getHandDetailsById(handId: string) {

@@ -4,10 +4,10 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo } from '@/types';
+import { ActionType, ActionTextToken, Decision, DispatchActionType, GameState, PlayerAction, Position, Stage, GameQueueItem, PlayerStatus, GameQueueItemType, PokerPlayerInput, WinnerInfo, HandSetupInfo, GameAppState } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
-import { convertRRSS_to_RSRS, formatCommunityCards, getInitialGameState, isSuit, moveFirstTwoToEnd, parseFlopString, parsePokerHandString, parseStackSizes, positionToRank, transFormCardsToFormattedString } from '@/utils/hand_utils';
+import { calculateEffectiveStack, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes} from '@/utils/hand_utils';
 import { determinePokerWinnerManual } from '@/utils/hand_evaluator';
 import { useTheme } from 'react-native-paper';
 import { ImmutableStack } from '@/utils/immutable_stack';
@@ -17,26 +17,8 @@ import { useNavigation } from '@react-navigation/native';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
 import SuccessAnimation from '@/components/AnimatedSuccess';
-
-interface GameAppState {
-    current: GameState;
-    history: ImmutableStack<GameState>;
-}
-
-function removeAfterLastComma(input: string): string {
-    const lastIndex = input.lastIndexOf(",");
-    return lastIndex !== -1 ? input.slice(0, lastIndex) : '';
-}
-
-function hasActionBeenAddedAlready(playerActions: PlayerAction[], currentAction: PlayerAction): boolean {
-    return playerActions.some(action => action.id === currentAction.id);
-}
-
-function getNumBetsForStage(playerActions: PlayerAction[], stage: Stage): number {
-    let numBets = playerActions.filter(a => a.stage === stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
-    numBets = stage === Stage.Preflop ? numBets + 1 : numBets;
-    return numBets;
-}
+import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from '@/utils/card_utils';
+import { getNewActionSequence, getNumBetsForStage, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, removeAfterLastComma } from '@/utils/action_utils';
 
 function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
@@ -305,27 +287,6 @@ function reducer(state: GameAppState, action: { type: DispatchActionType; payloa
         default:
             return state;
     }
-}
-
-function didAllInAndACallOccurOnStreet(playerActions: PlayerAction[]): boolean {
-    let allInIndex = playerActions.findIndex((action: PlayerAction) => action.decision === Decision.kAllIn);
-    if (allInIndex === -1) {
-        return false;
-    }
-    const decisions = Object.values(Decision).filter(d => d !== Decision.kFold);
-    return playerActions.slice(allInIndex + 1).some(((action: PlayerAction) => decisions.includes(action.decision)));
-
-}
-
-function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueItem[] {
-    return gameQueue.filter((item: GameQueueItem) => item.actionType !== ActionType.kActionSequence);
-}
-
-function AddVillainsToGameQueue(villains: Position[]): GameQueueItem[] {
-    const newQueueItems: GameQueueItem[] = villains.map(villain => ({ placeholder: `${villain}'s cards`, shouldTransitionAfterStep: false, actionType: ActionType.kVillainCards, position: villain }));
-    const sortedQueueItems = newQueueItems.sort((a, b) => positionToRank(a.position as Position) - positionToRank(b.position as Position));
-    sortedQueueItems[sortedQueueItems.length - 1].shouldTransitionAfterStep = true;
-    return sortedQueueItems;
 }
 
 const initialAppState: GameAppState = {
@@ -630,183 +591,9 @@ export default function App() {
     );
 }
 
-
-function isMuck(text: string): boolean {
-    return text.toLowerCase().trim() === "muck";
-}
-
-function calculateEffectiveStack(
-    positionsLeft: string[],
-    stacks: { [position: string]: number }
-): number {
-    // 1. Map the list of positions directly to their stack sizes
-    //    (Assumes every position exists in stacks and the value is a number)
-    const relevantStacks = positionsLeft.map(position => stacks[position]);
-    // 2. Find the minimum value among those stack sizes
-    //    Math.min() returns Infinity if relevantStacks is empty (shouldn't happen if positionsLeft isn't empty)
-    //    Math.min() returns NaN if any value in relevantStacks is not a number (e.g., undefined from a bad lookup)
-    const effectiveStack = Math.min(...relevantStacks);
-
-    return effectiveStack;
-}
-
-
 function getPlayerAction(playerToAct: string, mostRecentActionText: string, stage: Stage, len: number): PlayerAction {
     const actionInfo = parseAction(mostRecentActionText, playerToAct);
     return buildBasePlayerAction(actionInfo, stage, len);
-}
-
-function getUpdatedBettingInfo(
-    betsThisStreet: { [key in Position]?: number },
-    currentBetFacing: number,
-    playerStack: number,
-    playerAction: PlayerAction) {
-    const actingPlayer = playerAction.position;
-    // How much player already bet this street
-    const alreadyBet = betsThisStreet[actingPlayer] || 0;
-    // How much is ACTUALLY added to the pot by THIS action
-    let amountToAdd = 0;
-    // Player's new total bet this street
-    let newPlayerBetTotal = alreadyBet;
-    // The bet level facing others
-    let newCurrentBetFacing = currentBetFacing;
-
-    switch (playerAction.decision) {
-        case Decision.kBet:
-            // Assumes first bet on the street, 'alreadyBet' should be 0
-            amountToAdd = playerAction.amount;
-            newPlayerBetTotal = playerAction.amount;
-            newCurrentBetFacing = playerAction.amount;
-            break;
-
-        case Decision.kRaise:
-            // Amount to add is the raise amount MINUS what was already bet
-            // Example: Raise to 60, already bet 20. Add 40.
-            amountToAdd = playerAction.amount - alreadyBet;
-            // Their total commitment is now the raise amount
-            newPlayerBetTotal = playerAction.amount;
-            // This sets the new bet level
-            newCurrentBetFacing = playerAction.amount;
-            break;
-
-        case Decision.kCall:
-            // Amount to add is the current bet level MINUS what was already bet
-            // Example: Facing 60, already bet 20. Add 40.
-            amountToAdd = currentBetFacing - alreadyBet;
-            // Ensure amountToAdd isn't negative if something went wrong
-            amountToAdd = Math.max(0, amountToAdd);
-            // Handle all-ins: if amountToAdd > player's remaining stack, adjust amountToAdd
-            amountToAdd = Math.min(amountToAdd, playerStack);
-
-            // Their total commitment matches the facing bet
-            newPlayerBetTotal = alreadyBet + amountToAdd;
-            break;
-        case Decision.kAllIn:
-            // Calculate how much more is going in NOW compared to what's already bet
-            const amountGoingInNow = playerStack - alreadyBet;
-            amountToAdd = Math.max(0, amountGoingInNow); // Ensure non-negative
-
-            // Player's total commitment this street after the all-in
-            newPlayerBetTotal = alreadyBet + amountToAdd;
-            // The bet level facing others is the MAX of the previous facing bet
-            // and the total amount this player just committed.
-            newCurrentBetFacing = Math.max(currentBetFacing, newPlayerBetTotal);
-            break;
-        case Decision.kCheck:
-        case Decision.kFold:
-            amountToAdd = 0;
-            break;
-    }
-    return { amountToAdd, newPlayerBetTotal, newCurrentBetFacing };
-}
-
-/**
- * Calculates the sequence of players for the *next* betting round based on actions from the completed stage.
- * It filters for players who did not fold in the given stage, sorts them by position rank,
- * and returns a unique list of their positions in that order.
- *
- * @param stage The stage that just completed (e.g., Stage.Flop to determine Turn sequence).
- * @param playerActions The list of all actions recorded so far.
- * @returns An ordered array of unique positions for the next round of action.
- */
-function getNewActionSequence(stage: Stage, playerActions: PlayerAction[], sequence: PlayerStatus[]): PlayerStatus[] {
-    // 1. Filter actions for the relevant stage and remove players who folded
-    const foldedOutPlayers = playerActions.filter(action => action.stage === stage && action.decision === Decision.kFold).map(a => a.position);
-
-    const activeActions = playerActions
-        .filter(action => action.stage === stage && action.decision !== Decision.kFold);
-    const filteredActiveActions = activeActions.filter(a => !foldedOutPlayers.includes(a.position));
-    const allInPlayers = sequence.filter(s => s.isAllIn);
-    const allInPlayersPositions = allInPlayers.map(s => s.position);
-
-    const positions: PlayerStatus[] = [...allInPlayers, ...filteredActiveActions.map(action => ({ position: action.position, isAllIn: allInPlayersPositions.includes(action.position) }))];
-    const uniquePositionsSet = new Set<string>();
-    const uniquePositions: PlayerStatus[] = [];
-    positions.forEach(p => {
-        if (!uniquePositionsSet.has(p.position)) {
-            uniquePositionsSet.add(p.position);
-            uniquePositions.push(p);
-        }
-    })
-    return uniquePositions.sort((a, b) => positionToRank(a.position) - positionToRank(b.position));
-}
-
-function createPlayerActionForAutoFoldedPlayer(position: Position): PlayerAction {
-    return {
-        amount: 0,
-        decision: Decision.kFold,
-        position,
-        shouldHideFromUi: true,
-        isLastActionForStage: false,
-        text: `${position} folds`,
-        stage: Stage.Preflop,
-        id: '',
-    };
-}
-
-function getPlayerActionsWithAutoFolds(actionSequence: Position[], playerActions: PlayerAction[]) {
-    let index = -1;
-    const newSequence = actionSequence.map((player) => {
-        const foundIndex = playerActions.findIndex(action => action.position == player);
-        index = foundIndex === -1 ? index : foundIndex;
-        return foundIndex !== -1 ? playerActions[foundIndex] : createPlayerActionForAutoFoldedPlayer(player);
-    });
-    if (index !== playerActions.length - 1) {
-        return [...newSequence, ...playerActions.slice(index + 1)];
-    }
-    return newSequence;
-}
-
-function formatHeroHand(hero: { position: string, hand: string }): PokerPlayerInput {
-    return {
-        playerId: hero.position,
-        holeCards: [hero.hand.slice(0, 2), hero.hand.slice(2)]
-    }
-}
-
-function getVillainCards(inputCards: string, playerId: Position): PokerPlayerInput {
-    const thirdCard = inputCards[2];
-    const formattedCards = transFormCardsToFormattedString(isSuit(thirdCard) ? convertRRSS_to_RSRS(inputCards) : inputCards);
-    const card1 = formattedCards.slice(0, 2);
-    const card2 = formattedCards.slice(2);
-    return { playerId, holeCards: [card1, card2] }
-}
-
-function getCards(communityCards: string[], currentDeck: string[], newCards: string) {
-    const EMPTY_CARD = '';
-    let deckToPickFrom = currentDeck;
-    let cardsToAdd: string[] = newCards.length > 2 ? parseFlopString(newCards) : [newCards]
-    for (let i = 0; i < communityCards.length; i++) {
-        if (communityCards[i] === EMPTY_CARD) {
-            const newCard = getSuitForCard(cardsToAdd.shift() as string, deckToPickFrom);
-            deckToPickFrom = filterNewCardsFromDeck(newCard, deckToPickFrom);
-            communityCards[i] = newCard;
-            if (cardsToAdd.length === 0) {
-                return communityCards;
-            }
-        }
-    }
-    return communityCards.map(c => `${c[0].toUpperCase()}${c[1].toLowerCase()}}`);
 }
 
 function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: number, stage: Stage): string {
@@ -832,26 +619,6 @@ function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: num
             return `${++numBetsThisStreet}-bets to ${amountStr}`;
         }
     }
-}
-
-// Used to pick a random suit for a card (Ax).
-function getRandomIndex(arrayLen: number): number {
-    return Math.floor(Math.random() * arrayLen);
-}
-
-const cardHasDefinedSuit = (card: string) => card.charAt(1) !== "X";
-function getSuitForCard(card: string, currDeck: string[]): string {
-    if (card.length !== 2) {
-        console.error("Invalid card: ", card);
-        return '';
-    }
-
-    if (cardHasDefinedSuit(card)) {
-        return card;
-    }
-
-    const cardsInDeck = currDeck.filter(c => c.charAt(0) === card.charAt(0));
-    return cardsInDeck[getRandomIndex(cardsInDeck.length)]
 }
 
 function getIdForPlayerAction(action: PlayerAction, len: number): string {
@@ -918,20 +685,6 @@ function parseActionString(actionString: string, currentPosition: Position): Act
 function parseAction(action: string, currentPosition: string): ActionTextToken {
     return parseActionString(action, currentPosition as Position);
 }
-
-function filterNewCardsFromDeck(newCards: string | string[], currDeck: string[]): string[] {
-    const cards = typeof newCards === "string" ? extractCards(newCards.toUpperCase()) : newCards;
-    return currDeck.filter(card => !cards.includes(card))
-}
-
-function extractCards(str: string): string[] {
-    const result = [];
-    for (let i = 0; i < str.length; i += 2) {
-        result.push(str.substring(i, i + 2));
-    }
-    return result;
-}
-
 
 const styles = StyleSheet.create({
     button: {
