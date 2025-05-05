@@ -1,6 +1,7 @@
 TODOS:
 * debug KeyboardAvoidingView issue
 * fix state update with eff stack sz calc
+* fix all in and a call to collect villain's cards
 * Investigate starting stacks for blinds
 * bottom sheet for notes
 * side pots
