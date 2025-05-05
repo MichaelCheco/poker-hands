@@ -1,4 +1,4 @@
-import { Decision, PlayerAction, PlayerStatus, Position, Stage } from "@/types";
+import { ActionTextToken, Decision, PlayerAction, PlayerStatus, Position, Stage } from "@/types";
 
 /**
  * Calculates the sequence of players for the *next* betting round based on actions from the completed stage.
@@ -145,4 +145,60 @@ export function getNumBetsForStage(playerActions: PlayerAction[], stage: Stage):
     let numBets = playerActions.filter(a => a.stage === stage && (a.decision === Decision.kBet || a.decision === Decision.kRaise)).length;
     numBets = stage === Stage.Preflop ? numBets + 1 : numBets;
     return numBets;
+}
+
+
+function getIdForPlayerAction(action: PlayerAction, len: number): string {
+    return `${action.position}-${action.decision}-${action.amount}-${action.stage}-${len}`;
+}
+function parseActionString(actionString: string, currentPosition: Position): ActionTextToken {
+    const tokens = actionString.split(' ');
+    let position: Position;
+    // todo remove this default value
+    let decision: Decision = Decision.kCheck;
+    let amount = 0;
+
+    let tokenIndex = 0;
+
+    if (Object.values(Position).includes(tokens[tokenIndex] as Position)) {
+        position = tokens[tokenIndex] as Position;
+        tokenIndex++;
+    } else {
+        position = currentPosition;
+    }
+
+    if (tokens[tokenIndex] && Object.values(Decision).includes(tokens[tokenIndex] as Decision)) {
+        decision = tokens[tokenIndex] as Decision;
+        tokenIndex++;
+    }
+
+    if (tokens[tokenIndex] && !isNaN(parseInt(tokens[tokenIndex], 10))) {
+        amount = parseInt(tokens[tokenIndex], 10);
+        tokenIndex++;
+    }
+
+    return {
+        decision,
+        position,
+        amount,
+    };
+}
+export function getPlayerAction(playerToAct: string, mostRecentActionText: string, stage: Stage, len: number): PlayerAction {
+    const actionInfo = parseAction(mostRecentActionText, playerToAct);
+    return buildBasePlayerAction(actionInfo, stage, len);
+}
+export function getLastAction(newVal: string): string {
+    const actions: string[] = newVal.split(',').filter(Boolean);
+    const lastAction = actions.pop() as string;
+    const text = lastAction?.endsWith('.') ? lastAction.slice(0, -1) : lastAction;
+    return text.trim().toUpperCase();
+}
+function buildBasePlayerAction(actionInfo: ActionTextToken, stage: Stage, len: number): PlayerAction {
+    const action: PlayerAction = { text: '', stage, isLastActionForStage: false, shouldHideFromUi: false, ...actionInfo, id: '' };
+    action.id = getIdForPlayerAction(action, len);
+    return action;
+}
+
+function parseAction(action: string, currentPosition: string): ActionTextToken {
+    return parseActionString(action, currentPosition as Position);
 }
