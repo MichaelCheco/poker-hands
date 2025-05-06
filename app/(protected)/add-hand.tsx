@@ -18,6 +18,7 @@ import SuccessAnimation from '@/components/AnimatedSuccess';
 import { getLastAction, getPlayerAction, getUpdatedBettingInfo } from '@/utils/action_utils';
 import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_hand_reducer';
 import { assertIsDefined } from '@/utils/assert';
+import AnimatedInstructionText from '@/components/AnimatedInstructionText';
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
@@ -189,7 +190,21 @@ export default function App() {
             dispatch({ type: DispatchActionType.kUndo, payload: {} });
         }
     };
-    return (
+
+    const computePlaceholderText = () => { 
+        if (inputError) {
+            return inputError;
+        }
+        switch (state.current.currentAction.id) {
+            case GameQueueItemType.kFlopAction: {
+                return `${state.current.actionSequence[0].position} to act`
+            }
+            default:
+                return state.current.currentAction?.placeholder;
+        }
+
+    };
+     return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             {isLoading && (
                 <View style={styles.successContainer}>
@@ -230,7 +245,11 @@ export default function App() {
                 </ScrollView>
                 {state.current.stage !== Stage.Showdown && (
                     <SafeAreaView style={[styles.inputContainer]}>
-                        <Text variant='labelLarge' style={styles.instructionText}>{inputError ? inputError : (state.current.currentAction?.placeholder || 'Enter value...')}</Text>
+                         <AnimatedInstructionText
+                             text={computePlaceholderText()}
+                             style={styles.instructionText}
+                             variant="labelLarge"
+                         />
                         <TextInput
                             mode="outlined"
                             placeholderTextColor={inputError ? theme.colors.error : undefined} // Make error placeholder red (optional)
