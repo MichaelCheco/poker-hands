@@ -93,6 +93,10 @@ export default function App() {
         }
         const segment = ((input.endsWith('.') || input.endsWith(',')) ? input.slice(0, -1) : input).toUpperCase().trim();
         if (segment.length < 2) {
+            if (!isInputValid(segment)) {
+                return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
+
+            }
             return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
         }
         switch (state.current.currentAction.id) {
