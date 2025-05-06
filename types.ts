@@ -140,6 +140,7 @@ export interface ShowdownDetails {
 export interface PlayerStatus {
     position: Position;
     isAllIn: boolean;
+    hasToAct: boolean;
 }
 
 export interface PreflopStatus {
@@ -247,3 +248,14 @@ export interface DetailedHandData {
     showdown_hands: ShowdownHandRecord[];
     community_cards: string[];
 }
+
+export interface ValidationResult {
+    isValid: boolean;
+    flagErrorToUser?: boolean;
+    error?: string; // The specific error message if isValid is false
+}
+
+export type ValidationFunction = (
+    inputValue: string,
+    currentState: GameState
+) => ValidationResult;

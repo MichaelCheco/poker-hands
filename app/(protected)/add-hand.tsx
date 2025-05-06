@@ -4,10 +4,10 @@ import { Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType } from '@/types';
+import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
-import { calculateEffectiveStack} from '@/utils/hand_utils';
+import { calculateEffectiveStack, decisionToText} from '@/utils/hand_utils';
 import { useTheme } from 'react-native-paper';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,10 +15,21 @@ import { useNavigation } from '@react-navigation/native';
 import HeroHandInfo from '@/components/HeroHandInfo';
 import { saveHandToSupabase } from '@/api/hands';
 import SuccessAnimation from '@/components/AnimatedSuccess';
-import { getLastAction, getPlayerAction, getUpdatedBettingInfo } from '@/utils/action_utils';
+import { getLastAction, getPlayerAction, getUpdatedBettingInfo, isAggressiveAction, isPassiveAction } from '@/utils/action_utils';
 import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_hand_reducer';
 import { assertIsDefined } from '@/utils/assert';
 import AnimatedInstructionText from '@/components/AnimatedInstructionText';
+import { isValid } from 'date-fns';
+
+function getPartsFromSegment(segment: string): string[] {
+    return segment.split(' ').map(p => p.trim()).filter(p => p !== '')
+}
+
+function getSegment(inputValue: string) {
+    return ((inputValue.endsWith('.') || inputValue.endsWith(',')) ? inputValue.slice(0, -1) : inputValue).toUpperCase().trim();
+}
+const isAlphanumeric = /^[a-zA-Z0-9]+$/;
+const disallowedChars = /[deikmnpqvwyzDEIKMNPQVWYZ]/;
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
@@ -38,6 +49,7 @@ export default function App() {
     const router = useRouter();
     const scrollViewRef = useRef<ScrollView>(null);
     const VALID_POSITIONS = numPlayersToActionSequenceList[gameInfo.numPlayers];
+    const VALID_POS_STARTS = VALID_POSITIONS.map(p => p[0]);
     const VALID_ACTIONS = Object.values(Decision);
 
     // Effects
@@ -71,96 +83,189 @@ export default function App() {
         }
     }, [state.current.playerActions.length]);
 
-    const isInputValid = useCallback((input: string) => {
-
-        const isAlphanumeric = /^[a-zA-Z0-9]+$/;
-        const disallowedChars = /[deikmnpqvwyzDEIKMNPQVWYZ]/;
-        return isAlphanumeric.test(input) && !disallowedChars.test(input);
-
-    }, []);
-
-    const validateSegment = useCallback((input: string) => { 
-        // todo add handling for all inputs
-        if (state.current.stage !== Stage.Preflop) {
-            return { isValid: true };
+    const validateInputCharacters: ValidationFunction = (input) => {
+        const text = getSegment(input).split(' ').join('').trim();
+        if (!(isAlphanumeric.test(text) && !disallowedChars.test(text))) {
+            return {
+                isValid: false,
+                error: `Invalid character detected`,
+            };
         }
-        if (!input || input.trim() === '') {
-            return { isValid: true };
+        return { isValid: true };
+    }
+
+    const validatePosition: ValidationFunction = (input) => {
+        const parts = getPartsFromSegment(getSegment(input));
+        const position = parts[0] as Position;
+        // console.log('in validate position with ', parts, position)
+        if (position.length < 2) {
+            if (!VALID_POS_STARTS.includes(position)) {
+                return {
+                    isValid: false,
+                    error: `Invalid position: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
+                };
+            }
+            return {isValid: true}
         }
-        if (input.trim() === ',' || input.trim() === '.') {
+        if (!VALID_POSITIONS.includes(position)) {
+            return {
+                isValid: false,
+                error: `Invalid position: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
+            };
+        }
+        return { isValid: true };
+    }
+    // function validateAction(input): ValidationFunction {
+
+    // }
+    const validateAction: ValidationFunction = (input) => {
+        const parts = getPartsFromSegment(getSegment(input));
+        const action = parts[1] as Decision;
+        if (!action) {
+            return {isValid: true}
+        }
+        // should this be conditionally added based on # of parts?
+        if (!VALID_ACTIONS.includes(action)) {
+            return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})` };
+        }
+        return { isValid: true }
+    } 
+    // function validateAmount(input): ValidationFunction {
+
+    // }
+
+    const validateAmount: ValidationFunction = (input, state) => {
+        const segment = getSegment(input)
+
+        const parts = getPartsFromSegment(segment);
+        const nextPlayerToActPos = state.stage === Stage.Preflop
+            ? parts[0]
+            : state.actionSequence[0].position;
+
+        const playerAction = getPlayerAction(nextPlayerToActPos, segment, state.stage, 0);
+        const action = playerAction.decision;
+        const position = playerAction.position;
+        const amount = playerAction.amount;
+        // change default to null to prevent "Co r 0"
+        if (amount === 0) {
+            return {isValid: true}
+        }
+        console.log(
+            `validateAmount:
+             - action ${action}
+             - pos ${position}
+             - amount ${amount}
+            `
+        )
+        if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
+            return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}`};
+        }
+        if ((action === Decision.kRaise || action === Decision.kBet)) {
+            assertIsDefined(state.stacks[position]);
+            if (amount > state.stacks[position]) {
+                return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.stacks[position]}`};
+            }
+        }
+        if ((action === Decision.kCall || action === Decision.kFold) && amount) {
+            return { isValid: false, error: `Amount not allowed for action` };
+        }
+        return { isValid: true }
+    }
+
+    // function 
+    const validateSegment1: ValidationFunction = (input) => {
+        const segment = getSegment(input)
+        if (segment.trim() === ',' || segment.trim() === '.') {
             return { isValid: false, error: `Incomplete segment`, flagErrorToUser: true };
-
         }
-        const segment = ((input.endsWith('.') || input.endsWith(',')) ? input.slice(0, -1) : input).toUpperCase().trim();
-        if (segment.length < 2) {
-            if (!isInputValid(segment)) {
-                return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
+        return {isValid: true};
+    }
 
+    const validateAggressiveActionNotEndingWithPeriod: ValidationFunction = (input, state) => {
+        const endsWithPeriod = input.endsWith('.');
+        const segment = getSegment(input)
+        const parts = getPartsFromSegment(segment);
+        const nextPlayerToActPos = state.stage === Stage.Preflop
+            ? parts[0]
+            : state.actionSequence[0].position;
+        const playerAction = getPlayerAction(nextPlayerToActPos, segment, state.stage, 0);
+
+        if (isAggressiveAction(playerAction.decision) && endsWithPeriod) {
+            return {
+                isValid: false,
+                error: `Cannot end with '.' after a ${decisionToText(playerAction.decision)}. Others must act.`
+            };
+        }
+        return { isValid: true };
+    };
+
+    // Example: Validate non-aggressive closing action ends with a period
+    const validateNonAggressiveClosingActionRequiresPeriod: ValidationFunction = (input, state) => {
+        return { isValid: true };
+
+        const endsWithPeriod = input.endsWith('.');
+        const segment = getSegment(input)
+        const parts = getPartsFromSegment(segment);
+        const nextPlayerToActPos = state.stage === Stage.Preflop
+            ? parts[0]
+            : state.actionSequence[0].position;
+        const playerAction = getPlayerAction(nextPlayerToActPos, segment, state.stage, 0);
+        // isRoundOver(currentState, actionDetails) todo implement this
+        if (isPassiveAction(playerAction.decision) && !endsWithPeriod) {
+            return {
+                isValid: false,
+                error: "This action closes the round. Please end with '.' to proceed."
+            };
+        }
+        return { isValid: true };
+    };
+
+
+    // fix preflop validation to require position
+    const validationPipeline: ValidationFunction[] = [
+        // validateNotEmpty,
+        validateSegment1,
+        // validateSegmentFormat,
+        validatePosition,
+        validateAction,
+        validateAmount,
+        validateInputCharacters,
+        validateAggressiveActionNotEndingWithPeriod,
+        validateNonAggressiveClosingActionRequiresPeriod,
+        // ... add more validation functions in the desired order
+    ];
+
+    function processAndValidateInput(
+        inputValue: string,
+        currentState: GameState
+    ): ValidationResult {
+        if (!inputValue || inputValue.trim() === '') {
+            return { isValid: true };
+        }
+        const segment = ((inputValue.endsWith('.') || inputValue.endsWith(',')) ? inputValue.slice(0, -1) : inputValue).toUpperCase().trim();
+        console.log(segment)
+        for (const validationFn of validationPipeline) {
+            const result = validationFn(inputValue, currentState);
+            if (!result.isValid) {
+                return result; // Return the first error encountered
             }
-            return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
         }
-        switch (state.current.currentAction.id) {
-            case GameQueueItemType.kPreflopAction: {
-                const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
-                
-                if (parts.some(part => !isInputValid(part))) {
-                    return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
-                }
-
-                const position = parts[0] as Position;
-                const action = parts[1] as Decision;
-                const amount = parts.length > 2 ? Number(parts[2]) : 0;
-
-                if (!VALID_POSITIONS.includes(position)) {
-                    return {
-                        isValid: false,
-                        error: `Invalid Pos: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
-                        flagErrorToUser: true
-                    };
-                }
-                if (!VALID_ACTIONS.includes(action)) {
-                    return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
-                }
-
-                // TODO handle multiple raises
-                if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
-                    return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
-                }
-                if ((action === Decision.kRaise || action === Decision.kBet)) {
-                    assertIsDefined(state.current.stacks[position]);
-                    if (amount > state.current.stacks[position]) {
-                        return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.current.stacks[position]}`, flagErrorToUser: parts.length > 2 };
-                    }
-                }
-                if ((action === Decision.kCall || action === Decision.kFold) && amount) {
-                    return { isValid: false, error: `Amount not allowed for ${action} in segment "${segment}"`, flagErrorToUser: true };
-                }
-            }
-            default:
-                console.log('in default case')
-                return { isValid: true };
-        }
-    }, [[state.current.playerActions?.length]]);
-
+        return { isValid: true }; // All validations passed
+    }
     const handleInputChange = (text: string) => {
-        // console.log('in handleInputChange with, ', text, ' : ', text.length)
-
         // ignore extra characters typed when error is present.
-        if (inputError && text > inputValue) {
-            return;
-        }
+        // if (inputError && text > inputValue) {
+        //     return;
+        // }
 
-        // check ordering here
         setInputValue(text)
-        let result = validateSegment(text);
-        if (result.isValid && inputError || (inputError && !result.flagErrorToUser)) {
-            setInputError('');
-        }
-        if (result.error && result.flagErrorToUser && !result.isValid) {
-            setInputError(result.error);
-        }
+        const result = processAndValidateInput(text, state.current);
         if (!result.isValid) {
+            assertIsDefined(result.error);
+            setInputError(result.error); // Set the specific error message
             return;
+        } else {
+            setInputError(''); // Clear error if the whole string is now valid
         }
 
         let type: DispatchActionType;
@@ -327,6 +432,149 @@ const styles = StyleSheet.create({
         padding: 20,
     },
 });
+
+
+// Example: Validate that input is not empty
+// const validateNotEmpty: ValidationFunction = (input) => {
+//     if (!input || input.trim() === '') {
+//         return { isValid: false, error: 'Input cannot be empty.' };
+//     }
+//     return { isValid: true };
+// };
+
+// // Example: Validate segment format (very simplified)
+// const validateSegmentFormat: ValidationFunction = (input) => {
+//     const segments = input.split(',').map(s => s.trim());
+//     for (const segment of segments) {
+//         const parts = segment.split(' ').filter(p => p);
+//         if (parts.length < 2 || parts.length > 3) {
+//             return { isValid: false, error: `Invalid format in segment: "${segment}"` };
+//         }
+//     }
+//     return { isValid: true };
+// };
+
+// Example: Validate no aggressive action ends with a period
+// const validateAggressiveActionNotEndingWithPeriod: ValidationFunction = (input, currentState) => {
+//     const lastSegment = input.split(',').pop()?.trim() || '';
+//     const endsWithPeriod = lastSegment.endsWith('.');
+
+//     // Simplified logic: Assume isAggressiveAction(action, currentState) exists
+//     // and getLastActionFromSegment(lastSegment) exists
+//     const actionDetails = getLastActionFromSegment(lastSegment); // You'd need to implement this
+
+//     if (actionDetails && isAggressiveAction(actionDetails.action, currentState) && endsWithPeriod) {
+//         return {
+//             isValid: false,
+//             error: "Cannot end with '.' after a bet/raise/all-in. Others must act."
+//         };
+//     }
+//     return { isValid: true };
+// };
+
+// Example: Validate non-aggressive closing action ends with a period
+// const validateNonAggressiveClosingActionRequiresPeriod: ValidationFunction = (input, currentState) => {
+//     const lastSegment = input.split(',').pop()?.trim() || '';
+//     const endsWithPeriod = lastSegment.endsWith('.');
+
+//     // Simplified logic: Assume isClosingNonAggressiveAction(action, currentState) exists
+//     // and isRoundOver(currentState, lastActionDetails) exists
+//     const actionDetails = getLastActionFromSegment(lastSegment); // You'd need to implement this
+
+//     if (actionDetails &&
+//         isClosingNonAggressiveAction(actionDetails.action, currentState) &&
+//         isRoundOver(currentState, actionDetails) &&
+//         !endsWithPeriod) {
+//         return {
+//             isValid: false,
+//             error: "This action closes the round. Please end with '.' to proceed."
+//         };
+//     }
+//     return { isValid: true };
+// };
+
+
+// const validateSegment = useCallback((input: string) => {
+//     // todo add handling for all inputs
+//     if (state.current.stage !== Stage.Preflop) {
+//         return { isValid: true };
+//     }
+//     const validationSteps = [];
+//     if (!input || input.trim() === '') {
+//         return { isValid: true };
+//     }
+//     if (input.trim() === ',' || input.trim() === '.') {
+//         return { isValid: false, error: `Incomplete segment`, flagErrorToUser: true };
+//     }
+//     // const nextPlayerToActPos = state.current.stage === Stage.Preflop ? preflopSequence[0].position : preflopSequence ? preflopSequence[0].position : ''
+//     // const playerAction = getPlayerAction(nextPlayerToActPos, getLastAction(input), stage, 0);
+
+//     const segment = ((input.endsWith('.') || input.endsWith(',')) ? input.slice(0, -1) : input).toUpperCase().trim();
+//     if (segment.length < 2) {
+//         if (!isInputValid(segment)) {
+//             return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
+
+//         }
+//         return { isValid: false, error: `Incomplete segment: "${segment}"`, flagErrorToUser: false };
+//     }
+//     switch (state.current.currentAction.id) {
+//         case GameQueueItemType.kPreflopAction: {
+//             const parts = segment.split(' ').map(p => p.trim()).filter(p => p !== '');
+
+//             if (parts.some(part => !isInputValid(part))) {
+//                 return { isValid: false, error: `Invalid character detected`, flagErrorToUser: true };
+//             }
+
+//             const position = parts[0] as Position;
+//             const action = parts[1] as Decision;
+//             const amount = parts.length > 2 ? Number(parts[2]) : 0;
+//             if (input.endsWith('.') && isAggressiveAction(action)) {
+//                 return {
+//                     isValid: false,
+//                     error: `Cannot end with '.' after a ${action}. Other players must act first.`,
+//                     flagErrorToUser: true
+//                 };
+//             }
+
+//             if (input.endsWith(',') && isPassiveAction(action)) {
+//                 return {
+//                     isValid: false,
+//                     error: `This action closes the round.Please end with '.' to proceed.`,
+//                     flagErrorToUser: true
+//                 };
+//             }
+
+//             // This action closes the round.Please end with '.' to proceed.
+//             if (!VALID_POSITIONS.includes(position)) {
+//                 return {
+//                     isValid: false,
+//                     error: `Invalid Pos: "${position}", (Valid: ${VALID_POSITIONS.join(', ')})`,
+//                     flagErrorToUser: true
+//                 };
+//             }
+//             if (!VALID_ACTIONS.includes(action)) {
+//                 return { isValid: false, error: `Invalid action: "${action}", (Valid: ${VALID_ACTIONS.map(a => a.toLowerCase()).join(', ')})`, flagErrorToUser: parts.length >= 2 };
+//             }
+
+//             // TODO handle multiple raises
+//             if ((action === Decision.kRaise || action === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
+//                 return { isValid: false, error: `Invalid amount for ${action}: "${amount || ''}" in segment "${segment}"`, flagErrorToUser: parts.length > 2 };
+//             }
+//             if ((action === Decision.kRaise || action === Decision.kBet)) {
+//                 assertIsDefined(state.current.stacks[position]);
+//                 if (amount > state.current.stacks[position]) {
+//                     return { isValid: false, error: `Invalid amount for ${position}. Stack: ${state.current.stacks[position]}`, flagErrorToUser: parts.length > 2 };
+//                 }
+//             }
+//             if ((action === Decision.kCall || action === Decision.kFold) && amount) {
+//                 return { isValid: false, error: `Amount not allowed for ${action} in segment "${segment}"`, flagErrorToUser: true };
+//             }
+//         }
+//         default:
+//             console.log('in default case')
+//             return { isValid: true };
+//     }
+// }, [[state.current.playerActions?.length]]);
 
 // wip preflop validation
 // if (input.endsWith('.')) {

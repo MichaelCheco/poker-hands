@@ -183,6 +183,15 @@ function parseActionString(actionString: string, currentPosition: Position): Act
         amount,
     };
 }
+
+export function isAggressiveAction(decision: Decision): boolean {
+    return [Decision.kBet, Decision.kRaise, Decision.kAllIn].includes(decision);
+}
+
+export function isPassiveAction(decision: Decision): boolean {
+    return [Decision.kCall, Decision.kFold, Decision.kCheck].includes(decision);
+}
+
 export function getPlayerAction(playerToAct: string, mostRecentActionText: string, stage: Stage, len: number): PlayerAction {
     const actionInfo = parseAction(mostRecentActionText, playerToAct);
     return buildBasePlayerAction(actionInfo, stage, len);

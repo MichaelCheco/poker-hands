@@ -40,17 +40,16 @@ function getTextSummaryForLastStage(actionList: ActionRecord[]): string {
     return `${text}.`
 }
 
-function decisionToText(decision: Decision): string {
+export function decisionToText(decision: Decision): string {
     switch (decision) {
         case Decision.kCheck: return 'checked';
         case Decision.kBet: return 'bet';
         case Decision.kCall: return 'called';
         case Decision.kFold: return 'folded';
         case Decision.kRaise: return 'raised';
+        case Decision.kAllIn: return 'all-in';
     }
 }
-
-
 
 /**
  * Formats a date into MM/DD hh:mm a format (e.g., 04/26 01:41 PM).

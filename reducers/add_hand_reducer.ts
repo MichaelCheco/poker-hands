@@ -1,10 +1,10 @@
 import { numPlayersToActionSequenceList } from "@/constants";
 import { ActionType, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, Stage, WinnerInfo } from "@/types";
-import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, removeAfterLastComma } from "@/utils/action_utils";
+import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, isAggressiveAction, removeAfterLastComma } from "@/utils/action_utils";
 import { assertIsArray } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
 import { determinePokerWinnerManual } from "@/utils/hand_evaluator";
-import { formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
+import { decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
 import { ImmutableStack } from "@/utils/immutable_stack";
 
 export const initialAppState: GameAppState = {
@@ -13,13 +13,24 @@ export const initialAppState: GameAppState = {
 };
 
 function calculateNewActionSequence(actionSequence: PlayerStatus[], nextPlayerToActIndex: number, decision: Decision, stack: number, actingPlayer: Position) {
+    console.log(`${actingPlayer} ${decisionToText(decision)}`)
     let newActionSequence: PlayerStatus[] = [...actionSequence];
-    const remainingPlayers = [...actionSequence.slice(0, nextPlayerToActIndex), ...actionSequence.slice(nextPlayerToActIndex + 1)]
+    let remainingPlayers = [...actionSequence.slice(0, nextPlayerToActIndex), ...actionSequence.slice(nextPlayerToActIndex + 1)]
     const addPlayerBack = decision !== Decision.kFold;
+    // player could be all in for less?
+    if (isAggressiveAction(decision)) {
+        remainingPlayers = remainingPlayers.map(player => ({...player, hasToAct: true}))
+    }
     newActionSequence = [
         ...remainingPlayers,
-        ...(addPlayerBack ? [{ position: actingPlayer, isAllIn: decision === Decision.kAllIn || stack === 0 }] : [])
+        ...(addPlayerBack
+            ? [{
+            position: actingPlayer,
+            isAllIn: decision === Decision.kAllIn || stack === 0,
+            hasToAct: false }]
+            : [])
     ];
+    console.log('updated action sequence: ',newActionSequence)
     return newActionSequence;
 }
 function getIntermediatePreflopActionSequence(preflopSequence: PreflopStatus[] | undefined, playerAction: PlayerAction, stack: number) {
@@ -43,6 +54,7 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
     const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position) => ({
         position,
         isAllIn: false,
+        hasToAct: false,
     }));
     const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
     const handAsArray = parsePokerHandString(upperCasedHand);
@@ -225,7 +237,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     const isAllIn = playerAction.decision === Decision.kAllIn || newStackSize === 0;
                     finalActionSequence = [
                         ...remainingPlayers,
-                        ...(addPlayerBack ? [{ position: playerPos, isAllIn }] : [])
+                        ...(addPlayerBack ? [{ position: playerPos, isAllIn, hasToAct: true }] : [])
                     ];
                 }
 
