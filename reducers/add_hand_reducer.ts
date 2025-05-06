@@ -119,7 +119,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 
                 const addActionState: GameState = {
                     ...state.current,
-                    input: action.payload.input,
+                    input: '',
                     // 2. Add new action to list of player actions
                     playerActions: [...curr.playerActions, playerAction],
                     // 4. Update action sequence
