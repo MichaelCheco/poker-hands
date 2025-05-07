@@ -76,7 +76,7 @@ export default function ActionListReview({
     const flopPotSize = groupedPotSizes[Stage.Preflop];
     const turnPotSize = flopPotSize + groupedPotSizes[Stage.Flop];
     const riverPotSize = turnPotSize + groupedPotSizes[Stage.Turn];
-    const sortedStages = Object.keys(groupedActions).map(Number).filter(a => a !== Stage.Showdown).sort((a, b) => a - b);
+    const sortedStages = Object.keys(groupedActions).map(Number).filter(a => (a !== Stage.Showdown && groupedActions[a as Stage].length > 0)).sort((a, b) => a - b);
     const stageToPotSizeMap: Partial<Record<Stage, number>> = {
         [Stage.Preflop]: 0,
         [Stage.Flop]: flopPotSize,

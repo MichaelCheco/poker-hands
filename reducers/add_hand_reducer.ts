@@ -287,7 +287,8 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     currentBetFacing: 0,
                 };
             }
-            if (curr.currentAction.id === GameQueueItemType.kRiverAction) {
+            if (curr.currentAction.id === GameQueueItemType.kRiverAction ||
+                (curr.currentAction.id === GameQueueItemType.kRiverCard && curr.gameQueue.length === 0)) {
                 // add villains to queue for card collection
                 updatedGameQueue = AddVillainsToGameQueue(curr.actionSequence.filter(v => v.position !== curr.hero.position).map(v => v.position));
                 nextAction = updatedGameQueue[0];
@@ -295,7 +296,8 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 finalState = {
                     ...finalState,
                     currentAction: nextAction,
-                    gameQueue: updatedGameQueue
+                    gameQueue: updatedGameQueue,
+                    input: '',
                 };
             }
             // Advance to showdown if necessary.
@@ -305,6 +307,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 const allInAndACall = didAllInAndACallOccurOnStreet(finalState.playerActions);
                 if (allInAndACall) {
                     finalState.gameQueue = getRemainingCardActions(finalState.gameQueue)
+                    // river?
                     if (!finalState.currentAction) {
                         finalState.stage = Stage.Showdown;
                     }
@@ -313,6 +316,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 }
             }
             const newHistory = state.history.push(curr);
+            console.log(finalState, ' finalState ')
             const newTransitionState = {
                 current: { ...finalState },
                 history: newHistory,

@@ -31,8 +31,7 @@ function getSegment(inputValue: string) {
     return ((inputValue.endsWith('.') || inputValue.endsWith(',')) ? inputValue.slice(0, -1) : inputValue).toUpperCase().trim();
 }
 const isAlphanumeric = /^[a-zA-Z0-9]+$/;
-const disallowedChars = /[deikmnpqvwyzDEIKMNPQVWYZ]/;
-
+const disallowedChars = /[eimnpvwyzDEIMNPVWYZ]/;
 
 const validateInputCharacters: ValidationFunction = (input) => {
     const text = getSegment(input).split(' ').join('').trim();
@@ -378,7 +377,7 @@ export default function App() {
 
     useEffect(() => {
         let actionSpecificValidation: ValidationFunction[] = [];
-        switch (state.current.currentAction.id) {
+        switch (state.current.currentAction?.id) {
             case GameQueueItemType.kPreflopAction:
                 actionSpecificValidation = preflopActionPipeline;
                 break;
@@ -396,7 +395,7 @@ export default function App() {
         const newPipeline = [...baseValidationPipeline, ...actionSpecificValidation];
         setPipeline(newPipeline);
         // update pipeline
-    }, [state.current.currentAction.id])
+    }, [state.current.currentAction?.id])
 
     function processAndValidateInput(
         inputValue: string,
