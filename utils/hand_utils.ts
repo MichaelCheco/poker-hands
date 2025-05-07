@@ -37,7 +37,7 @@ function getTextSummaryForLastStage(actionList: ActionRecord[]): string {
         text = text + `${action.position} ${action.decision}, `
     }
     text = text.slice(0, -2);
-    return `${text}.`
+    return text;
 }
 
 export function decisionToText(decision: Decision): string {
@@ -93,7 +93,6 @@ function getWinner(actionSequence: string[]): string {
 export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], winner: string, pot: number): string {
     let summary = `Hand ended on the ${getStageName(finalStreet)}.\n${getTextSummaryForLastStage(actions)}.\n${winner} wins $${pot}.`;
     return summary;
-    // Hand ended on the River. Pot: $250. SB wins $250. CO folded.
 }
 
 function getStageCards(stage: Stage, communityCards: string[]): string {

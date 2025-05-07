@@ -2,20 +2,9 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme, Icon } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
-import { ShowdownHandRecord, Stage, ActionRecord, Position } from '@/types';
+import { ShowdownHandRecord, Stage, ActionRecord, Position, Decision } from '@/types';
 import { getHandSummary } from '@/utils/hand_utils';
-function getSuit2(suit: string) {
-    switch (suit.toLowerCase()) {
-        case 'h':
-            return '♥️';
-        case 'd':
-            return '♦️';
-        case 's':
-            return '♠️';
-        case 'c':
-            return '♣️';
-    }
-}
+
 const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBlind }: {
     showdownHands: ShowdownHandRecord[],
     finalStreet: Stage,
@@ -38,7 +27,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
         return acc;
     }, {});
     const theme = useTheme();
-    const winner = showdownHands.find(hand => hand.is_winner);
+    const winner = showdownHands.find(hand => hand.is_winner) ?? actions.filter(a => a.stage === finalStreet).find(a => a.decision !== Decision.kFold);
     const amt = Object.values(stacksMap).reduce((acc, val) => acc += val.end, 0);
     function StackChange2({ hand }: { hand: ShowdownHandRecord }) {
         return ( 
@@ -53,7 +42,6 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
             </View>
         )
     }
-
     return (
         <List.Section>
             <List.Subheader
@@ -66,7 +54,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
               <Text variant="titleMedium" style={{fontWeight: '600',
                 color: '#000000E8',}}>Result</Text>
             </List.Subheader>
-            {showdownHands ? showdownHands.map((hand, index) => {
+            {showdownHands.length > 0 ? showdownHands.map((hand, index) => {
                 return (
                     <List.Item
                         contentStyle={{  }}
