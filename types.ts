@@ -257,5 +257,5 @@ export interface ValidationResult {
 
 export type ValidationFunction = (
     inputValue: string,
-    currentState: GameState
+    currentState: GameState,
 ) => ValidationResult;
