@@ -1,5 +1,5 @@
 import { initialState } from "../constants";
-import { ActionRecord, Decision, GameState, PlayerAction, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage } from "../types";
+import { ActionRecord, CalculatedPot, Decision, GameState, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage } from "../types";
 import * as Clipboard from 'expo-clipboard';
 import { format, parseISO } from 'date-fns';
 
@@ -322,4 +322,87 @@ export function formatHeroHand(hero: { position: string, hand: string }): PokerP
         holeCards: [hero.hand.slice(0, 2), hero.hand.slice(2)],
         description: '',
     }
+}
+
+export function calculateSidePots(allPlayerContributions: PlayerPotContribution[]): CalculatedPot[] {
+    // 1. Filter for players who are still in the hand (eligible)
+    const activePlayers = allPlayerContributions.filter(p => p.eligible);
+
+    // Handle cases with no/one active player
+    if (activePlayers.length === 0) {
+        return [];
+    }
+    if (activePlayers.length === 1) {
+        // If only one player is left, they win the total amount they contributed
+        // (or the sum of all contributions if that's how 'amount' is defined).
+        return [{ potAmount: activePlayers[0].amount, eligiblePositions: [activePlayers[0].position] }];
+    }
+
+
+    // 2. Sort a *copy* of active players by their total contribution amount
+    let sortedByContribution = [...activePlayers].sort((a, b) => a.amount - b.amount);
+
+    // 3. Initialize amounts contributed to *previously calculated pots in this function* to 0
+    const amountContributedToPriorPotsThisFunction: any = {};
+    for (const player of activePlayers) {
+        amountContributedToPriorPotsThisFunction[player.position] = 0;
+    }
+
+    const pots: CalculatedPot[] = [];
+    let previousPotLevelBet = 0; // Tracks the cumulative bet level of the previous pot
+
+    // Loop while there are players with unallocated contributions
+    while (sortedByContribution.length > 0) {
+        // 4. Determine the current betting level (smallest total bet among remaining active players)
+        const currentContributionLevel = sortedByContribution[0].amount;
+
+        // If this level is not higher than the last, it means no new pot layer.
+        // This can happen if all remaining players have the same total bet.
+        if (currentContributionLevel <= previousPotLevelBet) {
+            // Filter out players already fully covered by previousPotLevelBet
+            sortedByContribution = sortedByContribution.filter(p => p.amount > previousPotLevelBet);
+            if (sortedByContribution.length === 0) break; // No more players or contributions
+            continue; // Re-evaluate currentContributionLevel
+        }
+
+
+        let currentPotLayerAmount = 0;
+        const eligibleForThisPotLayer: Position[] = [];
+
+        // 5. Iterate through ALL active players (not just sortedByContribution for this inner loop)
+        //    to see who contributes to this layer.
+        for (const player of activePlayers) {
+            const playerPosition = player.position;
+            const totalPlayerBet = player.amount;
+            const alreadyAllocated = amountContributedToPriorPotsThisFunction[playerPosition];
+
+            // Amount this player can contribute beyond what they've put in prior pots (in this function)
+            const playerRemainingContribution = totalPlayerBet - alreadyAllocated;
+
+            // How much this player actually contributes to *this specific layer*
+            // It's the minimum of what they have left to contribute, and the size of this layer.
+            // The size of this layer is (currentContributionLevel - previousPotLevelBet).
+            const contributionToThisLayer = Math.min(
+                playerRemainingContribution,
+                currentContributionLevel - previousPotLevelBet
+            );
+
+            if (contributionToThisLayer > 0) {
+                currentPotLayerAmount += contributionToThisLayer;
+                amountContributedToPriorPotsThisFunction[playerPosition] += contributionToThisLayer;
+                eligibleForThisPotLayer.push(playerPosition);
+            }
+        }
+
+        if (currentPotLayerAmount > 0) {
+            pots.push({ potAmount: currentPotLayerAmount, eligiblePositions: eligibleForThisPotLayer });
+        }
+
+        previousPotLevelBet = currentContributionLevel; // Update the "high water mark" for contributions
+
+        // 6. Remove players whose total contribution has been fully accounted for at this level
+        sortedByContribution = sortedByContribution.filter(p => p.amount > currentContributionLevel);
+    }
+
+    return pots;
 }

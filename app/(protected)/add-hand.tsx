@@ -376,6 +376,10 @@ export default function App() {
     }, [state.current.playerActions.length]);
 
     useEffect(() => {
+        // Validate that bet can't be followed by another bet: b 20, b20
+        // Fix issue where "d" isn't working
+        // turn needs to read sequence
+        // Update showdown component to correct player stack change
         let actionSpecificValidation: ValidationFunction[] = [];
         switch (state.current.currentAction?.id) {
             case GameQueueItemType.kPreflopAction:

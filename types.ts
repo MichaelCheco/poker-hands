@@ -178,6 +178,8 @@ export interface HandSetupInfo extends FieldValues {
     playedAt?: Date | string;
 }
 
+export type BetsForStreetMap = Partial<Record<Position, number>>;
+
 export interface GameState {
     gameQueue: GameQueueItem[];
     currentAction: GameQueueItem;
@@ -189,7 +191,7 @@ export interface GameState {
     actionSequence: PlayerStatus[];
     pot: number;
     deck: string[];
-    betsThisStreet: Partial<Record<Position, number>>;
+    betsThisStreet: BetsForStreetMap;
     potForStreetMap: Partial<Record<Stage, number>>;
     stacks: PlayerStacks;
     currentBetFacing: number;
@@ -197,6 +199,20 @@ export interface GameState {
     mostRecentBet: number;
     showdown: ShowdownDetails | null;
     preflopSequence: PreflopStatus[] | undefined;
+    allPlayerContributions: PlayerPotContribution[];
+}
+
+export interface PlayerPotContribution {
+    // Is the player still in the hand (not folded)?
+    eligible: boolean;
+    // Total amount this player has put into the pot for the whole hand
+    amount: number;
+    position: Position;
+}
+
+export interface CalculatedPot {
+    potAmount: number;
+    eligiblePositions: Position[];
 }
 
 // Type for rows from the 'actions' table

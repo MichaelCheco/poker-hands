@@ -1,10 +1,10 @@
 import { numPlayersToActionSequenceList } from "@/constants";
-import { ActionType, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, Stage, WinnerInfo } from "@/types";
+import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, Stage, WinnerInfo } from "@/types";
 import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, isAggressiveAction, removeAfterLastComma } from "@/utils/action_utils";
-import { assertIsArray } from "@/utils/assert";
+import { assertIsArray, assertIsDefined } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
 import { determinePokerWinnerManual } from "@/utils/hand_evaluator";
-import { decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
+import { calculateSidePots, decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
 import { ImmutableStack } from "@/utils/immutable_stack";
 
 export const initialAppState: GameAppState = {
@@ -13,7 +13,6 @@ export const initialAppState: GameAppState = {
 };
 
 function calculateNewActionSequence(actionSequence: PlayerStatus[], nextPlayerToActIndex: number, decision: Decision, stack: number, actingPlayer: Position) {
-    console.log(`${actingPlayer} ${decisionToText(decision)}`)
     let newActionSequence: PlayerStatus[] = [...actionSequence];
     let remainingPlayers = [...actionSequence.slice(0, nextPlayerToActIndex), ...actionSequence.slice(nextPlayerToActIndex + 1)]
     const addPlayerBack = decision !== Decision.kFold;
@@ -80,6 +79,33 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
     };
 }
 
+function getUpdatedListOfPlayerContributions(contributions: PlayerPotContribution[], betsThisStreet: BetsForStreetMap): PlayerPotContribution[] {
+    // console.log('getUpdatedListOfPlayerContributions',contributions, betsThisStreet)
+    if (contributions.length === 0) {
+        return Object.entries(betsThisStreet).map(([player, amount]) => ({ position: player as Position, amount, eligible: true }))
+    }
+    const playerPotContributionList: PlayerPotContribution[] = [];
+    contributions.forEach((contribution: PlayerPotContribution) => {
+        if (contribution.position in betsThisStreet) {
+            let newContribution = betsThisStreet[contribution.position];
+            assertIsDefined(newContribution);
+            playerPotContributionList.push({ position: contribution.position, eligible: true, amount: contribution.amount + newContribution })
+        } else {
+            playerPotContributionList.push(contribution);
+        }
+    });
+
+    return playerPotContributionList;
+}
+
+function determinePlayerEligibility(position: Position, playerActions: PlayerAction[]): boolean {
+    for (let action of playerActions) {
+        if (action.decision === Decision.kFold && action.position === position) {
+            return false;
+        }
+    }
+    return true;
+}
 export function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
         case DispatchActionType.kUndo:
@@ -190,6 +216,8 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 // All hands have been collected, determine winner information.
                 if (!nextAction) {
                     const showdownHands = [formatHeroHand(curr.hero), ...hands];
+                    const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({...player,eligible: determinePlayerEligibility(player.position, curr.playerActions)})))
+                    console.table(pots)
                     const result = determinePokerWinnerManual(
                         showdownHands.filter(hand => !(typeof hand.holeCards === "string")),
                         formatCommunityCards(curr.cards)) as WinnerInfo;
@@ -282,6 +310,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     ...finalState,
                     actionSequence: getNewActionSequence(initialStage, finalState.playerActions, finalState.actionSequence),
                     // Update betting information for new stage
+                    allPlayerContributions: getUpdatedListOfPlayerContributions(finalState.allPlayerContributions, {...finalState.betsThisStreet}),
                     betsThisStreet: {},
                     potForStreetMap: { ...finalState.potForStreetMap, [nextStage]: finalState.pot },
                     currentBetFacing: 0,
@@ -297,6 +326,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     ...finalState,
                     currentAction: nextAction,
                     gameQueue: updatedGameQueue,
+                    allPlayerContributions: getUpdatedListOfPlayerContributions(finalState.allPlayerContributions, {...finalState.betsThisStreet }),
                     input: '',
                 };
             }
@@ -315,8 +345,9 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     finalState.stage = Stage.Showdown;
                 }
             }
+
             const newHistory = state.history.push(curr);
-            console.log(finalState, ' finalState ')
+            // console.log(finalState, ' finalState ')
             const newTransitionState = {
                 current: { ...finalState },
                 history: newHistory,

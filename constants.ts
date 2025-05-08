@@ -157,5 +157,6 @@ export const initialState: GameState = {
   mostRecentBet: 0,
   showdownHands: [],
   showdown: null,
-  stacks: {}
+  stacks: {},
+  allPlayerContributions: [],
 };
