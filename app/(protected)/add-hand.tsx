@@ -31,7 +31,7 @@ function getSegment(inputValue: string) {
     return ((inputValue.endsWith('.') || inputValue.endsWith(',')) ? inputValue.slice(0, -1) : inputValue).toUpperCase().trim();
 }
 const isAlphanumeric = /^[a-zA-Z0-9]+$/;
-const disallowedChars = /[eimnpvwyzDEIMNPVWYZ]/;
+const disallowedChars = /[eimnpvwyzEIMNPVWYZ]/;
 
 const validateInputCharacters: ValidationFunction = (input) => {
     const text = getSegment(input).split(' ').join('').trim();
@@ -377,7 +377,6 @@ export default function App() {
 
     useEffect(() => {
         // Validate that bet can't be followed by another bet: b 20, b20
-        // Fix issue where "d" isn't working
         // turn needs to read sequence
         // Update showdown component to correct player stack change
         let actionSpecificValidation: ValidationFunction[] = [];
