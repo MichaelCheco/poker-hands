@@ -195,7 +195,7 @@ interface PlayerEvaluationResult extends PokerPlayerInput {
     best5Cards: string[]; // Store the actual best 5 cards found
 }
 
-export function determinePokerWinnerManual(
+export function determineHandWinner(
     players: PokerPlayerInput[],
     communityCardsStr: string[]
 ): WinnerInfo | null {

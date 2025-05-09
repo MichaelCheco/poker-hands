@@ -10,7 +10,8 @@ export async function getHandDetailsById(handId: string) {
             .select(`
                 *,
                 actions ( * ),
-                showdown_hands ( * )
+                showdown_hands ( * ),
+                hand_pots ( * )
             `) // Select all from hands, embed all from actions and showdown_hands
             .eq('id', handId) // Filter by hand ID
             // .eq('user_id', auth.uid()) // RLS SHOULD handle this automatically if user is logged in
@@ -74,27 +75,34 @@ export async function saveHandToSupabase(
     if (!user) throw new Error('User not found. Cannot save hand.');
     const userId = user.id;
 
+    // Calculate total pot from calculatedPots if available, otherwise use existing handHistoryData.pot
+    let totalPotForHandRecord = handHistoryData.pot; // Fallback
+    if (handHistoryData.calculatedPots && handHistoryData.calculatedPots.length > 0) {
+        totalPotForHandRecord = handHistoryData.calculatedPots.reduce((sum, pot) => sum + pot.potAmount, 0);
+    }
+
+    // 2. Insert into 'hands' table
     const { data: handData, error: handError } = await supabase
         .from('hands')
         .insert({
             user_id: userId,
             played_at: setupInfo.playedAt ? new Date(setupInfo.playedAt).toISOString() : new Date().toISOString(),
-            game_type: 'NLH',
+            game_type: 'NLH', // Or from setupInfo if available
             small_blind: setupInfo.smallBlind,
             big_blind: setupInfo.bigBlind,
             location: setupInfo.location,
             num_players: setupInfo.numPlayers,
-            hero_position: handHistoryData.hero.position,
+            hero_position: handHistoryData.hero.position, // Assumes this is a position string
             hero_cards: handHistoryData.hero.hand,
-            final_pot_size: handHistoryData.pot,
+            final_pot_size: totalPotForHandRecord,
             currency: setupInfo.currency || '$',
             notes: setupInfo.notes,
-            stacks: setupInfo.relevantStacks,
+            stacks: setupInfo.relevantStacks, // Make sure this is in JSONB compatible format
             community_cards: handHistoryData.cards.map(c => transFormCardsToFormattedString(c)),
-            final_street: handHistoryData.playerActions[handHistoryData.playerActions.length - 1].stage,
+            final_street: handHistoryData.playerActions[handHistoryData.playerActions.length - 1]?.stage,
         })
-        .select('id') // Select the ID of the newly inserted row
-        .single(); // Expect only one row back
+        .select('id')
+        .single();
 
     if (handError) {
         console.error("Supabase hand insert error:", handError);
@@ -113,7 +121,7 @@ export async function saveHandToSupabase(
             hand_id: handId,
             action_index: index,
             stage: action.stage,
-            position: action.position,
+            position: action.position, // This is a player's position string (e.g., "SB")
             decision: action.decision.toUpperCase(),
             action_amount: action.amount,
             player_stack_before: action.playerStackBefore,
@@ -128,7 +136,6 @@ export async function saveHandToSupabase(
 
         if (actionsError) {
             console.error("Supabase actions insert error:", actionsError);
-            // Consider deleting the hand record if actions fail? (Or use transaction)
             return {
                 success: false,
                 message: `Failed to insert actions: ${actionsError.message}`,
@@ -137,15 +144,52 @@ export async function saveHandToSupabase(
         }
     }
 
-    // 4. Insert into 'showdown_hands' table (if showdown occurred)
-    if (handHistoryData.showdown && handHistoryData.showdown.hands && handHistoryData.showdown.hands.length > 0) {
-        const showdownHandsToInsert = handHistoryData.showdown.hands.map(playerHand => {
-            const isWinner = playerHand.playerId === handHistoryData.showdown?.winner; // Basic winner check
+    // 4. Insert into 'hand_pots' table (NEW SECTION - ALIGNED WITH TEXT[] SCHEMA)
+    if (handHistoryData.calculatedPots && handHistoryData.calculatedPots.length > 0) {
+        const potsToInsert = handHistoryData.calculatedPots.map((pot, index) => ({
+            hand_id: handId,
+            pot_number: index,
+            amount: pot.potAmount,
+            // Ensure these are arrays of position strings
+            eligible_player_positions: pot.eligiblePositions,
+            winning_player_positions: pot.winningPlayerPositions || null,
+            winning_hand_description: pot.winningHandDescription || null,
+        }));
+
+        const { error: handPotsError } = await supabase
+            .from('hand_pots')
+            .insert(potsToInsert);
+
+        if (handPotsError) {
+            console.error("Supabase hand_pots insert error:", handPotsError);
+            return {
+                success: false,
+                message: `Failed to insert hand pots: ${handPotsError.message}`,
+                handId
+            };
+        }
+        console.log(`${potsToInsert.length} pots inserted for hand ID: ${handId}`);
+    } else {
+        console.log("No side pots data provided or main pot handled differently for hand ID:", handId);
+    }
+
+
+    // 5. Insert into 'showdown_hands' table (if showdown occurred)
+    if (handHistoryData.showdown && handHistoryData.showdown.length > 0) {
+        const showdownHandsToInsert = handHistoryData.showdown.map(playerHand => {
+            // playerHand.playerId is assumed to be the position string (e.g., "SB", "BB")
+            let isWinnerOfAnyPot = false;
+            if (handHistoryData.calculatedPots) {
+                isWinnerOfAnyPot = handHistoryData.calculatedPots.some(pot =>
+                    pot.winningPlayerPositions?.includes(playerHand.playerId) // Check against position strings
+                );
+            }
+
             return {
                 hand_id: handId,
-                position: playerHand.playerId,
+                position: playerHand.playerId, // This aligns with your 'showdown_hands' table schema (position: text)
                 hole_cards: typeof playerHand.holeCards === "string" ? playerHand.holeCards : playerHand.holeCards.join(''),
-                is_winner: isWinner,
+                is_winner: isWinnerOfAnyPot,
                 hand_description: playerHand.description,
             };
         });
@@ -156,13 +200,11 @@ export async function saveHandToSupabase(
 
         if (showdownError) {
             console.error("Supabase showdown_hands insert error:", showdownError);
-            // Consider deleting the hand record if actions fail? (Or use transaction)
-            return { handId: '', success: false, message: `Failed to insert showdown hands: ${showdownError.message}` };
+            return { success: false, message: `Failed to insert showdown hands: ${showdownError.message}`, handId };
         }
     }
 
-    return { success: true, message: '', handId };
-    // No return value needed if using void promise, caller handles success/error
+    return { success: true, message: 'Hand saved successfully.', handId };
 }
 
 /**

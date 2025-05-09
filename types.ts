@@ -131,10 +131,9 @@ export interface ActionTextToken {
 }
 
 export interface ShowdownDetails {
-    text: string;
-    winner: string;
-    combination: string[];
-    hands: PokerPlayerInput[];
+    description: string;
+    holeCards: string[]|"muck"
+    playerId: string;
 }
 
 export interface PlayerStatus {
@@ -197,7 +196,8 @@ export interface GameState {
     currentBetFacing: number;
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
-    showdown: ShowdownDetails | null;
+    calculatedPots: CalculatedPot[];
+    showdown: ShowdownDetails[] | null;
     preflopSequence: PreflopStatus[] | undefined;
     allPlayerContributions: PlayerPotContribution[];
 }
@@ -213,6 +213,8 @@ export interface PlayerPotContribution {
 export interface CalculatedPot {
     potAmount: number;
     eligiblePositions: Position[];
+    winningPlayerPositions?: string[];
+    winningHandDescription?: string;
 }
 
 // Type for rows from the 'actions' table

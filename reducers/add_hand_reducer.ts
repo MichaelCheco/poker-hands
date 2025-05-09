@@ -1,9 +1,9 @@
 import { numPlayersToActionSequenceList } from "@/constants";
-import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, Stage, WinnerInfo } from "@/types";
+import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, ShowdownDetails, Stage, WinnerInfo } from "@/types";
 import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, isAggressiveAction, removeAfterLastComma } from "@/utils/action_utils";
 import { assertIsArray, assertIsDefined } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
-import { determinePokerWinnerManual } from "@/utils/hand_evaluator";
+import { determineHandWinner } from "@/utils/hand_evaluator";
 import { calculateSidePots, decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
 import { ImmutableStack } from "@/utils/immutable_stack";
 
@@ -29,7 +29,7 @@ function calculateNewActionSequence(actionSequence: PlayerStatus[], nextPlayerTo
             hasToAct: false }]
             : [])
     ];
-    console.log('updated action sequence: ',newActionSequence)
+    // console.log('updated action sequence: ',newActionSequence)
     return newActionSequence;
 }
 function getIntermediatePreflopActionSequence(preflopSequence: PreflopStatus[] | undefined, playerAction: PlayerAction, stack: number) {
@@ -216,17 +216,26 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 // All hands have been collected, determine winner information.
                 if (!nextAction) {
                     const showdownHands = [formatHeroHand(curr.hero), ...hands];
-                    const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({...player,eligible: determinePlayerEligibility(player.position, curr.playerActions)})))
-                    console.table(pots)
-                    const result = determinePokerWinnerManual(
+                    const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({...player,eligible: determinePlayerEligibility(player.position, curr.playerActions)})));
+                    // console.table(pots)
+                    const formattedCards = formatCommunityCards(curr.cards);
+                    const showdownPots: CalculatedPot[] = pots.map((pot: CalculatedPot) => {
+                        const eligibleHands = showdownHands.filter(hand => (pot.eligiblePositions.includes((hand.playerId as Position)) && !(typeof hand.holeCards === "string")));
+                        const winnerInfo = determineHandWinner(eligibleHands, formattedCards) as WinnerInfo;
+                        return { winningPlayerPositions: winnerInfo.winners.map(w => w.playerId),
+                            winningHandDescription: winnerInfo.winningHandDescription,
+                            potAmount: pot.potAmount,
+                            eligiblePositions: pot.eligiblePositions,
+
+                         }
+                    });
+                    // console.log(`showdownPots: `, showdownPots);
+                    const handInfo = determineHandWinner(
                         showdownHands.filter(hand => !(typeof hand.holeCards === "string")),
-                        formatCommunityCards(curr.cards)) as WinnerInfo;
-                    propertyUpdates.showdown = {
-                        combination: result.bestHandCards,
-                        hands: result.details,
-                        text: result.winningHandDescription,
-                        winner: `${result.winners.map(w => w.playerId)[0]}`,
-                    };
+                        formattedCards) as WinnerInfo;
+                    // console.log(handInfo.details, ' handInfo.details')
+                    propertyUpdates.calculatedPots = showdownPots;
+                    propertyUpdates.showdown = handInfo.details;
                 } else {
                     propertyUpdates.showdownHands = hands;
                 }
