@@ -1,5 +1,7 @@
 TODOS:
 * debug KeyboardAvoidingView issue
+* wait for hand insertion before transitioning after animation or shorten
+* animation duration
 * fix undo - error handling, input resetting, state ..
 * fix state update with eff stack sz calc
 * fix all in and a call to collect villain's cards
@@ -20,7 +22,6 @@ TODOS:
 * Revamp card formatting code
 * Handle multiple winners for a pot
 * Add RemoveTrailingPunctuation helper
-* Use Paper.HelperText for error display
 * What if stack sizes are missing?
 * Location text truncation
 * preflop all-ins?

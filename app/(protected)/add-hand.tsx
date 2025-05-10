@@ -68,9 +68,9 @@ const validatePosition: ValidationFunction = (input, state) => {
     }
     return { isValid: true };
 }
-// function validateAction(input): ValidationFunction {
 
-// }
+const formattedCard = (card: string) => `${card[0]}${card[1].toLowerCase()}`;
+
 const validateAction: ValidationFunction = (input) => {
     const parts = getPartsFromSegment(getSegment(input));
     const action = parts[1] as Decision;
@@ -172,7 +172,6 @@ const validateNonAggressiveClosingActionRequiresPeriod: ValidationFunction = (in
     return { isValid: true };
 };
 
-const VALID_RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
 const VALID_SUITS_FOR_DECK = ['S', 'D', 'C', 'H']; // Suits as they appear in the deck
 
 const validateCommunityCards: ValidationFunction = (input, currentState) => {
@@ -251,7 +250,7 @@ const validateCommunityCards: ValidationFunction = (input, currentState) => {
             if (suitInput !== 'X') {
                 const specificCard = rank + suitInput;
                 if (cardsInThisInput.has(specificCard)) {
-                    return { isValid: false, error: `Duplicate card in input: "${specificCard}"` };
+                    return { isValid: false, error: `Duplicate card in input: "${formattedCard(specificCard)}"` };
                 }
                 cardsInThisInput.add(specificCard);
             }
@@ -280,12 +279,12 @@ const validateCommunityCards: ValidationFunction = (input, currentState) => {
             const specificCard = rank + suitInput;
 
             if (cardsInThisInputFull.has(specificCard)) {
-                return { isValid: false, error: `Duplicate card in input: "${specificCard}"` };
+                return { isValid: false, error: `Duplicate card in input: "${formattedCard(specificCard)}"` };
             }
             cardsInThisInputFull.add(specificCard);
 
             if (!upperCaseDeck.includes(specificCard)) {
-                return { isValid: false, error: `Card "${specificCard}" not in deck or used.` };
+                return { isValid: false, error: `Card "${formattedCard(specificCard)}" is already in use.` };
             }
         } else { // Suit is 'X' (random)
             let rankHasAvailableSuit = false;
