@@ -80,7 +80,6 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
 }
 
 function getUpdatedListOfPlayerContributions(contributions: PlayerPotContribution[], betsThisStreet: BetsForStreetMap): PlayerPotContribution[] {
-    // console.log('getUpdatedListOfPlayerContributions',contributions, betsThisStreet)
     if (contributions.length === 0) {
         return Object.entries(betsThisStreet).map(([player, amount]) => ({ position: player as Position, amount, eligible: true }))
     }

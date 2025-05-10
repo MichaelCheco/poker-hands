@@ -117,9 +117,35 @@ export async function saveHandToSupabase(
 
     // 3. Insert into 'actions' table
     if (handHistoryData.playerActions && handHistoryData.playerActions.length > 0) {
+        const blinds = [
+            {
+                hand_id: handId,
+                action_index: 0,
+                stage: 0,
+                position: 'SB',
+                decision: 'B',
+                action_amount: setupInfo.smallBlind,
+                // player_stack_before: action.playerStackBefore,
+                pot_size_before: 0,
+                text_description: `SB posts $${setupInfo.smallBlind}`,
+                was_auto_folded: true,
+            },
+            {
+                hand_id: handId,
+                action_index: 1,
+                stage: 0,
+                position: 'BB',
+                decision: 'R',
+                action_amount: setupInfo.bigBlind,
+                // player_stack_before: action.playerStackBefore,
+                pot_size_before: setupInfo.smallBlind,
+                text_description: `BB posts $${setupInfo.bigBlind}`,
+                was_auto_folded: true,
+            },
+        ]
         const actionsToInsert = handHistoryData.playerActions.map((action, index) => ({
             hand_id: handId,
-            action_index: index,
+            action_index: index + 2,
             stage: action.stage,
             position: action.position, // This is a player's position string (e.g., "SB")
             decision: action.decision.toUpperCase(),
@@ -132,7 +158,7 @@ export async function saveHandToSupabase(
 
         const { error: actionsError } = await supabase
             .from('actions')
-            .insert(actionsToInsert);
+            .insert([...blinds, ...actionsToInsert]);
 
         if (actionsError) {
             console.error("Supabase actions insert error:", actionsError);

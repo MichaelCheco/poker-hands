@@ -244,6 +244,62 @@ export interface ShowdownHandRecord {
     created_at: string;
   }
   
+/**
+* Represents a single pot (main or side pot) within a poker hand,
+* typically corresponding to a row from the 'hand_pots' table.
+*/
+export interface HandPot {
+    /**
+     * Unique identifier for this specific pot record (UUID).
+     * @example "6fd730f3-6ff2-4bb7-8833-49d0fe08cbc0"
+     */
+    id: string;
+
+    /**
+     * The total amount of chips in this specific pot.
+     * @example 900
+     */
+    amount: number;
+
+    /**
+     * Identifier of the hand this pot belongs to (UUID).
+     * @example "2feca68c-a1c5-47e6-9fc2-8a96e5692abd"
+     */
+    hand_id: string;
+
+    /**
+     * Timestamp indicating when this pot record was created (ISO 8601 format).
+     * @example "2025-05-09T14:29:01.512696+00:00"
+     */
+    created_at: string;
+
+    /**
+     * The order/index of this pot within the hand (0 for main pot, 1 for first side pot, etc.).
+     * @example 0
+     */
+    pot_number: number;
+
+    /**
+     * A textual description of the hand that won this specific pot (e.g., "One Pair", "Flush").
+     * This can be null if the pot was not won at showdown or if the description is not available.
+     * @example "One Pair"
+     */
+    winning_hand_description: string | null; // Made nullable based on schema (NULL allowed)
+
+    /**
+     * An array of player positions (e.g., "SB", "BB") who won this specific pot.
+     * Can be null if the pot has not yet been awarded or if no specific winner (e.g. an uncalled bet returned).
+     * Can contain multiple positions in case of a split pot.
+     * @example ["SB"]
+     */
+    winning_player_positions: string[] | null; // Made nullable based on schema (NULL allowed)
+
+    /**
+     * An array of player positions (e.g., "SB", "BB", "CO") who were eligible to win this pot.
+     * @example ["SB", "BB", "CO"]
+     */
+    eligible_player_positions: string[];
+}
 export interface DetailedHandData {
     // All columns from the 'hands' table
     id: string;
@@ -265,6 +321,7 @@ export interface DetailedHandData {
     actions: ActionRecord[];
     showdown_hands: ShowdownHandRecord[];
     community_cards: string[];
+    hand_pots: HandPot[];
 }
 
 export interface ValidationResult {

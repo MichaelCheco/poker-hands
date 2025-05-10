@@ -2,63 +2,123 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme, Icon } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
-import { ShowdownHandRecord, Stage, ActionRecord, Position, Decision } from '@/types';
+import { ShowdownHandRecord, Stage, ActionRecord, Position, Decision, HandPot, PlayerStacks } from '@/types';
 import { getHandSummary } from '@/utils/hand_utils';
+import { assertIsDefined } from '@/utils/assert';
+import StackChangeDisplay from './StackChangeDisplay';
 
-const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBlind }: {
+// '#388E4A' : "#DA3036"
+
+/**
+ * Generates a simplified textual summary of a player's winnings from various pots in a hand.
+ *
+ * @param playerPosition The position string (e.g., "SB", "BB") of the player to summarize.
+ * @param allPotsInHand An array of HandPot objects representing all pots (main and side) in the hand.
+ * @returns A string summarizing the player's winnings.
+ */
+export function getSimplifiedPlayerPotSummary(
+    playerPosition: string,
+    allPotsInHand: HandPot[]
+): string {
+    if (!allPotsInHand || allPotsInHand.length === 0) {
+        return ""; // No pots, so effectively involved in 0 pots.
+    }
+
+    // 1. Filter for pots the player was eligible for
+    const playerEligiblePots = allPotsInHand.filter(pot =>
+        pot.eligible_player_positions.includes(playerPosition)
+    );
+
+    // 2. If player was eligible for 1 or fewer pots, return an empty string
+    if (playerEligiblePots.length <= 1) {
+        return "";
+    }
+
+    // 3. If eligible for more than 1 pot, detail the results
+    const summaryParts: string[] = [];
+
+    for (const pot of playerEligiblePots) {
+        if (pot.winning_player_positions?.includes(playerPosition)) {
+            // Player won this pot (or a share of it)
+            const numberOfWinners = pot.winning_player_positions.length;
+            const amountWonThisPot = numberOfWinners > 0 ? pot.amount / numberOfWinners : 0;
+
+            if (amountWonThisPot > 0) { // Only add if they actually won a positive amount
+                const potLabel = pot.pot_number === 0 ? "main" : `side ${pot.pot_number}`;
+                summaryParts.push(`+${amountWonThisPot.toFixed(0)} ${potLabel}`);
+            }
+        }
+        // Note: To display a loss for a pot (e.g., "-$30 Side Pot 1"), we would need to know
+        // the player's specific contribution to THIS pot layer. This information is not
+        // available in the current HandPot interface. So, this function only lists winnings.
+    }
+
+    if (summaryParts.length === 0) {
+        // Player was eligible for multiple pots but won none of them.
+        return "";
+    }
+
+    return `(${summaryParts.join(", ") })`;
+}
+
+const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks }: {
     showdownHands: ShowdownHandRecord[],
     finalStreet: Stage,
     actions: ActionRecord[],
     pot: number,
-    smallBlind: number,
-    bigBlind: number,
+    handPots: HandPot[],
+    stacks: PlayerStacks,
 }) => {
-    const stacksMap = actions.filter(a => !(a.was_auto_folded)).reduce((acc, action) => {
-        if (!acc[action.position]) {
-            let startVal =
-                action.position === Position.SB
-                    ? smallBlind
-                    : action.position === Position.BB
-                        ? bigBlind
-                        : 0;
-            acc[action.position] = { start: action.player_stack_before + startVal, end: 0 };
-        }
-        acc[action.position].end = acc[action.position].end + action.action_amount;
-        return acc;
-    }, {});
-    const theme = useTheme();
-    const winner = showdownHands.find(hand => hand.is_winner) ?? actions.filter(a => a.stage === finalStreet).find(a => a.decision !== Decision.kFold);
-    const amt = Object.values(stacksMap).reduce((acc, val) => acc += val.end, 0);
-    function StackChange2({ hand }: { hand: ShowdownHandRecord }) {
-        return ( 
-            <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end', flex: 1, position: 'relative', top: 2 }}>
-                <View style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <View style={{ display: 'flex', flexDirection: 'row' }}>
-                        <Icon source={hand.is_winner ? "plus" : "minus"} color={hand.is_winner ? '#388E4A' : "#DA3036"} size={15} />
-                        <Text variant='bodyLarge' style={{ color: hand.is_winner ? '#388E4A' : "#DA3036", fontWeight: 700, position: 'relative', bottom: 4 }}>{hand.is_winner ? amt : stacksMap[hand.position].end}</Text>
-                    </View>
-                    <Text variant='bodyMedium' style={{ alignSelf: 'flex-end', position: 'relative', bottom: 4 }}>{hand.is_winner ? stacksMap[hand.position].start + amt : stacksMap[hand.position].start - amt}</Text>
-                </View>
-            </View>
-        )
+    type BetsPerStage = Record<Stage, number[]>;
+
+    function getTotalWinningsFromPots(position: string) {
+        let winnings = 0;
+        handPots.forEach((handPot) => {
+            if (handPot.winning_player_positions?.includes(position)) {
+                winnings += Math.round(handPot.amount / handPot.winning_player_positions.length);
+            }
+        });
+        return winnings;
+    }
+    function getPlayerTotalContribution(position: string): number {
+        const actionsForPlayer = actions.filter(action => action.position === position);
+        const initialBetsPerStage: BetsPerStage = {
+            [Stage.Preflop]: [],
+            [Stage.Flop]: [],
+            [Stage.Turn]: [],
+            [Stage.River]: [],
+            [Stage.Showdown]: [],
+        };
+        const betsForPlayerEachStreet: BetsPerStage = actionsForPlayer.reduce(
+            (accumulator: BetsPerStage, currentAction: ActionRecord) => {
+                const stage: Stage = currentAction.stage;
+                accumulator[stage].push(currentAction.action_amount);
+                return accumulator;
+            },
+            initialBetsPerStage
+        );
+        return Object.values(betsForPlayerEachStreet).filter(b => b.length !== 0).reduce((accumulator, bets) => accumulator += bets[bets.length - 1], 0);
     }
     return (
         <List.Section>
             <List.Subheader
-            variant='headlineLarge'
-            style={{
-                marginLeft: -10, marginInline: 0, padding: 0,
-                fontWeight: '600',
-                color: '#000000E8',
-            }}>
-              <Text variant="titleMedium" style={{fontWeight: '600',
-                color: '#000000E8',}}>Result</Text>
+                variant='headlineLarge'
+                style={{
+                    marginLeft: -10, marginInline: 0, padding: 0,
+                    fontWeight: '600',
+                    color: '#000000E8',
+                }}>
+                <Text variant="titleMedium" style={{ fontWeight: '600', color: '#000000E8' }}>
+                    Result
+                </Text>
             </List.Subheader>
             {showdownHands.length > 0 ? showdownHands.map((hand, index) => {
+                const initialStack = stacks[hand.position as Position];
+                assertIsDefined(initialStack);
                 return (
                     <List.Item
-                        contentStyle={{  }}
-                        description={hand.hand_description}
+                        contentStyle={{}}
+                        description={`${hand.hand_description} ${getSimplifiedPlayerPotSummary(hand.position, handPots)}`}
                         descriptionStyle={{ color: '#00000082' }}
                         key={`${hand.position}-${hand.hole_cards}-${index}`}
                         title={() => {
@@ -75,7 +135,9 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, smallBlind, bigBli
                             )
                         }}
                         left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
-                        right={() => <StackChange2 hand={hand} />}
+                        right={() => <StackChangeDisplay
+                            initialStack={initialStack}
+                            finalStack={initialStack - getPlayerTotalContribution(hand.position) + getTotalWinningsFromPots(hand.position)} />}
                     />
                 )
             }

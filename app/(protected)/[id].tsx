@@ -2,7 +2,7 @@ import React, { useState, useLayoutEffect } from 'react';
 import { View, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { deleteHand, getHandDetailsById } from '@/api/hands';
-import { formatDateMMDDHHMM } from '@/utils/hand_utils';
+import { formatDateMMDDHHMM, parseStackSizes2 } from '@/utils/hand_utils';
 import { DetailedHandData } from '@/types';
 import { Text, Divider, IconButton } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
@@ -84,13 +84,14 @@ export default function HandDetailScreen() {
                     flex: 1,
                     paddingHorizontal: 15,
                 }}>
+
                     <Showdown
-                        smallBlind={handDetails.small_blind}
-                        bigBlind={handDetails.big_blind}
                         showdownHands={handDetails.showdown_hands}
                         finalStreet={handDetails.final_street}
                         actions={handDetails.actions}
-                        pot={handDetails.final_pot_size as number} />
+                        handPots={handDetails.hand_pots}
+                        pot={handDetails.final_pot_size as number} 
+                        stacks={parseStackSizes2(handDetails.stacks)} />
                     <Divider bold />
                     <ActionListReview
                         actionList={handDetails.actions}

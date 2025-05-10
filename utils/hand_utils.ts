@@ -285,6 +285,23 @@ export function parseStackSizes(stackString: string, sequence: string[],
     return result;
 }
 
+export function parseStackSizes2(stackString: string
+): PlayerStacks {
+    const stackObjects: PlayerStacks = {};
+    const stackEntries = stackString.split(',').map(entry => entry.trim());
+    for (const entry of stackEntries) {
+        const match = entry.match(/^([a-zA-Z]+)\s+(\d+)$/);
+        if (match) {
+            const position = match[1].toUpperCase();
+            const size = parseInt(match[2], 10);
+            if (!isNaN(size)) {
+                stackObjects[position as Position] = size;
+            }
+        }
+    }
+    return stackObjects;
+}
+
 export function moveFirstTwoToEnd(list: PlayerStatus[]): PlayerStatus[] {
     if (list.length < 2 || list.length > 9) {
         throw new Error("List length must be between 2 and 9 elements.");
