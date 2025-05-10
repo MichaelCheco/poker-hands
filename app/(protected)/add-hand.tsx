@@ -468,9 +468,10 @@ export default function App() {
             return inputError;
         }
         switch (state.current.currentAction.id) {
-            case GameQueueItemType.kFlopAction: {
-                return `${state.current.actionSequence[0].position} to act`
-            }
+            case GameQueueItemType.kFlopAction:
+            case GameQueueItemType.kTurnAction:
+            case GameQueueItemType.kRiverAction:
+                return `${state.current.actionSequence[0].position} to act`;
             default:
                 return state.current.currentAction?.placeholder;
         }
