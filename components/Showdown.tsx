@@ -142,7 +142,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks }
                 )
             }
             ) : (
-                <Text style={{ marginTop: 8 }}>{getHandSummary(finalStreet, actions, winner?.position as string, pot)}</Text>
+                    <Text style={{ marginTop: 8 }}>{getHandSummary(finalStreet, actions, handPots, pot)}</Text>
             )}
         </List.Section>
     );

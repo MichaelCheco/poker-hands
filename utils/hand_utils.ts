@@ -1,5 +1,5 @@
 import { initialState } from "../constants";
-import { ActionRecord, CalculatedPot, Decision, GameState, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage } from "../types";
+import { ActionRecord, CalculatedPot, Decision, GameState, HandPot, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage } from "../types";
 import * as Clipboard from 'expo-clipboard';
 import { format, parseISO } from 'date-fns';
 
@@ -90,7 +90,8 @@ function getWinner(actionSequence: string[]): string {
     return actionSequence[0];
 }
 
-export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], winner: string, pot: number): string {
+export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], handPots: HandPot[], pot: number): string {
+    const winner = actions.filter(s => s.stage === finalStreet).filter(a => a.decision !== Decision.kFold)[0].position;
     let summary = `Hand ended on the ${getStageName(finalStreet)}.\n${getTextSummaryForLastStage(actions)}.\n${winner} wins $${pot}.`;
     return summary;
 }

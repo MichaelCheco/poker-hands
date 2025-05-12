@@ -4,6 +4,7 @@ TODOS:
 * handle card validation when collecting villain cards
 * wait for hand insertion before transitioning after animation or shorten
 * animation duration
+* check side pot folds
 * fix undo - error handling, input resetting, state ..
 * fix state update with eff stack sz calc
 * fix all in and a call to collect villain's cards

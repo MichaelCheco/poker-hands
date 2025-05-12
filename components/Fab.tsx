@@ -90,7 +90,6 @@ return (
             ]}
             onStateChange={onStateChange}
             onPress={() => {
-                console.log('dial pressed')
                 if (open) {
                     // do something if the speed dial is open
                 }
