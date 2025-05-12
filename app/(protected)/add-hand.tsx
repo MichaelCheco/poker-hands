@@ -329,6 +329,8 @@ export default function App() {
     // State
     const [state, dispatch] = useReducer(reducer, initialAppState, (arg) => createInitialAppState(arg, gameInfo));
     const [isLoading, setIsLoading] = useState(false);
+    const [animationComplete, setAnimationComplete] = useState(false);
+
     const [savedId, setSavedId] = useState('');
     const [inputError, setInputError] = useState('');
     const [inputValue, setInputValue] = useState('');
@@ -376,8 +378,6 @@ export default function App() {
 
     useEffect(() => {
         // Validate that bet can't be followed by another bet: b 20, b20
-        // turn needs to read sequence
-        // Update showdown component to correct player stack change
         let actionSpecificValidation: ValidationFunction[] = [];
         switch (state.current.currentAction?.id) {
             case GameQueueItemType.kPreflopAction:
@@ -453,6 +453,12 @@ export default function App() {
         setIsLoading(false)
     }
 
+    useEffect(() => {
+        if (savedId && animationComplete) {
+            goToDetailPage();
+        }
+    }, [savedId, animationComplete])
+
     const handleUndo = () => {
         if (state.history.isEmpty()) {
             setInputValue('');
@@ -480,7 +486,7 @@ export default function App() {
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             {isLoading && (
                 <View style={styles.successContainer}>
-                    <SuccessAnimation visible={isLoading} onAnimationComplete={goToDetailPage} />
+                     <SuccessAnimation visible={isLoading} onAnimationComplete={() => setAnimationComplete(true)} />
                 </View>
             )}
             {!isLoading && <KeyboardAvoidingView

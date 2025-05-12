@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Icon, Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider } from 'react-native-paper';
+import { Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider } from 'react-native-paper';
 import PokerHandForm from '../../components/PokerHandForm';
 import Fab from '@/components/Fab';
 import { formatDateMMDDHHMM } from '@/utils/hand_utils';
@@ -23,35 +23,38 @@ export default function Index() {
 
   const [savedHands, setSavedHands] = React.useState<SavedHandSummary[] | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [preset, setPreset] = React.useState({});
   const [error, setError] = React.useState<any>(null);
 
-    // --- Fetching Logic ---
-    const loadHands = React.useCallback(async (showLoadingIndicator = true) => {
-      // Only show full loading indicator on initial load or manual refresh
-      if (showLoadingIndicator) setIsLoading(true);
-      setError(null);
-      try {
-          const { hands, error: fetchError, count } = await getSavedHands();
-          if (fetchError) throw fetchError;
-          setSavedHands(hands || []);
-      } catch (err: any) {
-          console.error("Error fetching hands:", err);
-          setError(err.message || 'An unknown error occurred');
-          setSavedHands([]);
-      } finally {
-          // Only turn off loading indicator if it was turned on
-           if (showLoadingIndicator) setIsLoading(false);
-      }
+  // --- Fetching Logic ---
+  const loadHands = React.useCallback(async (showLoadingIndicator = true) => {
+    // Only show full loading indicator on initial load or manual refresh
+    if (showLoadingIndicator) setIsLoading(true);
+    setError(null);
+    try {
+      const { hands, error: fetchError, count } = await getSavedHands();
+      if (fetchError) throw fetchError;
+      setSavedHands(hands || []);
+    } catch (err: any) {
+      console.error("Error fetching hands:", err);
+      setError(err.message || 'An unknown error occurred');
+      setSavedHands([]);
+    } finally {
+      // Only turn off loading indicator if it was turned on
+      if (showLoadingIndicator) setIsLoading(false);
+    }
   }, []);
 
   // --- Use useFocusEffect to load data ---
   useFocusEffect(
     React.useCallback(() => {
-          // Runs when the screen comes into focus
-          // Load hands, show loading indicator only if savedHands is currently null (initial load)
-          loadHands(savedHands === null);
+      // Runs when the screen comes into focus
+      // Clear any presets
+      setPreset({});
+      // Load hands, show loading indicator only if savedHands is currently null (initial load)
+      loadHands(savedHands === null);
 
-      }, [])
+    }, [])
   );
 
   function closeModal() {
@@ -60,16 +63,16 @@ export default function Index() {
 
   const renderHandItem = ({ item }: { item: SavedHandSummary }) => (
     <>
-    <List.Item
-      title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind} • ${item.location}`}
-      description={`${formatDateMMDDHHMM(item.played_at)}`}
-      left={props => <List.Icon {...props} icon="cards-playing" />}
-      onPress={() => {
-        router.push(`${item.id}`)
-      }}
-      right={() => <MyHand cards={parsePokerHandString(item.hero_cards.toUpperCase())} />}
-    />
-    <Divider />
+      <List.Item
+        title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind} • ${item.location}`}
+        description={`${formatDateMMDDHHMM(item.played_at)}`}
+        left={props => <List.Icon {...props} icon="cards-playing" />}
+        onPress={() => {
+          router.push(`${item.id}`)
+        }}
+        right={() => <MyHand cards={parsePokerHandString(item.hero_cards.toUpperCase())} />}
+      />
+      <Divider />
     </>
   );
   return (
@@ -84,8 +87,8 @@ export default function Index() {
             renderItem={renderHandItem}
             keyExtractor={(item) => item.id}
             ListEmptyComponent={
-                <EmptyState />
-          }
+              <EmptyState />
+            }
             contentContainerStyle={styles.listContentContainer}
           />
         )}
@@ -97,17 +100,20 @@ export default function Index() {
             onDismiss={() => setVisible(false)}
             contentContainerStyle={{ padding: 5 }}
           >
-            <PokerHandForm close={closeModal}/>
+            <PokerHandForm close={closeModal} preset={preset} />
           </Modal>
         </Portal>
-        <Fab onPress={() => setVisible(true)} />
+        <Fab fabVisible={!visible}
+          setPreset={setPreset}
+          setVisible={() => setVisible(true)}
+          recentHands={savedHands ? savedHands.slice(0, 3) : []} />
       </View>
     </PaperProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { // Style for the main screen View
+  container: {
     flex: 1,
   },
   loader: {

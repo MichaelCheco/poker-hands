@@ -1,5 +1,7 @@
 TODOS:
 * debug KeyboardAvoidingView issue
+* when animation is complete, clear UI for smoother transition
+* handle card validation when collecting villain cards
 * wait for hand insertion before transitioning after animation or shorten
 * animation duration
 * fix undo - error handling, input resetting, state ..

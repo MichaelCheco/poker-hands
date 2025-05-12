@@ -32,10 +32,19 @@ const handFormValidationSchema = Yup.object().shape({
     ),
 });
 
-function PokerHandForm({close}) {
+function PokerHandForm({close, preset}) {
     const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<HandSetupInfo>({
         resolver: yupResolver(handFormValidationSchema),
-        defaultValues: { smallBlind: 5, bigBlind: 5, location: 'Aria', numPlayers: 6, position: 'SB', hand: '8s8c', relevantStacks: 'SB 400, CO 600, BB 300', },
+        defaultValues: { 
+            smallBlind: 5,
+            bigBlind: 5,
+            location: 'Aria',
+            numPlayers: 6,
+            position: 'SB',
+            hand: '8s8c',
+            relevantStacks: 'SB 400, CO 600, BB 300',
+            ...preset
+        },
     });
     const router = useRouter();
     const theme = useTheme();
