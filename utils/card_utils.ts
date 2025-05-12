@@ -1,4 +1,4 @@
-import { ActionType, Decision, GameQueueItem, PlayerAction, PokerPlayerInput, Position } from "@/types";
+import { ActionType, Decision, GameQueueItem, GameQueueItemType, PlayerAction, PokerPlayerInput, Position } from "@/types";
 
 export function isMuck(text: string): boolean {
     return text.toLowerCase().trim() === "muck";
@@ -18,7 +18,13 @@ export function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueIt
 }
 
 export function AddVillainsToGameQueue(villains: Position[]): GameQueueItem[] {
-    const newQueueItems: GameQueueItem[] = villains.map(villain => ({ placeholder: `${villain}'s cards`, shouldTransitionAfterStep: false, actionType: ActionType.kVillainCards, position: villain }));
+    const newQueueItems: GameQueueItem[] = villains.map(villain => ({
+        placeholder: `${villain}'s cards`,
+        shouldTransitionAfterStep: false,
+        actionType: ActionType.kVillainCards,
+        position: villain,
+        id: GameQueueItemType.kVillainCard,
+    }));
     const positionToRankMap: Record<string, number> = {
         'SB': 0,
         'BB': 1,

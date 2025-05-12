@@ -92,6 +92,7 @@ export enum GameQueueItemType {
     kTurnAction,
     kRiverCard,
     kRiverAction,
+    kVillainCard,
 };
 
 export interface GameQueueItem {

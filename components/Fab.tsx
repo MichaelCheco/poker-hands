@@ -9,6 +9,7 @@ const indexToIconMap: Record<number, string> = {
     2: 'cards-heart',
 }
 const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: boolean, setVisible: () => void, recentHands: SavedHandSummary[], setPreset: any }) => {
+    console.log(recentHands, ' recentHands')
     const [state, setState] = React.useState({ open: false });
     const onStateChange = ({ open }) => setState({ open });
     const { open } = state;

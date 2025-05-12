@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
-import { calculateEffectiveStack, decisionToText} from '@/utils/hand_utils';
+import { calculateEffectiveStack, decisionToText } from '@/utils/hand_utils';
 import { useTheme } from 'react-native-paper';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -228,7 +228,12 @@ const validateCommunityCards: ValidationFunction = (input, currentState) => {
     if (ranks.length === 0 && cardsSegment !== '') {
         return { isValid: false, error: 'No valid cards found in input.' };
     }
-    const numCardsExpected = currentState.stage === Stage.Flop ? 3 : 1;
+    let numCardsExpected;
+    if (currentState.currentAction.id === GameQueueItemType.kVillainCard) {
+        numCardsExpected = 2;
+    } else {
+        numCardsExpected = currentState.stage === Stage.Flop ? 3 : 1;
+    }
     // 5. Obvious Error: Too many cards (can be checked early)
     if (ranks.length > numCardsExpected) {
         return { isValid: false, error: `Too many cards, expected ${numCardsExpected}.` };
@@ -384,12 +389,13 @@ export default function App() {
                 actionSpecificValidation = preflopActionPipeline;
                 break;
             case GameQueueItemType.kFlopCards:
+            case GameQueueItemType.kTurnCard:
+            case GameQueueItemType.kRiverCard:
+            case GameQueueItemType.kVillainCard:
                 actionSpecificValidation = cardPipeline;
                 break;
             case GameQueueItemType.kFlopAction:
-            case GameQueueItemType.kTurnCard:
             case GameQueueItemType.kTurnAction:
-            case GameQueueItemType.kRiverCard:
             case GameQueueItemType.kRiverAction:
                 actionSpecificValidation = [];
                 break;
@@ -468,7 +474,7 @@ export default function App() {
         }
     };
 
-    const computePlaceholderText = () => { 
+    const computePlaceholderText = () => {
         if (inputError) {
             return inputError;
         }
@@ -482,11 +488,11 @@ export default function App() {
         }
 
     };
-     return (
+    return (
         <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
             {isLoading && (
                 <View style={styles.successContainer}>
-                     <SuccessAnimation visible={isLoading} onAnimationComplete={() => setAnimationComplete(true)} />
+                    <SuccessAnimation visible={isLoading} onAnimationComplete={() => setAnimationComplete(true)} />
                 </View>
             )}
             {!isLoading && <KeyboardAvoidingView
@@ -523,11 +529,11 @@ export default function App() {
                 </ScrollView>
                 {state.current.stage !== Stage.Showdown && (
                     <SafeAreaView style={[styles.inputContainer]}>
-                         <AnimatedInstructionText
-                             text={computePlaceholderText()}
-                             style={styles.instructionText}
-                             variant="labelLarge"
-                         />
+                        <AnimatedInstructionText
+                            text={computePlaceholderText()}
+                            style={styles.instructionText}
+                            variant="labelLarge"
+                        />
                         <TextInput
                             mode="outlined"
                             placeholderTextColor={inputError ? theme.colors.error : undefined} // Make error placeholder red (optional)
@@ -539,7 +545,7 @@ export default function App() {
                             autoFocus
                             blurOnSubmit={false}
                             returnKeyType="next"
-                            onSubmitEditing={() => {}}
+                            onSubmitEditing={() => { }}
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
                     </SafeAreaView>
