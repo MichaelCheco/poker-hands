@@ -106,7 +106,7 @@ export default function Index() {
         <Fab fabVisible={!visible}
           setPreset={setPreset}
           setVisible={() => setVisible(true)}
-          recentHands={savedHands ? savedHands.slice(0, 3) : []} />
+          recentHands={savedHands || []} />
       </View>
     </PaperProvider>
   );
