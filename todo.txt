@@ -1,30 +1,22 @@
 TODOS:
-* debug KeyboardAvoidingView issue
+* UTG straddle
+* 3rd blind?
+* Ante?
+* notes
+* Login
 * when animation is complete, clear UI for smoother transition
-* handle card validation when collecting villain cards
 * wait for hand insertion before transitioning after animation or shorten
 * animation duration
 * check side pot folds
 * fix undo - error handling, input resetting, state ..
 * fix state update with eff stack sz calc
 * fix all in and a call to collect villain's cards
-* Investigate starting stacks for blinds
-* bottom sheet for notes
-* side pots
-* filter extra commas
-* update hand save animations and add error handling
 * test hand without showdown
 * Display showdown result in hand page
 * Display relevant stacks
 * Display hand metadata
 * Login screen revamp
-* ensure notes works correctly
-* Fix input flicker
-* preflop blind = sb 3!
-* fix reset
-* Revamp card formatting code
 * Handle multiple winners for a pot
-* Add RemoveTrailingPunctuation helper
 * What if stack sizes are missing?
 * Location text truncation
 * preflop all-ins?

@@ -45,10 +45,8 @@ export default function Index() {
     }
   }, []);
 
-  // --- Use useFocusEffect to load data ---
   useFocusEffect(
     React.useCallback(() => {
-      // Runs when the screen comes into focus
       // Clear any presets
       setPreset({});
       // Load hands, show loading indicator only if savedHands is currently null (initial load)

@@ -20,7 +20,7 @@ const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: b
             />
         );
     }
-    for (let i = 0; i < recentHands.length - 1; i++) {
+    for (let i = 0; i < recentHands.length; i++) {
         const hand = recentHands[i];
         const token = `${hand.small_blind}-${hand.big_blind}-${hand.location}`;
         if (handsToShow.length === 3) {

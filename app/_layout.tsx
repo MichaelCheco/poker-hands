@@ -30,7 +30,7 @@ export default function RootLayout() {
             headerShown: false,
             animation: "none",
           }}/>
-          <Stack.Screen name="login" options={{ animation: "none",  }} />
+          <Stack.Screen name="login" options={{ animation: "none", headerTitle: '' }} />
         </Stack>
         </AuthProvider>
       </PaperProvider>
