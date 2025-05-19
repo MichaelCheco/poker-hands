@@ -152,6 +152,44 @@ function PokerHandForm({ close, preset }) {
                 name="location"
             />
             <Controller
+                control={control}
+                render={({ field: { onChange, onBlur, value } }) => (
+                    <>
+                        <TextInput
+                            label="Starting Hand (e.g., AhKd, 54ss)"
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            value={value}
+                            mode="outlined"
+                            style={styles.input}
+                            activeOutlineColor='#000000'
+                            error={!!errors.relevantStacks}
+                        />
+                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.hand}>{errors?.hand.message}</HelperText>}
+                    </>
+                )}
+                name="hand"
+            />
+            <Controller
+                control={control}
+                render={({ field: { onChange, onBlur, value } }) => (
+                    <>
+                        <TextInput
+                            label="Relevant Stacks (e.g., CO 400, BU 600)"
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            value={value}
+                            mode="outlined"
+                            style={styles.input}
+                            activeOutlineColor='#000000'
+                            error={!!errors.relevantStacks}
+                        />
+                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.relevantStacks}>{errors.relevantStacks.message}</HelperText>}
+                    </>
+                )}
+                name="relevantStacks"
+            />
+            <Controller
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
@@ -201,44 +239,6 @@ function PokerHandForm({ close, preset }) {
                 }
                 control={control}
                 name="position"
-            />
-            <Controller
-                control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
-                    <>
-                        <TextInput
-                            label="Starting Hand (e.g., AhKd, 54ss)"
-                            onBlur={onBlur}
-                            onChangeText={onChange}
-                            value={value}
-                            mode="outlined"
-                            style={styles.input}
-                            activeOutlineColor='#000000'
-                            error={!!errors.relevantStacks}
-                        />
-                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.hand}>{errors?.hand.message}</HelperText>}
-                    </>
-                )}
-                name="hand"
-            />
-            <Controller
-                control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
-                    <>
-                        <TextInput
-                            label="Stacks for players in hand (e.g., CO 400, BU 600)"
-                            onBlur={onBlur}
-                            onChangeText={onChange}
-                            value={value}
-                            mode="outlined"
-                            style={styles.input}
-                            activeOutlineColor='#000000'
-                            error={!!errors.relevantStacks}
-                        />
-                        {errors.relevantStacks && <HelperText type="error" visible={!!errors.relevantStacks}>{errors.relevantStacks.message}</HelperText>}
-                    </>
-                )}
-                name="relevantStacks"
             />
             <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
