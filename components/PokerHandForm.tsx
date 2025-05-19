@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView, View } from 'react-native';
 import { useForm, Controller, FieldValues } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as Yup from 'yup';
-import { TextInput, Button, HelperText, useTheme } from 'react-native-paper';
+import { Text, TextInput, Button, HelperText, useTheme, SegmentedButtons } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { playerOptions, positionMapping } from '@/constants';
-import { HandSetupInfo } from '@/types';
+import { HandSetupInfo, Position } from '@/types';
 
 const handFormValidationSchema = Yup.object().shape({
     smallBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number'),
@@ -19,12 +19,12 @@ const handFormValidationSchema = Yup.object().shape({
         'contains-position',
         'Stack size for selected position is missing',
         (value, context) => {
-    
+
             const selectedPosition = context.parent.position;
             if (!selectedPosition || !value) {
                 return true;
             }
-    
+
             // Check if the string contains the selected position (case-insensitive)
             const regex = new RegExp(`${selectedPosition}\\s*\\d+`, 'i');
             return regex.test(value);
@@ -32,21 +32,38 @@ const handFormValidationSchema = Yup.object().shape({
     ),
 });
 
-function PokerHandForm({close, preset}) {
-    const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<HandSetupInfo>({
+const createSegmentedButton = (value: any, label: string) => ({
+    value, label, checkedColor: '#FFF', 
+    uncheckedColor: '#000000',
+
+    style: {
+        borderRadius: 0,
+    },
+});
+
+const createSegmentedButtonForNumPlayers = (value: any, label: string) => ({
+    value, label, checkedColor: '#FFF', uncheckedColor: '#000000',
+    style: {
+        borderRadius: 0,
+        minWidth: 50,
+    },
+});
+
+function PokerHandForm({ close, preset }) {
+    const { control, watch, handleSubmit, formState: { errors, isSubmitting }, setValue, getValues } = useForm<HandSetupInfo>({
         resolver: yupResolver(handFormValidationSchema),
-        defaultValues: { 
+        defaultValues: {
             smallBlind: 5,
             bigBlind: 5,
             location: '',
-            numPlayers: 6,
+            numPlayers: 8,
             position: '',
             hand: '',
             relevantStacks: '',
             ...preset
         },
     });
-    const [positionFocused, setPositionFocused] = React.useState(false);
+    const [positionOptions, setPositionOptions] = React.useState<any>([])
     const router = useRouter();
     const theme = useTheme();
 
@@ -61,16 +78,9 @@ function PokerHandForm({close, preset}) {
         close();
     };
     const onError = (errors, e) => console.log(errors, e);
-    const positionOptions = useMemo(() => {
-        if (numPlayers) {
-            return [...(positionMapping[numPlayers] || [])];
-        }
-        return [{ label: 'Select Position', value: '' }];
-    }, [numPlayers]);
-
-    // Reset position when numPlayers changes
     React.useEffect(() => {
         if (numPlayers) {
+            setPositionOptions([...(positionMapping[numPlayers].map(p => createSegmentedButton(p.value, p.label)))]);
             setValue('position', '');
         }
     }, [numPlayers, setValue]);
@@ -142,47 +152,54 @@ function PokerHandForm({close, preset}) {
                 name="location"
             />
             <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Number of Players</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%' }}
+                                buttons={[
+                                    createSegmentedButtonForNumPlayers(2, '2'),
+                                    createSegmentedButtonForNumPlayers(3, '3'),
+                                    createSegmentedButtonForNumPlayers(4, '4'),
+                                    createSegmentedButtonForNumPlayers(5, '5'),
+                                    createSegmentedButtonForNumPlayers(6, '6'),
+                                    createSegmentedButtonForNumPlayers(7, '7'),
+                                    createSegmentedButtonForNumPlayers(8, '8'),
+                                ]}
+                            />
+                        </View>
+                    )
+                }
                 control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
-                    <>
-                        <TextInput
-                            label="Number of Players"
-                            onBlur={onBlur}
-                            onChangeText={(text) => {
-                                const numericText = text.replace(/[^0-9]/g, '');
-                                return onChange(numericText);
-                            }}
-                            value={String(value)}
-                            keyboardType="numeric"
-                            mode="outlined"
-                            style={styles.input}
-                            activeOutlineColor='#000000'
-                            error={!!errors.numPlayers}
-                        />
-                        {errors.numPlayers && <HelperText type="error" visible={!!errors.numPlayers}>{errors.numPlayers.message}</HelperText>}
-                    </>
-                )}
                 name="numPlayers"
             />
             <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Position</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: 12  }}
+                                buttons={[...positionOptions.slice(0, Math.ceil(positionOptions.length / 2))]}
+                            />
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%', flexWrap: 'wrap',  }}
+                                buttons={[...positionOptions.slice(Math.ceil(positionOptions.length / 2))]}
+                            />
+                        </View>
+                    )
+                }
                 control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
-                    <>
-                        <TextInput
-                            label={`${positionFocused ? "Hero's Position" : `Hero? ${positionOptions.map(v => v.value).join(', ')}`}`}
-                            placeholder={positionOptions.map(v => v.value).join(', ')}
-                            onBlur={() => { setPositionFocused(false) }}
-                            onFocus={e => {setPositionFocused(true)}}
-                            onChangeText={onChange}
-                            value={value}
-                            mode="outlined"
-                            style={styles.input}
-                            activeOutlineColor='#000000'
-                            error={!!errors.smallBlind}
-                        />
-                        {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position.message}</HelperText>}
-                    </>
-                )}
                 name="position"
             />
             <Controller
@@ -233,6 +250,7 @@ function PokerHandForm({close, preset}) {
 const styles = StyleSheet.create({
     container: {
         padding: 20,
+        flexGrow: 1,
     },
     input: {
         marginBottom: 10,

@@ -126,7 +126,7 @@ function updateActionSequenceWithNewAction(
 }
 
 export function createInitialAppState(state: GameAppState, gameInfo: HandSetupInfo) {
-    const { position, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
+    const { position: heroPosition, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
     const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
     const upperCasedHand = hand.toUpperCase();
     const stacks = parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind);
@@ -141,7 +141,7 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
     }));
     const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
     const handAsArray = parsePokerHandString(upperCasedHand);
-    const heroPosition = position.toUpperCase();
+    // const heroPosition = position.toUpperCase();
     const initialGameState: GameState = {
         ...state.current,
         actionSequence: initialSequence,

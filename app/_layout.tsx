@@ -16,7 +16,8 @@ const theme = {
     myOwnColor: '#FFF',
     primary: '#7D7D7D',
     primaryContainer: '#0059EC',
-    fabButton: '#48AEFF'
+    fabButton: '#48AEFF',
+    secondaryContainer: '#000000'
   },
 };
 
