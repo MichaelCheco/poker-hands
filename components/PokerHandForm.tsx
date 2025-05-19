@@ -209,7 +209,7 @@ function PokerHandForm({close, preset}) {
                 render={({ field: { onChange, onBlur, value } }) => (
                     <>
                         <TextInput
-                            label="Relevant Stack Sizes (e.g., CO 400, BU 600)"
+                            label="Stacks for players in hand (e.g., CO 400, BU 600)"
                             onBlur={onBlur}
                             onChangeText={onChange}
                             value={value}

@@ -2,6 +2,15 @@ import { GameState, HandSetupInfo, SavedHandSummary } from "@/types";
 import { transFormCardsToFormattedString } from "@/utils/card_utils";
 import { supabase } from "@/utils/supabase";
 
+
+export async function updateNotesForHand(handId: string, notes: string) {
+    const { data, error } = await supabase
+        .from('hands')
+        .update({ notes })
+        .eq('id', handId)
+        .select()
+    console.log(data, error);
+}
 export async function getHandDetailsById(handId: string) {
     try {
         // Use relational query to fetch hand and related actions/showdown hands

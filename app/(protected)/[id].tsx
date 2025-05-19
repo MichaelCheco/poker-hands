@@ -1,23 +1,24 @@
 import React, { useState, useLayoutEffect } from 'react';
 import { View, ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { deleteHand, getHandDetailsById } from '@/api/hands';
+import { deleteHand, getHandDetailsById, updateNotesForHand } from '@/api/hands';
 import { formatDateMMDDHHMM, parseStackSizes2 } from '@/utils/hand_utils';
 import { DetailedHandData } from '@/types';
 import { Text, Divider, IconButton } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import ActionListReview from '@/components/ActionListReview';
 import DeleteHandConfirmationDialog from '@/components/DeleteHandConfirmationDialog';
+import HandNotesDialog from '@/components/HandNotesDialog';
 
-function HandActions({ date, onDeleteClick }) {
+function HandActions({ date, onDeleteClick, onNotesClick }) {
     return (
         <TouchableOpacity style={{
             display: 'flex',
             flexDirection: 'row',
         }}>
             <IconButton
-                onTouchEnd={() => console.log('note')}
-                icon={"note-outline"} style={{ margin: 0, position: 'absolute', right: 42 }} size={26} />
+                onTouchEnd={onNotesClick}
+                icon={"note-text-outline"} style={{ margin: 0, position: 'absolute', right: 42 }} size={26} />
             <IconButton
                 icon={"delete"}
                 style={{ margin: 0 }}
@@ -35,8 +36,10 @@ export default function HandDetailScreen() {
     const [handDetails, setHandDetails] = useState<DetailedHandData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
-    const onDismissDialog = () => setDeleteDialogVisible(false);
+    const [notesDialogVisible, setNotesDialogVisible] = useState(false);
 
+    const onDismissDialog = () => setDeleteDialogVisible(false);
+    const onDismissNotesDialog = () => setNotesDialogVisible(false);
     const [error, setError] = useState<string | null>(null);
 
     useLayoutEffect(() => {
@@ -54,7 +57,7 @@ export default function HandDetailScreen() {
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
                     headerLeft: () => <Text variant='titleMedium'>{details.location} - {formatDateMMDDHHMM(details.played_at)}</Text>,
-                    headerRight: () => <HandActions date={details.played_at} onDeleteClick={() => setDeleteDialogVisible(true)} />,
+                    headerRight: () => <HandActions date={details.played_at} onDeleteClick={() => setDeleteDialogVisible(true)} onNotesClick={() => setNotesDialogVisible(true)} />,
                     headerTitle: '',
                 });
 
@@ -70,6 +73,13 @@ export default function HandDetailScreen() {
     }, [id, navigation]);
     return (
         <View style={styles.container}>
+            <HandNotesDialog 
+              hideDialog={onDismissNotesDialog} 
+              visible={notesDialogVisible} 
+              initialNotes={handDetails?.notes || ''}
+              onSaveNotes={async (notes: string) => {
+                  await updateNotesForHand(handDetails?.id, notes);
+                }}/>
             <DeleteHandConfirmationDialog 
              hideDialog={onDismissDialog}
             visible={deleteDialogVisible} 
