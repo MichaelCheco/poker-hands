@@ -101,7 +101,7 @@ export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], hand
 }
 
 function getStageCards(stage: Stage, communityCards: string[]): string {
-    const flopCardStr = communityCards.slice(0, 3).map(c => `${c[0]}${getSuit(c[1])}`).join(', ');
+    const flopCardStr = communityCards.slice(0, 3).map(c => `${c[0]}${getSuit(c[1])}`).join(' ');
     const turnCardStr = communityCards[3].split(' ').map(c => `${c[0]}${getSuit(c[1])}`);
     const riverCardStr = communityCards[4].split(' ').map(c => `${c[0]}${getSuit(c[1])}`);;
     switch (stage) {
@@ -200,10 +200,6 @@ export function formatAndGetTextToCopy(
             groupedActions[action.stage].push(action);
         }
     }
-    const flopCardStr = communityCards.slice(0, 3).join(', ');
-    const turnCardStr = communityCards[3];
-    const riverCardStr = communityCards[4];
-
     // Define the order of stages
     const stageOrder: Stage[] = [Stage.Preflop, Stage.Flop, Stage.Turn, Stage.River];
 
@@ -240,12 +236,12 @@ export function formatAndGetTextToCopy(
 
         showdown.forEach(handInfo => {
                 const cardsString = handInfo.hole_cards
-                lines.push(`- ${handInfo.position} shows [ ${cardsString} ]`);
+            lines.push(`- ${handInfo.position === position ? 'Hero' : handInfo.position} shows [ ${cardsString} ]`);
             });
 
         const winner = showdown.find(h => h.is_winner);
         if (winner) {
-            lines.push(`\nWinner: ${winner.position} wins ${pot} with ${winner.hand_description}`);
+            lines.push(`\nWinner: ${winner.position} wins $${pot} with ${winner.hand_description}`);
     } else {
         // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
         // This would require analysing the last actions. For simplicity, we omit this for now.
