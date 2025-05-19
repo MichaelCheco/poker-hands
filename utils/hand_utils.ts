@@ -259,6 +259,7 @@ export function parseStackSizes(stackString: string, sequence: string[],
 ): PlayerStacks {
     const stackObjects: PlayerStacks = {};
     const stackEntries = stackString.split(',').map(entry => entry.trim());
+    const defaultStackSize = bigBlind * 100;
     for (const entry of stackEntries) {
         const match = entry.match(/^([a-zA-Z]+)\s+(\d+)$/);
         if (match) {
@@ -271,16 +272,12 @@ export function parseStackSizes(stackString: string, sequence: string[],
     }
     const result: PlayerStacks = sequence.reduce((acc, player) => {
         if (!stackObjects[player as Position]) {
-            stackObjects[player as Position] = Number.POSITIVE_INFINITY;
+            stackObjects[player as Position] = defaultStackSize;
         }
         return acc;
     }, stackObjects);
-    if (result[Position.SB] !== Number.POSITIVE_INFINITY) {
-        result[Position.SB] = result[Position.SB] as number - smallBlind
-    }
-    if (result[Position.BB] !== Number.POSITIVE_INFINITY) {
-        result[Position.BB] = result[Position.BB] as number  - bigBlind
-    }
+    result[Position.SB] = result[Position.SB] as number - smallBlind;
+    result[Position.BB] = result[Position.BB] as number  - bigBlind;
 
     // TODO handle straddles and antes
     return result;
