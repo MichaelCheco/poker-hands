@@ -9,6 +9,7 @@ import Showdown from '@/components/Showdown';
 import ActionListReview from '@/components/ActionListReview';
 import DeleteHandConfirmationDialog from '@/components/DeleteHandConfirmationDialog';
 import HandNotesDialog from '@/components/HandNotesDialog';
+import { supabase } from '@/utils/supabase';
 
 function HandActions({ date, onDeleteClick, onNotesClick }) {
     return (
@@ -32,7 +33,6 @@ export default function HandDetailScreen() {
     const navigation = useNavigation();
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
-    const [notes, setNotes] = useState('')
     const [handDetails, setHandDetails] = useState<DetailedHandData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -42,14 +42,24 @@ export default function HandDetailScreen() {
     const onDismissNotesDialog = () => setNotesDialogVisible(false);
     const [error, setError] = useState<string | null>(null);
 
-    const memoizedInitialNotes = React.useMemo(() => {
-        if (handDetails) {
-            // console.log(`useMemo: Recalculating initialNotes for ${selectedHandId}`);
-            return handDetails.notes ?? ''
-        }
-        return ""; // Default if no hand is selected or found
-    }, [notes]); // Dependency array for useMemo
 
+    const hands = supabase.channel('custom-filter-channel')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'hands', filter: `id=${id}` },
+            (payload) => {
+                // console.log('Change received!', payload)
+                if (!handDetails) {
+                    console.log('no hand details in subscription ...');
+                    return;
+                }
+                const update = payload.new as DetailedHandData;
+                setHandDetails({ ...handDetails, notes: update.notes})
+            }
+        )
+        .subscribe()
+    // console.log(hands)
+    // hands.
     useLayoutEffect(() => {
         navigation.setOptions({
             headerBackButtonDisplayMode: "default",
@@ -60,9 +70,9 @@ export default function HandDetailScreen() {
             setError(null);
             try {
                 const details: DetailedHandData = await getHandDetailsById(id);
-                console.log(details);
+                // console.log(details);
+                // console.log(`details.notes in parent: ${details.notes}`);
                 setHandDetails(details);
-                setNotes(details.notes || '')
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
                     headerLeft: () => <Text variant='titleMedium'>{details.location} - {formatDateMMDDHHMM(details.played_at)}</Text>,
@@ -85,7 +95,7 @@ export default function HandDetailScreen() {
             <HandNotesDialog 
               hideDialog={onDismissNotesDialog} 
               visible={notesDialogVisible} 
-                initialNotes={memoizedInitialNotes}
+              initialNotes={handDetails?.notes}
               onSaveNotes={async (notes: string) => {
                   await updateNotesForHand(handDetails?.id, notes);
                 }}/>

@@ -34,6 +34,7 @@ export default function Index() {
     try {
       const { hands, error: fetchError, count } = await getSavedHands();
       if (fetchError) throw fetchError;
+      console.log(hands)
       setSavedHands(hands || []);
     } catch (err: any) {
       console.error("Error fetching hands:", err);
