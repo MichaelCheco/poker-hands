@@ -155,7 +155,7 @@ const validateAction: ValidationFunction = (input, state) => {
             if (numberOfBetsAndRaisesThisStreet) {
                 return { isValid: false, error: `A bet has already occurred on this street` };
             }
-            if (amount < bigBlind) {
+            if (amount < bigBlind && isCompleteSegment) {
                 return { isValid: false, error: `Bet amount must be > than BB` };
             }
             break;

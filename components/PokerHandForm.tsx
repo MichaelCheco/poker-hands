@@ -40,9 +40,9 @@ function PokerHandForm({close, preset}) {
             bigBlind: 5,
             location: '',
             numPlayers: 6,
-            position: 'CO',
-            hand: 'AhAc',
-            relevantStacks: 'CO 400, SB 500, BB 600',
+            position: '',
+            hand: '',
+            relevantStacks: '',
             ...preset
         },
     });

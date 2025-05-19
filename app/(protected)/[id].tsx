@@ -32,7 +32,7 @@ export default function HandDetailScreen() {
     const navigation = useNavigation();
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
-
+    const [notes, setNotes] = useState('')
     const [handDetails, setHandDetails] = useState<DetailedHandData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -41,6 +41,14 @@ export default function HandDetailScreen() {
     const onDismissDialog = () => setDeleteDialogVisible(false);
     const onDismissNotesDialog = () => setNotesDialogVisible(false);
     const [error, setError] = useState<string | null>(null);
+
+    const memoizedInitialNotes = React.useMemo(() => {
+        if (handDetails) {
+            // console.log(`useMemo: Recalculating initialNotes for ${selectedHandId}`);
+            return handDetails.notes ?? ''
+        }
+        return ""; // Default if no hand is selected or found
+    }, [notes]); // Dependency array for useMemo
 
     useLayoutEffect(() => {
         navigation.setOptions({
@@ -54,6 +62,7 @@ export default function HandDetailScreen() {
                 const details: DetailedHandData = await getHandDetailsById(id);
                 console.log(details);
                 setHandDetails(details);
+                setNotes(details.notes || '')
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
                     headerLeft: () => <Text variant='titleMedium'>{details.location} - {formatDateMMDDHHMM(details.played_at)}</Text>,
@@ -76,7 +85,7 @@ export default function HandDetailScreen() {
             <HandNotesDialog 
               hideDialog={onDismissNotesDialog} 
               visible={notesDialogVisible} 
-              initialNotes={handDetails?.notes || ''}
+                initialNotes={memoizedInitialNotes}
               onSaveNotes={async (notes: string) => {
                   await updateNotesForHand(handDetails?.id, notes);
                 }}/>
