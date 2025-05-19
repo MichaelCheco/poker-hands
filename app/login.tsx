@@ -13,7 +13,7 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // State for toggling between Login and Sign Up modes
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [isSignUpMode, setIsSignUpMode] = useState(true);
 
   const handleLogin = async () => {
     if (!email || !password) {
