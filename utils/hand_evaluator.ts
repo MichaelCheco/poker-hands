@@ -250,7 +250,7 @@ export function generateRichHandDescription(evaluation: HandEvaluation | null): 
             if (values[0] === 14) return "Royal Flush";
             return `Straight Flush, ${cardName(values[0])} high`;
         case HandRank.FOUR_OF_A_KIND:
-            return `Four of a Kind, ${pluralRankName(values[0])} (Kicker: ${cardName(values[1])})`;
+            return `Four of a Kind, ${pluralRankName(values[0])}`;
         case HandRank.FULL_HOUSE:
             return `Full House, ${pluralRankName(values[0])} full of ${pluralRankName(values[1])}`;
         case HandRank.FLUSH:
@@ -258,14 +258,14 @@ export function generateRichHandDescription(evaluation: HandEvaluation | null): 
             // We only need to state the high card of the flush.
             return `Flush, ${cardName(values[0])} high`;
         case HandRank.STRAIGHT:
-            if (values[0] === 5 && values.includes(14)) return "Wheel (Straight, Five high)"; // A-2-3-4-5
+            if (values[0] === 5 && values.includes(14)) return "Wheel"; // A-2-3-4-5
             return `Straight, ${cardName(values[0])} high`;
         case HandRank.THREE_OF_A_KIND:
-            return `Three of a Kind, ${pluralRankName(values[0])} (Kickers: ${values.slice(1).map(cardName).join(', ')})`;
+            return `Three of a Kind, ${pluralRankName(values[0])}`;
         case HandRank.TWO_PAIR:
             return `Two Pair, ${pluralRankName(values[0])} and ${pluralRankName(values[1])} (Kicker: ${cardName(values[2])})`;
         case HandRank.ONE_PAIR:
-            return `Pair of ${pluralRankName(values[0])} (Kickers: ${values.slice(1).map(cardName).join(', ')})`;
+            return `Pair of ${pluralRankName(values[0])}`;
         case HandRank.HIGH_CARD:
             // For High Card, values are all 5 cards sorted.
             return `${cardName(values[0])} High (Kickers: ${values.slice(1).map(cardName).join(', ')})`;

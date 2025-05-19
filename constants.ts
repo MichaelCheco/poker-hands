@@ -92,45 +92,47 @@ export const initialDeck: string[] = [
   '2S', '3S', '4S', '5S', '6S', '7S', '8S', '9S', 'TS', 'JS', 'QS', 'KS', 'AS'
 ];
 
+const initialGameQueue = [
+  {
+    placeholder: 'Flop cards',
+    shouldTransitionAfterStep: false,
+    actionType: ActionType.kCommunityCard,
+    id: GameQueueItemType.kFlopCards,
+  },
+  {
+    placeholder: 'Flop action',
+    shouldTransitionAfterStep: true,
+    actionType: ActionType.kActionSequence,
+    id: GameQueueItemType.kFlopAction,
+  },
+  {
+    placeholder: 'Turn card',
+    shouldTransitionAfterStep: false,
+    actionType: ActionType.kCommunityCard,
+    id: GameQueueItemType.kTurnCard,
+  },
+  {
+    placeholder: 'Turn action',
+    shouldTransitionAfterStep: true,
+    actionType: ActionType.kActionSequence,
+    id: GameQueueItemType.kTurnAction,
+  },
+  {
+    placeholder: 'River card',
+    shouldTransitionAfterStep: false,
+    actionType: ActionType.kCommunityCard,
+    id: GameQueueItemType.kRiverCard,
+  },
+  {
+    placeholder: 'River action',
+    shouldTransitionAfterStep: false,
+    actionType: ActionType.kActionSequence,
+    id: GameQueueItemType.kRiverAction,
+  },
+];
+
 export const initialState: GameState = {
-  gameQueue: [
-    {
-      placeholder: 'Flop cards',
-      shouldTransitionAfterStep: false,
-      actionType: ActionType.kCommunityCard,
-      id: GameQueueItemType.kFlopCards,
-    },
-    {
-      placeholder: 'Flop action',
-      shouldTransitionAfterStep: true,
-      actionType: ActionType.kActionSequence,
-      id: GameQueueItemType.kFlopAction,
-    },
-    {
-      placeholder: 'Turn card',
-      shouldTransitionAfterStep: false,
-      actionType: ActionType.kCommunityCard,
-      id: GameQueueItemType.kTurnCard,
-    },
-    {
-      placeholder: 'Turn action',
-      shouldTransitionAfterStep: true,
-      actionType: ActionType.kActionSequence,
-      id: GameQueueItemType.kTurnAction,
-    },
-    {
-      placeholder: 'River card',
-      shouldTransitionAfterStep: false,
-      actionType: ActionType.kCommunityCard,
-      id: GameQueueItemType.kRiverCard,
-    },
-    {
-      placeholder: 'River action',
-      shouldTransitionAfterStep: false,
-      actionType: ActionType.kActionSequence,
-      id: GameQueueItemType.kRiverAction,
-    },
-  ],
+  gameQueue: initialGameQueue,
   currentAction: {
     placeholder: 'Preflop action',
     shouldTransitionAfterStep: true,
@@ -140,20 +142,25 @@ export const initialState: GameState = {
   input: '',
   cards: ['', '', '', '', ''],
   playerActions: [],
+  calculatedPots: [],
   stage: Stage.Preflop,
   hero: { position: '', hand: '' },
   actionSequence: [],
   pot: 0,
+  smallBlind: -1,
+  bigBlind: -1,
   potForStreetMap: {
     [Stage.Preflop]: 0,
     [Stage.Flop]: 0,
     [Stage.Turn]: 0,
     [Stage.River]: 0,
   },
-  preflopSequence: [],
   deck: initialDeck,
   betsThisStreet: {},
   currentBetFacing: 0,
+  lastRaiseAmount: 0,
+  playerWhoMadeLastAggressiveAction: Position.BB,
+  numberOfBetsAndRaisesThisStreet: 0,
   mostRecentBet: 0,
   showdownHands: [],
   showdown: null,

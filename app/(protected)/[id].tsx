@@ -40,12 +40,16 @@ export default function HandDetailScreen() {
     const [error, setError] = useState<string | null>(null);
 
     useLayoutEffect(() => {
+        navigation.setOptions({
+            headerBackButtonDisplayMode: "default",
+            headerTitle: '',
+        });
         const fetchDetails = async () => {
             setIsLoading(true);
             setError(null);
             try {
                 const details: DetailedHandData = await getHandDetailsById(id);
-                // console.log(details);
+                console.log(details);
                 setHandDetails(details);
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",

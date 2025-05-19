@@ -38,14 +38,15 @@ function PokerHandForm({close, preset}) {
         defaultValues: { 
             smallBlind: 5,
             bigBlind: 5,
-            location: 'Aria',
+            location: '',
             numPlayers: 6,
-            position: 'SB',
-            hand: '8s8c',
-            relevantStacks: 'SB 400, CO 600, BB 300',
+            position: 'CO',
+            hand: 'AhAc',
+            relevantStacks: 'CO 400, SB 500, BB 600',
             ...preset
         },
     });
+    const [positionFocused, setPositionFocused] = React.useState(false);
     const router = useRouter();
     const theme = useTheme();
 
@@ -70,7 +71,7 @@ function PokerHandForm({close, preset}) {
     // Reset position when numPlayers changes
     React.useEffect(() => {
         if (numPlayers) {
-            setValue('position', 'SB');
+            setValue('position', '');
         }
     }, [numPlayers, setValue]);
     return (
@@ -168,9 +169,10 @@ function PokerHandForm({close, preset}) {
                 render={({ field: { onChange, onBlur, value } }) => (
                     <>
                         <TextInput
-                            label="Hero's Position"
+                            label={`${positionFocused ? "Hero's Position" : `Hero? ${positionOptions.map(v => v.value).join(', ')}`}`}
                             placeholder={positionOptions.map(v => v.value).join(', ')}
-                            onBlur={onBlur}
+                            onBlur={() => { setPositionFocused(false) }}
+                            onFocus={e => {setPositionFocused(true)}}
                             onChangeText={onChange}
                             value={value}
                             mode="outlined"
@@ -188,7 +190,7 @@ function PokerHandForm({close, preset}) {
                 render={({ field: { onChange, onBlur, value } }) => (
                     <>
                         <TextInput
-                            label="Starting Hand (e.g., AhKd)"
+                            label="Starting Hand (e.g., AhKd, 54ss)"
                             onBlur={onBlur}
                             onChangeText={onChange}
                             value={value}
@@ -207,7 +209,7 @@ function PokerHandForm({close, preset}) {
                 render={({ field: { onChange, onBlur, value } }) => (
                     <>
                         <TextInput
-                            label="Relevant Stack Sizes (e.g., CO 725, BU 1000)"
+                            label="Relevant Stack Sizes (e.g., CO 400, BU 600)"
                             onBlur={onBlur}
                             onChangeText={onChange}
                             value={value}

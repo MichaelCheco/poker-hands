@@ -75,6 +75,11 @@ return (
                         color: theme.colors.secondary
                     },
                     onPress: () => {
+                        setPreset({
+                            smallBlind: '',
+                            bigBlind: '',
+                            location: '',
+                        });
                         setVisible()
                     },
                 },

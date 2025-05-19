@@ -68,8 +68,8 @@ export enum Position {
     SB = 'SB',
     BB = 'BB',
     UTG = 'UTG',
-    UTG_1 = 'UTG+1',
-    UTG_2 = 'UTG+2',
+    UTG_1 = 'UTG1',
+    UTG_2 = 'UTG2',
     LJ = 'LJ',
     HJ = 'HJ',
     CO = 'CO',
@@ -140,7 +140,11 @@ export interface ShowdownDetails {
 export interface PlayerStatus {
     position: Position;
     isAllIn: boolean;
-    hasToAct: boolean;
+    hasActedThisStreet: boolean;
+    hasFolded: boolean;
+    canRaise: boolean;
+    amountInvestedThisStreet: number,
+    stack: number
 }
 
 export interface PreflopStatus {
@@ -194,12 +198,16 @@ export interface GameState {
     betsThisStreet: BetsForStreetMap;
     potForStreetMap: Partial<Record<Stage, number>>;
     stacks: PlayerStacks;
+    smallBlind: number;
+    bigBlind: number;
     currentBetFacing: number;
+    lastRaiseAmount: number;
+    playerWhoMadeLastAggressiveAction: Position | null;
+    numberOfBetsAndRaisesThisStreet: number;
     showdownHands: PokerPlayerInput[];
     mostRecentBet: number;
     calculatedPots: CalculatedPot[];
     showdown: ShowdownDetails[] | null;
-    preflopSequence: PreflopStatus[] | undefined;
     allPlayerContributions: PlayerPotContribution[];
 }
 

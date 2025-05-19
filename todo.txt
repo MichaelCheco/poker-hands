@@ -1,9 +1,15 @@
 TODOS:
 * UTG straddle
 * 3rd blind?
+* preflop all-in
+* reduce raise amount to eff size 500 / 1000
+* ensure both formats for card work on hand setup
 * Ante?
 * notes
 * Login
+* all players must act postflop before proceeding
+* player must be in hand
+* invalid refresh token
 * when animation is complete, clear UI for smoother transition
 * wait for hand insertion before transitioning after animation or shorten
 * animation duration

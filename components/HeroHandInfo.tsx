@@ -13,7 +13,7 @@ const HeroHandInfo = ({ info }: {info: HandSetupInfo}) => {
     }}>
         <MyHand cards={parsePokerHandString(info.hand.toUpperCase())} />
         <Text style={{ marginInline: 4, fontSize: 20, fontWeight: 'bold' }}>•</Text>
-        <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{info.position}</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{info.position.toUpperCase()}</Text>
     </View>
   );
 };
