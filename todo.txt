@@ -1,12 +1,9 @@
 TODOS:
-* fix notes
-* BB check option preflop
-*fix checking postflop
+* fix any issues with all-ins and folds
+* show ?? when player mucks
 * # players revamp
 * hero pos revamp
 * fix player can not raise error - player a raise player b raises and player a tries to raise
-
-
 
 * UTG straddle
 * 3rd blind?

@@ -104,7 +104,7 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
 
 
     const styles = StyleSheet.create({
-        dialog: {},
+        dialog: {marginBottom: 50},
         title: { marginBottom: 10 },
         content: { paddingHorizontal: 24, },
         textInput: { marginTop: 8, marginBottom: 12, maxHeight: 160, minHeight: 120, borderRadius: 8 }, // Added minHeight

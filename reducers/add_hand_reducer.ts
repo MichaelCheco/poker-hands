@@ -29,6 +29,7 @@ function logOrder(s: PlayerStatus[] | undefined) {
     console.log('\n===== ORDER =====\n')
 }
 
+// console.log(`Action received: ${JSON.stringify(action)}`);
 /**
  * Updates the action sequence after a player takes an action.
  * - Removes players before the actor who haven't yet acted (implicit folds).
@@ -49,7 +50,6 @@ function updateActionSequenceWithNewAction(
     betTotalForStreet: number
 ): PlayerStatus[] {
     const actionIndex = currentActionSequence.findIndex(a => a.position === action.position);
-
     if (actionIndex === -1) {
         console.error(`Player with position ${action.position} not found in currentActionSequence.`);
         // Return a copy of the original sequence to prevent mutation if desired, or throw
@@ -262,7 +262,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             logOrder(updatedActionSequence);
             playerAction.text = getMeaningfulTextToDisplay(
                 playerAction,
-                getNumBetsForStage(curr.playerActions, curr.stage),
+                curr.numberOfBetsAndRaisesThisStreet,
                 curr.stage);
                 
                 const addActionState: GameState = {
@@ -467,7 +467,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
 
 function getMeaningfulTextToDisplay(action: PlayerAction, numBetsThisStreet: number, stage: Stage): string {
     const amountStr = `$${action.amount}`;
-    if (numBetsThisStreet === 1 && stage === Stage.Preflop) {
+    if (numBetsThisStreet === 1 && stage === Stage.Preflop && isAggressiveAction(action.decision)) {
         return `opens to ${amountStr}`;
     }
     switch (action.decision) {

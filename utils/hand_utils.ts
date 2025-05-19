@@ -40,6 +40,10 @@ function getTextSummaryForLastStage(actionList: ActionRecord[]): string {
     return text;
 }
 
+export function isPreflop(stage: Stage): boolean {
+    return stage === Stage.Preflop;
+}
+
 export function decisionToText(decision: Decision): string {
     switch (decision) {
         case Decision.kCheck: return 'checked';

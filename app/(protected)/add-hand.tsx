@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult, PlayerStatus } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
-import { calculateEffectiveStack, decisionToText } from '@/utils/hand_utils';
+import { calculateEffectiveStack, decisionToText, isPreflop } from '@/utils/hand_utils';
 import { useTheme } from 'react-native-paper';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,9 +50,11 @@ const validatePosition: ValidationFunction = (input, state) => {
     // try to run this only once
     const VALID_POSITIONS = numPlayersToActionSequenceList[Object.keys(state.stacks).length];
     const VALID_POS_STARTS = VALID_POSITIONS.map(p => p[0]);
-    if (state.stage !== Stage.Preflop && VALID_POSITIONS.includes(position)) {
-        return {isValid: false, error: 'Position can be omitted Postflop'}
+    console.log(VALID_POS_STARTS)
+    if (!isPreflop(state.stage) && !VALID_ACTIONS.map(a => a.toLowerCase()).includes(parts[0].toLowerCase().trim())) {
+        return { isValid: false, error: 'Position can be omitted Postflop' }
     }
+    if (!isPreflop(state.stage)) { return { isValid: true } }
     // Special case UTG
     if (position.length < 2) {
         if (!VALID_POS_STARTS.includes(position)) {
@@ -74,7 +76,7 @@ const validatePosition: ValidationFunction = (input, state) => {
 
 const formattedCard = (card: string) => `${card[0]}${card[1].toLowerCase()}`;
 
-const validateDecision: ValidationFunction = (input, {stage}) => {
+const validateDecision: ValidationFunction = (input, { stage }) => {
     const parts = getPartsFromSegment(getSegment(input));
     const decision = parts[stage === Stage.Preflop ? 1 : 0] as Decision;
     if (!decision) {
@@ -89,9 +91,20 @@ const validateDecision: ValidationFunction = (input, {stage}) => {
 
 const getPlayerFromActionSequence = (players: PlayerStatus[], player: Position) => players.find(p => p.position === player);
 // TODO validate 3rd part
+
+
+const validateHeroInAction: ValidationFunction = (input, { playerActions, hero: { position } }) => {
+    const isSequenceComplete = input.endsWith('.');
+    if (!isSequenceComplete) { return { isValid: true } };
+    if (!playerActions.some((action => action.position === position))) {
+        return {isValid: false, error: 'Hero must be in action sequence'}
+    }
+    return { isValid: true };
+}
+
 const validateAction: ValidationFunction = (input, state) => {
     const isCompleteSegment = input.endsWith(',') || input.endsWith('.');
-    const { playerActions, betsThisStreet, actionSequence, lastRaiseAmount, currentBetFacing, numberOfBetsAndRaisesThisStreet, stage, stacks, bigBlind, playerWhoMadeLastAggressiveAction} = state;
+    const { playerActions, betsThisStreet, actionSequence, lastRaiseAmount, currentBetFacing, numberOfBetsAndRaisesThisStreet, stage, stacks, bigBlind, playerWhoMadeLastAggressiveAction } = state;
     // console.log(`validateAction: last raise $ - ${lastRaiseAmount} || # bets ${numberOfBetsAndRaisesThisStreet}`)
     const segment = getSegment(input);
     // console.log(input, ' - ', segment)
@@ -100,7 +113,7 @@ const validateAction: ValidationFunction = (input, state) => {
         ? parts[0]
         : actionSequence.find(a => !a.isAllIn)?.position;
     assertIsDefined(nextPlayerToActPos);
-    const {decision, position, amount} = getPlayerAction(nextPlayerToActPos, segment, stage, 0);
+    const { decision, position, amount } = getPlayerAction(nextPlayerToActPos, segment, stage, 0);
     console.log(`parts ::: ${decision} :: `, parts)
     // assertIsDefined(playerInSequence);
     if (parts.length === 1) {
@@ -112,12 +125,12 @@ const validateAction: ValidationFunction = (input, state) => {
     }
     if ((decision === Decision.kCall || decision === Decision.kFold) && amount) {
         return { isValid: false, error: `Amount not allowed for action` };
-    } 
-    if (decision ===  Decision.kCall) {
+    }
+    if (decision === Decision.kCall) {
         // Valid if currentBetToCall > player[playerTurnSeatIndex].amountInvestedThisStreet.
         const contribution = betsThisStreet[position];
         if (!contribution) {
-            return {isValid: true}
+            return { isValid: true }
         }
         if (!(currentBetFacing > contribution)) {
             return { isValid: false, error: `Current bet: ($${currentBetFacing}) is not greater than ${position}'s contribution: $${contribution}` }
@@ -139,11 +152,15 @@ const validateAction: ValidationFunction = (input, state) => {
         return { isValid: false, error: 'Amount is missing' }
     }
     // console.log(playerInSequence, ' p')
-    
+
     if ((decision === Decision.kRaise || decision === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
         return { isValid: false, error: `Invalid amount for ${decision}: "${amount || ''}` };
     }
     if ((decision === Decision.kRaise || decision === Decision.kBet) && position === playerWhoMadeLastAggressiveAction) {
+        // special case for BB open
+        if (isPreflop(stage) && position === Position.BB && numberOfBetsAndRaisesThisStreet === 1) {
+            return { isValid: true }
+        }
         return { isValid: false, error: `${position} can not make consecutive aggressive actions` };
     }
     assertIsDefined(stacks[position]);
@@ -168,9 +185,10 @@ const validateAction: ValidationFunction = (input, state) => {
             if (amount < minLegalRaise && isCompleteSegment) {
                 return { isValid: false, error: `Min raise amount: ${minLegalRaise}` };
             }
-            if (!playerInSequence?.canRaise) {
-                return { isValid: false, error: `Player can not raise` };
-            }
+            // TODO fix this
+            // if (!playerInSequence?.canRaise) {
+            //     return { isValid: false, error: `Player can not raise` };
+            // }
             break;
             // TODO handle this case
             // An exception: If currentBetToCall + lastRaiseAmount is greater than the player's stackSize,
@@ -382,7 +400,9 @@ const baseValidationPipeline: ValidationFunction[] = [
     validateInputCharacters,
 ];
 
-const preflopActionPipeline: ValidationFunction[] = [
+const preflopPipeline: ValidationFunction[] = [validateHeroInAction]
+
+const actionPipeline: ValidationFunction[] = [
     validatePosition,
     validateDecision,
     validateAction,
@@ -439,7 +459,7 @@ export default function App() {
         }
     }, [state.current.stage])
 
-    useEffect(() => { setInputError('')}, [state.history.size])
+    useEffect(() => { setInputError('') }, [state.history.size])
     useEffect(() => {
         if (state.current.playerActions.length > 0) {
             // Use setTimeout to ensure layout is updated before scrolling
@@ -454,18 +474,18 @@ export default function App() {
         let actionSpecificValidation: ValidationFunction[] = [];
         switch (state.current.currentAction?.id) {
             case GameQueueItemType.kPreflopAction:
+                actionSpecificValidation = [...preflopPipeline, ...actionPipeline];
+                break;
             case GameQueueItemType.kFlopAction:
-                actionSpecificValidation = preflopActionPipeline;
+            case GameQueueItemType.kTurnAction:
+            case GameQueueItemType.kRiverAction:
+                actionSpecificValidation = actionPipeline;
                 break;
             case GameQueueItemType.kFlopCards:
             case GameQueueItemType.kTurnCard:
             case GameQueueItemType.kRiverCard:
             case GameQueueItemType.kVillainCard:
                 actionSpecificValidation = cardPipeline;
-                break;
-            case GameQueueItemType.kTurnAction:
-            case GameQueueItemType.kRiverAction:
-                actionSpecificValidation = [];
                 break;
         }
         const newPipeline = [...baseValidationPipeline, ...actionSpecificValidation];
