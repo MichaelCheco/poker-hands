@@ -61,11 +61,12 @@ export function getSimplifiedPlayerPotSummary(
     return `(${summaryParts.join(", ") })`;
 }
 
-const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks }: {
+const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, bigBlind }: {
     showdownHands: ShowdownHandRecord[],
     finalStreet: Stage,
     actions: ActionRecord[],
     pot: number,
+    bigBlind: number,
     handPots: HandPot[],
     stacks: PlayerStacks,
 }) => {
@@ -113,8 +114,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks }
                 </Text>
             </List.Subheader>
             {showdownHands.length > 0 ? showdownHands.map((hand, index) => {
-                const initialStack = stacks[hand.position as Position];
-                assertIsDefined(initialStack);
+                let initialStack = stacks[hand.position as Position] ?? bigBlind * 100;
                 return (
                     <List.Item
                         contentStyle={{}}

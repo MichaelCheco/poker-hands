@@ -116,11 +116,11 @@ const validateAction: ValidationFunction = (input, state) => {
     const { decision, position, amount } = getPlayerAction(nextPlayerToActPos, segment, stage, 0);
     console.log(`parts ::: ${decision} :: `, parts)
     // assertIsDefined(playerInSequence);
-    if (parts.length === 1) {
+    if (parts.length === 1) { 
         return { isValid: true }
     }
     console.log(decisionToText(decision), '==')
-    if (playerActions.length > 0 && playerActions[playerActions.length - 1].position === position) {
+    if (playerActions.length > 0 && playerActions[playerActions.length - 1].position === position && numberOfBetsAndRaisesThisStreet > 0) {
         return { isValid: false, error: `${position} can not make consecutive actions` };
     }
     if ((decision === Decision.kCall || decision === Decision.kFold) && amount) {

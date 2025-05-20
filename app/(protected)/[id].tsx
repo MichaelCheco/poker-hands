@@ -124,6 +124,7 @@ export default function HandDetailScreen() {
                         actions={handDetails.actions}
                         handPots={handDetails.hand_pots}
                         pot={handDetails.final_pot_size as number} 
+                        bigBlind={handDetails.big_blind}
                         stacks={parseStackSizes2(handDetails.stacks)} />
                     <Divider bold />
                     <ActionListReview
