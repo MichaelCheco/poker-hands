@@ -4,7 +4,7 @@ import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerActio
 import { assertIsArray, assertIsDefined } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
 import { determineHandWinner } from "@/utils/hand_evaluator";
-import { calculateSidePots, decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes } from "@/utils/hand_utils";
+import { calculateSidePots, decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes, positionToRank } from "@/utils/hand_utils";
 import { ImmutableStack } from "@/utils/immutable_stack";
 
 export const initialAppState: GameAppState = {
@@ -367,7 +367,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
 
                 // Calculate the player's new stack size
                 const newStackSize = currentStack - amountToAdd;
-                const updatedActionSequence = updateActionSequenceWithNewAction(playerAction, curr.actionSequence, newStackSize, newPlayerBetTotal);
+                const updatedActionSequence = updateActionSequenceWithNewAction(playerAction, curr.actionSequence, newStackSize, newPlayerBetTotal).filter((p) => p.hasActedThisStreet).sort((a, b) => positionToRank(a.position) - positionToRank(b.position));
                 playerAction.text = getMeaningfulTextToDisplay(
                     playerAction,
                     getNumBetsForStage(curr.playerActions, initialStage),
