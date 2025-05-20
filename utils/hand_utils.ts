@@ -96,7 +96,7 @@ function getWinner(actionSequence: string[]): string {
 
 export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], handPots: HandPot[], pot: number): string {
     const winner = actions.filter(s => s.stage === finalStreet).filter(a => a.decision !== Decision.kFold)[0].position;
-    let summary = `Hand ended on the ${getStageName(finalStreet)}.\n${getTextSummaryForLastStage(actions)}.\n${winner} wins $${pot}.`;
+    let summary = `${getTextSummaryForLastStage(actions)}.\n${winner} wins $${pot}.`;
     return summary;
 }
 
