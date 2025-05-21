@@ -211,6 +211,12 @@ export interface GameState {
     allPlayerContributions: PlayerPotContribution[];
 }
 
+export interface PokerHandValidationResult {
+    isValid: boolean;
+    parsedHand?: [string, string]; // Tuple for two cards, e.g., ["As", "Kd"]
+    error?: string;
+}
+
 export interface PlayerPotContribution {
     // Is the player still in the hand (not folded)?
     eligible: boolean;

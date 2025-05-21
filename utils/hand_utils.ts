@@ -119,15 +119,16 @@ function getLastStageName(actionList: PlayerAction[]): string {
 }
 
 export async function copyHand(
-        actionList: ActionRecord[],
-        communityCards: string[],
-        smallBlind: number,
-        bigBlind: number,
-        location: string,
-        hand: string,
-        position: string,
-        pot: number,
-        showdown: ShowdownHandRecord[]
+    actionList: ActionRecord[],
+    communityCards: string[],
+    smallBlind: number,
+    bigBlind: number,
+    location: string,
+    hand: string,
+    position: string,
+    pot: number,
+    showdown: ShowdownHandRecord[],
+    stacks: PlayerStacks,
 ): Promise<boolean> {
     const text = formatAndGetTextToCopy(
         actionList,
@@ -138,9 +139,9 @@ export async function copyHand(
         hand,
         position,
         pot,
-        showdown
+        showdown,
+        stacks,
     );
-    // Copy to clipboard
     try {
         await Clipboard.setStringAsync(text);
         console.log("Hand history copied to clipboard.");
@@ -175,19 +176,22 @@ export function formatAndGetTextToCopy(
     hand: string,
     position: string,
     pot: number,
-    showdown: ShowdownHandRecord[]
+    showdown: ShowdownHandRecord[],
+    stacks: PlayerStacks,
 ): string {
     if (!actions || actions.length === 0) {
         console.warn("No actions provided to format.");
-        // Optionally set clipboard to empty or show user feedback
-        // await Clipboard.setStringAsync("");
         return '';
     }
+    const positionsForPlayersInHand = showdown.map(s => s.position);
+    const relevantStacks = positionsForPlayersInHand.map(p => stacks[p] ?? bigBlind * 100);
+    const effectiveStack = Math.min(...relevantStacks);
 
     const lines: string[] = [];
-    lines.push('\n')
+    lines.push('')
     lines.push(`$${smallBlind}/$${bigBlind} • ${location}`.trimStart());
     lines.push(`\nHero: ${hand} ${position}`.trimStart());
+    lines.push(`\nEff: $${effectiveStack}`.trimStart());
 
     // Group actions by stage
     const groupedActions: { [stage: number]: ActionRecord[] } = {};
@@ -202,6 +206,8 @@ export function formatAndGetTextToCopy(
     }
     // Define the order of stages
     const stageOrder: Stage[] = [Stage.Preflop, Stage.Flop, Stage.Turn, Stage.River];
+    // Tracks the total bet amount of the last aggressor on the current street
+    let lastAggressiveBetTotalOnStreet = 0;
 
     // Process stages in order
     for (const stageNum of stageOrder) {
@@ -209,24 +215,53 @@ export function formatAndGetTextToCopy(
 
         if (stageActions && stageActions.length > 0) {
             lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}\n`);
-
-            const visibleActions = stageActions.filter(a => !a.was_auto_folded);
-
-            if (visibleActions.length === 0 && stageNum !== Stage.Preflop) {
+            // Reset for each new street
+            if (stageNum === Stage.Preflop) {
+                // Preflop, the BB is the initial "bet" to overcome
+                lastAggressiveBetTotalOnStreet = bigBlind;
+            } else {
+                // Postflop, starts at 0 until a bet
+                lastAggressiveBetTotalOnStreet = 0;
             }
+            const visibleActions = stageActions.filter(a => !a.was_auto_folded);
 
             if (visibleActions.length > 0) {
                 visibleActions.forEach(action => {
-                    lines.push(`${action.position}: ${action.text_description}`);
+                    let actionDetails = "";
+                    const currentPotSizeBeforeAction = action.pot_size_before;
+
+                    if (action.decision === Decision.kBet) {
+                        if (currentPotSizeBeforeAction > 0) { // Avoid division by zero if pot is 0 (shouldn't happen post-blinds)
+                            const potPercentage = (action.action_amount / currentPotSizeBeforeAction) * 100;
+                            actionDetails = ` (${potPercentage.toFixed(0)}%)`;
+                        }
+                        lastAggressiveBetTotalOnStreet = action.action_amount; // This bet is now the one to beat/raise
+                    } else if (action.decision === Decision.kRaise) {
+                        if (lastAggressiveBetTotalOnStreet > 0) { // If there was a previous bet/raise to calculate against
+                            const raiseMultiple = action.action_amount / lastAggressiveBetTotalOnStreet;
+                            actionDetails = ` (${raiseMultiple.toFixed(1)}x)`;
+                        } else if (stageNum === Stage.Preflop && currentPotSizeBeforeAction === bigBlind + smallBlind) {
+                            // First raise preflop over blinds (no limpers)
+                            // lastAggressiveBetTotalOnStreet was already set to bigBlind
+                            const raiseMultiple = action.action_amount / bigBlind;
+                            actionDetails = ` (${raiseMultiple.toFixed(1)}x BB)`;
+                        }
+                        // If lastAggressiveBetTotalOnStreet is 0 postflop, it implies this 'R' is an error, should be 'B'.
+                        // Or, if it's a raise over limpers preflop, lastAggressiveBetTotalOnStreet would still be bigBlind.
+                        lastAggressiveBetTotalOnStreet = action.action_amount; // This raise is now the one to beat/raise
+                    } else if (action.decision === Decision.kCall || action.decision === Decision.kCheck || action.decision === Decision.kFold) {
+                        // For calls, checks, folds, lastAggressiveBetTotalOnStreet remains unchanged
+                        // as it refers to the standing bet they are responding to.
+                    }
+
+
+                    lines.push(`${action.position}${action.position === position ? ' (H)' : ''}: ${action.text_description}${actionDetails}`);
                 });
-            } else if (stageNum > Stage.Preflop) {
-                const onlyChecks = stageActions.every(a => a.decision === 'X');
+            } else if (stageNum > Stage.Preflop) { // Only show "Checked around" for postflop if no visible actions
+                const onlyChecks = stageActions.every(a => a.decision === Decision.kCheck);
                 if (onlyChecks) {
                     lines.push("(Checked around)");
-                } else {
-                    lines.push("(No significant action shown)");
                 }
-
             }
         }
     }
@@ -235,17 +270,17 @@ export function formatAndGetTextToCopy(
         lines.push("\nSHOWDOWN");
 
         showdown.forEach(handInfo => {
-                const cardsString = handInfo.hole_cards
+            const cardsString = handInfo.hole_cards;
             lines.push(`- ${handInfo.position === position ? 'Hero' : handInfo.position} shows [ ${cardsString} ]`);
-            });
+        });
 
         const winner = showdown.find(h => h.is_winner);
         if (winner) {
             lines.push(`\nWinner: ${winner.position} wins $${pot} with ${winner.hand_description}`);
-    } else {
-        // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
-        // This would require analysing the last actions. For simplicity, we omit this for now.
-    }
+        } else {
+            // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
+            // This would require analysing the last actions. For simplicity, we omit this for now.
+        }
     }
 
     // Join lines into a single string
@@ -277,7 +312,7 @@ export function parseStackSizes(stackString: string, sequence: string[],
         return acc;
     }, stackObjects);
     result[Position.SB] = result[Position.SB] as number - smallBlind;
-    result[Position.BB] = result[Position.BB] as number  - bigBlind;
+    result[Position.BB] = result[Position.BB] as number - bigBlind;
 
     // TODO handle straddles and antes
     return result;
@@ -316,8 +351,8 @@ export function positionToRank(positionKey: string): number {
         'SB': 0,
         'BB': 1,
         'UTG': 2,
-        'UTG_1': 3,
-        'UTG_2': 4,
+        'UTG1': 3,
+        'UTG2': 4,
         'LJ': 5,
         'HJ': 6,
         'CO': 7,
@@ -340,72 +375,90 @@ export function formatHeroHand(hero: { position: string, hand: string }): PokerP
 }
 
 export function calculateSidePots(allPlayerContributions: PlayerPotContribution[]): CalculatedPot[] {
-    // 1. Filter for players who are still in the hand (eligible)
+    // 1. Filter for players who are still in the hand (eligible) to determine pot layers
     const activePlayers = allPlayerContributions.filter(p => p.eligible);
 
-    // Handle cases with no/one active player
     if (activePlayers.length === 0) {
+        // No active players, so no one can win any pot.
+        // However, if money was contributed, a pot still exists.
+        // This function's primary role is to define pots and eligibility.
+        // If all players folded, the last aggressor might take the pot,
+        // or it's handled by other game logic.
+        // For now, if no one is eligible, we can return empty or pots with no eligible players.
+        // Let's assume if no one is active, the pot formation logic here might not be what's needed,
+        // as the hand likely ended pre-showdown with a single winner.
+        // However, if the goal is to just show how money was layered:
+        if (allPlayerContributions.some(p => p.amount > 0)) {
+            // This scenario is complex: all eligible players folded.
+            // The pot still contains money from folded players.
+            // The "winner" is determined by game rules (e.g. last remaining player before everyone folded).
+            // This function focuses on side pot creation based on varying bet amounts.
+            // If all active players folded, the concept of "eligible for this pot layer" breaks down
+            // for showdown. Let's return empty for simplicity here, assuming pot awarded outside this.
+            // A more advanced version might still form pots but list no one as eligible.
+            return [];
+        }
         return [];
     }
-    if (activePlayers.length === 1) {
-        // If only one player is left, they win the total amount they contributed
-        // (or the sum of all contributions if that's how 'amount' is defined).
-        return [{ potAmount: activePlayers[0].amount, eligiblePositions: [activePlayers[0].position] }];
-    }
-
 
     // 2. Sort a *copy* of active players by their total contribution amount
-    let sortedByContribution = [...activePlayers].sort((a, b) => a.amount - b.amount);
+    // This determines the "betting levels" for pot creation.
+    let sortedActivePlayersByContribution = [...activePlayers].sort((a, b) => a.amount - b.amount);
 
     // 3. Initialize amounts contributed to *previously calculated pots in this function* to 0
-    const amountContributedToPriorPotsThisFunction: any = {};
-    for (const player of activePlayers) {
+    // This must be done for ALL players who contributed, not just active ones.
+    const amountContributedToPriorPotsThisFunction: Record<Position, number> = {};
+    for (const player of allPlayerContributions) { // Iterate over ALL players
         amountContributedToPriorPotsThisFunction[player.position] = 0;
     }
 
     const pots: CalculatedPot[] = [];
     let previousPotLevelBet = 0; // Tracks the cumulative bet level of the previous pot
 
-    // Loop while there are players with unallocated contributions
-    while (sortedByContribution.length > 0) {
-        // 4. Determine the current betting level (smallest total bet among remaining active players)
-        const currentContributionLevel = sortedByContribution[0].amount;
+    // Loop while there are active players with unallocated contributions defining pot levels
+    while (sortedActivePlayersByContribution.length > 0) {
+        // 4. Determine the current betting level based on the smallest total bet among *remaining active* players
+        const currentContributionLevel = sortedActivePlayersByContribution[0].amount;
 
-        // If this level is not higher than the last, it means no new pot layer.
-        // This can happen if all remaining players have the same total bet.
         if (currentContributionLevel <= previousPotLevelBet) {
-            // Filter out players already fully covered by previousPotLevelBet
-            sortedByContribution = sortedByContribution.filter(p => p.amount > previousPotLevelBet);
-            if (sortedByContribution.length === 0) break; // No more players or contributions
-            continue; // Re-evaluate currentContributionLevel
+            // This means the remaining active players all bet the same amount as the previous level,
+            // or less (which shouldn't happen if sorted correctly and they are active).
+            // Effectively, no new distinct layer to form based on active players.
+            // Remove players already fully covered by previousPotLevelBet from consideration for defining new levels.
+            sortedActivePlayersByContribution = sortedActivePlayersByContribution.filter(p => p.amount > previousPotLevelBet);
+            if (sortedActivePlayersByContribution.length === 0) break;
+            continue;
         }
-
 
         let currentPotLayerAmount = 0;
         const eligibleForThisPotLayer: Position[] = [];
 
-        // 5. Iterate through ALL active players (not just sortedByContribution for this inner loop)
-        //    to see who contributes to this layer.
-        for (const player of activePlayers) {
+        // 5. Iterate through ALL players who made any contribution to the hand
+        //    to sum up money for this pot layer.
+        for (const player of allPlayerContributions) { // Iterate over ALL players
             const playerPosition = player.position;
             const totalPlayerBet = player.amount;
-            const alreadyAllocated = amountContributedToPriorPotsThisFunction[playerPosition];
+            const alreadyAllocatedToPots = amountContributedToPriorPotsThisFunction[playerPosition] || 0;
 
             // Amount this player can contribute beyond what they've put in prior pots (in this function)
-            const playerRemainingContribution = totalPlayerBet - alreadyAllocated;
+            const playerRemainingTotalContribution = totalPlayerBet - alreadyAllocatedToPots;
 
             // How much this player actually contributes to *this specific layer*
             // It's the minimum of what they have left to contribute, and the size of this layer.
             // The size of this layer is (currentContributionLevel - previousPotLevelBet).
             const contributionToThisLayer = Math.min(
-                playerRemainingContribution,
+                playerRemainingTotalContribution,
                 currentContributionLevel - previousPotLevelBet
             );
 
             if (contributionToThisLayer > 0) {
                 currentPotLayerAmount += contributionToThisLayer;
                 amountContributedToPriorPotsThisFunction[playerPosition] += contributionToThisLayer;
-                eligibleForThisPotLayer.push(playerPosition);
+
+                // Only add to eligiblePositions if they are still active (eligible: true)
+                if (player.eligible) {
+                    eligibleForThisPotLayer.push(playerPosition);
+                }
             }
         }
 
@@ -415,8 +468,9 @@ export function calculateSidePots(allPlayerContributions: PlayerPotContribution[
 
         previousPotLevelBet = currentContributionLevel; // Update the "high water mark" for contributions
 
-        // 6. Remove players whose total contribution has been fully accounted for at this level
-        sortedByContribution = sortedByContribution.filter(p => p.amount > currentContributionLevel);
+        // 6. Remove active players whose total contribution has been fully accounted for at this level
+        //    from consideration for defining *future* pot levels.
+        sortedActivePlayersByContribution = sortedActivePlayersByContribution.filter(p => p.amount > currentContributionLevel);
     }
 
     return pots;

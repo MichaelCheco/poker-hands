@@ -289,7 +289,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     playerWhoMadeLastAggressiveAction: newPlayerWhoMadeLastAggressiveAction,
                     numberOfBetsAndRaisesThisStreet: newNumberOfBetsAndRaisesThisStreet,
             };
-
             const newHistory = state.history.push(curr);
             const newStateAfterAdd = {
                 current: addActionState,
@@ -337,7 +336,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                             winningHandDescription: winnerInfo.winningHandDescription,
                             potAmount: pot.potAmount,
                             eligiblePositions: pot.eligiblePositions,
-
                          }
                     });
                     // console.log(`showdownPots: `, showdownPots);
@@ -347,6 +345,18 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     // console.log(handInfo.details, ' handInfo.details')
                     propertyUpdates.calculatedPots = showdownPots;
                     propertyUpdates.showdown = handInfo.details;
+                    propertyUpdates.showdownHands = curr.allPlayerContributions.filter(p => {
+                        let a = p.position === Position.SB && p.amount === curr.smallBlind;
+                        let b = p.position === Position.BB && p.amount === curr.bigBlind;
+                        if (a || b) {
+                            return false;
+                        }
+                        return true
+                    }).map(p => ({
+                        playerId: p.position,
+                        holeCards: "muck",
+                        description: '',
+                    }));
                 } else {
                     propertyUpdates.showdownHands = hands;
                 }

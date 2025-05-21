@@ -1,4 +1,4 @@
-import { ActionRecord, ShowdownHandRecord, Stage } from '@/types';
+import { ActionRecord, PlayerStacks, ShowdownHandRecord, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { IconButton, List, Snackbar, Text } from 'react-native-paper';
@@ -31,7 +31,8 @@ export default function ActionListReview({
     hand,
     position,
     pot,
-    showdown
+    showdown,
+    stacks
 }: {
     actionList: ActionRecord[],
     communityCards: string[],
@@ -44,6 +45,7 @@ export default function ActionListReview({
     position: string;
     pot: number;
     showdown: ShowdownHandRecord[];
+    stacks: PlayerStacks;
 }) {
     const [snackbarVisible, setSnackbarVisible] = React.useState(false);
     const groupedActions: Record<Stage, ActionRecord[]> = React.useMemo(() => {
@@ -118,7 +120,8 @@ export default function ActionListReview({
                             hand,
                             position,
                             pot,
-                            showdown);
+                            showdown,
+                            stacks);
                         setSnackbarVisible(success);
                     }}
                     style={styles.subheaderIcon}
@@ -176,14 +179,15 @@ const styles = StyleSheet.create({
     actionItem: {
         paddingVertical: 4,
         padding: 0,
-        marginLeft: 8
+        marginLeft: 8,
     },
     actionPosition: {
         fontWeight: '400',
         marginLeft: 6,
         textAlign: 'center',
         alignSelf: 'center',
-        width: 30,
+        width: 40,
+        flexWrap: 'nowrap'
     },
     actionText: {
     },

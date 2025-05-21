@@ -268,7 +268,8 @@ export function generateRichHandDescription(evaluation: HandEvaluation | null): 
             return `Pair of ${pluralRankName(values[0])}`;
         case HandRank.HIGH_CARD:
             // For High Card, values are all 5 cards sorted.
-            return `${cardName(values[0])} High (Kickers: ${values.slice(1).map(cardName).join(', ')})`;
+            // (Kickers: ${values.slice(1).map(cardName).join(', ')})
+            return `${cardName(values[0])} High`;
         default:
             return "Unknown Hand";
     }

@@ -58,7 +58,7 @@ export function getSimplifiedPlayerPotSummary(
         return "";
     }
 
-    return `(${summaryParts.join(", ") })`;
+    return `(${summaryParts.join(", ")})`;
 }
 
 const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, bigBlind }: {
@@ -131,7 +131,13 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                                 )
                             }
                             return (
-                                <Text style={{ fontSize: 16 }}>Mucked</Text>
+                                <View style={{ display: 'flex', flexDirection: 'row', 
+                                // borderColor: 'red', borderWidth: 1 
+                                }} >
+                                    <ShowdownCard card={"muck"} />
+                                    <ShowdownCard card={"muck"} />
+                                </View>
+                                // <Text style={{ fontSize: 16 }}>Mucked</Text>
                             )
                         }}
                         left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
@@ -142,7 +148,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                 )
             }
             ) : (
-                    <Text style={{ marginTop: 8 }}>{getHandSummary(finalStreet, actions, handPots, pot)}</Text>
+                <Text style={{ marginTop: 8 }}>{getHandSummary(finalStreet, actions, handPots, pot)}</Text>
             )}
         </List.Section>
     );

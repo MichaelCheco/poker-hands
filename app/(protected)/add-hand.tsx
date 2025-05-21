@@ -50,7 +50,6 @@ const validatePosition: ValidationFunction = (input, state) => {
     // try to run this only once
     const VALID_POSITIONS = numPlayersToActionSequenceList[Object.keys(state.stacks).length];
     const VALID_POS_STARTS = VALID_POSITIONS.map(p => p[0]);
-    console.log(VALID_POS_STARTS)
     if (!isPreflop(state.stage) && !VALID_ACTIONS.map(a => a.toLowerCase()).includes(parts[0].toLowerCase().trim())) {
         return { isValid: false, error: 'Position can be omitted Postflop' }
     }
@@ -114,7 +113,7 @@ const validateAction: ValidationFunction = (input, state) => {
         : actionSequence.find(a => !a.isAllIn)?.position;
     assertIsDefined(nextPlayerToActPos);
     const { decision, position, amount } = getPlayerAction(nextPlayerToActPos, segment, stage, 0);
-    console.log(`parts ::: ${decision} :: `, parts)
+    // console.log(`parts ::: ${decision} :: `, parts)
     // assertIsDefined(playerInSequence);
     if (parts.length === 1) { 
         return { isValid: true }
@@ -211,7 +210,7 @@ const validateAction: ValidationFunction = (input, state) => {
 }
 
 // function 
-const validateSegment1: ValidationFunction = (input) => {
+const validateSegment: ValidationFunction = (input) => {
     if (input.trim() === ',' || input.trim() === '.') {
         return { isValid: false, error: `Incomplete segment` };
     }
@@ -266,7 +265,14 @@ const validateCommunityCards: ValidationFunction = (input, currentState) => {
     if (!trimmedInput) {
         return { isValid: true }; // Empty input is considered valid for this validator
     }
-
+    if (currentState.currentAction.id === GameQueueItemType.kVillainCard) {
+        if (!containsPeriod) {
+            return {isValid: true}
+        }
+        if (trimmedInput.toLowerCase().slice(0, -1) === "muck") {
+            return { isValid: true }
+        }
+    }
     // Normalize input for rank/suit extraction.
     // The period is used to determine if full validation is needed.
     // For parsing cards, we consider the segment before the first period.
@@ -390,17 +396,16 @@ const validateCommunityCards: ValidationFunction = (input, currentState) => {
             }
         }
     }
-
     return { isValid: true };
 };
 
 // fix preflop validation to require position
 const baseValidationPipeline: ValidationFunction[] = [
-    validateSegment1,
+    validateSegment,
     validateInputCharacters,
 ];
 
-const preflopPipeline: ValidationFunction[] = [validateHeroInAction]
+const preflopPipeline: ValidationFunction[] = [validateHeroInAction];
 
 const actionPipeline: ValidationFunction[] = [
     validatePosition,
@@ -412,7 +417,22 @@ const actionPipeline: ValidationFunction[] = [
 
 const cardPipeline: ValidationFunction[] = [
     validateCommunityCards
-]
+];
+
+/**
+ * TAGS:
+ * LAG - Loose Aggressive
+ * TAG - tight aggressive
+ * LP - Loose passive
+ * TP - tight passive
+ * 🐟
+ * 🐳 Whale
+ * Pro
+ * Bad Pro
+ * Decent Pro
+ * Good Pro
+ * Maniac
+ */
 
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
@@ -484,9 +504,11 @@ export default function App() {
             case GameQueueItemType.kFlopCards:
             case GameQueueItemType.kTurnCard:
             case GameQueueItemType.kRiverCard:
-            case GameQueueItemType.kVillainCard:
                 actionSpecificValidation = cardPipeline;
                 break;
+            case GameQueueItemType.kVillainCard:
+                setPipeline([validateSegment, ...cardPipeline]);
+                return;
         }
         const newPipeline = [...baseValidationPipeline, ...actionSpecificValidation];
         setPipeline(newPipeline);

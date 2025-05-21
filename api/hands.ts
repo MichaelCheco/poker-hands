@@ -211,7 +211,6 @@ export async function saveHandToSupabase(
         console.log("No side pots data provided or main pot handled differently for hand ID:", handId);
     }
 
-
     // 5. Insert into 'showdown_hands' table (if showdown occurred)
     if (handHistoryData.showdown && handHistoryData.showdown.length > 0) {
         const showdownHandsToInsert = handHistoryData.showdown.map(playerHand => {
@@ -232,9 +231,19 @@ export async function saveHandToSupabase(
             };
         });
 
+        const showdownPositions = handHistoryData.showdown.map(s => s.playerId);
+        const playersWholFolded = handHistoryData.showdownHands.filter(h => !(showdownPositions.includes(h.playerId)));
+        console.log(playersWholFolded, ' FOLDS !')
+        let extraShowdownHands = playersWholFolded.map((p) => ({
+            hand_id: handId,
+            position: p.playerId,
+            hole_cards: "muck",
+            is_winner: false,
+            hand_description: "",
+        }))
         const { error: showdownError } = await supabase
             .from('showdown_hands')
-            .insert(showdownHandsToInsert);
+            .insert([...showdownHandsToInsert, ...extraShowdownHands]);
 
         if (showdownError) {
             console.error("Supabase showdown_hands insert error:", showdownError);

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, ScrollView, View } from 'react-native';
+import React from 'react';
+import { Platform, StyleSheet, ScrollView, View } from 'react-native';
 import { useForm, Controller, FieldValues, FieldErrors } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as Yup from 'yup';
@@ -7,14 +7,38 @@ import { Text, TextInput, Button, HelperText, useTheme, SegmentedButtons } from 
 import { useRouter } from 'expo-router';
 import { playerOptions, positionMapping } from '@/constants';
 import { HandSetupInfo, Position } from '@/types';
+import { validateAndParsePokerHandString } from '@/utils/card_utils';
 
+let handMessage = '';
 const handFormValidationSchema = Yup.object().shape({
     smallBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number'),
     bigBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number').min(Yup.ref('smallBlind'), 'Must be >= small blind'),
     location: Yup.string().required('Required'),
     numPlayers: Yup.number().required('Required').integer('Must be an integer').min(2, 'Min 2').max(8, 'Max 8').typeError('Must be a number'),
     position: Yup.string().required('Required'),
-    hand: Yup.string().required("Required"),
+    hand: Yup.string()
+        .required("Required")
+        .test(
+            'valid-hand-format',
+            'Invalid hand format',
+            function (value) { // Use a regular function to access `this.createError` if needed, or just return the string
+                if (!value) { // Handle cases where value might be undefined or null if not caught by .required()
+                    return true; // Or handle as an error if empty string is invalid despite .required()
+                }
+                const result = validateAndParsePokerHandString(value);
+                console.log('Validation result:', result); // For debugging
+
+                if (result.isValid) {
+                    return true; // Validation passes
+                }
+
+                // If not valid, return the specific error message from your function
+                // This message will be used by Yup.
+                return this.createError({ message: result.error || 'Invalid hand format' });
+                // Or, more simply, if you don't need to customize the path/params of the error:
+                // return result.error || 'Invalid hand format'; 
+            }
+        ),
     relevantStacks: Yup.string().required('Required').test(
         'contains-position',
         'Stack size for selected position is missing',
@@ -47,6 +71,20 @@ const createSegmentedButtonForNumPlayers = (value: any, label: string) => ({
         borderRadius: 0,
         minWidth: 50,
     },
+    labelStyle: {
+        fontWeight: Platform.OS === "ios" ? '400' : '500',
+    },
+});
+
+const createSegmentedButtonForBlind = (value: number, label: string) => ({
+    value, label, checkedColor: '#FFF', uncheckedColor: '#000000',
+    style: {
+        borderRadius: 0,
+        minWidth: 50,
+    },
+    labelStyle: {
+        fontWeight: Platform.OS === "ios" ? '400' : '500',
+    },
 });
 
 function PokerHandForm({ close, preset }) {
@@ -63,7 +101,9 @@ function PokerHandForm({ close, preset }) {
             ...preset
         },
     });
-    const [positionOptions, setPositionOptions] = React.useState<any>([])
+    const [positionOptions, setPositionOptions] = React.useState<any>([]);
+    const [initialLoad, setInitialLoad] = React.useState<any>(true);
+
     const router = useRouter();
     const theme = useTheme();
 
@@ -83,9 +123,13 @@ function PokerHandForm({ close, preset }) {
     React.useEffect(() => {
         if (numPlayers) {
             setPositionOptions([...(positionMapping[numPlayers].map(p => createSegmentedButton(p.value, p.label)))]);
-            setValue('position', '');
+            if (initialLoad) {
+                setInitialLoad(false);
+            }
+            setValue('position', initialLoad ? 'BU' : '');
         }
     }, [numPlayers, setValue]);
+
     return (
         <ScrollView contentContainerStyle={styles.container}>
             <Controller
@@ -93,46 +137,22 @@ function PokerHandForm({ close, preset }) {
                 render={({ field: { onChange, onBlur, value } }) => (
                     <>
                         <TextInput
-                            label="Small Blind"
+                            label="Starting Hand (e.g., AhKd, 54ss)"
                             onBlur={onBlur}
                             onChangeText={(text) => {
-                                const numericText = text.replace(/[^0-9]/g, '');
-                                return onChange(numericText);
+                                if (errors.hand) { clearErrors('hand') };
+                                return onChange(text);
                             }}
-                            value={String(value)}
-                            keyboardType="numeric"
+                            value={value}
                             mode="outlined"
                             style={styles.input}
                             activeOutlineColor='#000000'
-                            error={!!errors.smallBlind}
+                            error={!!errors.hand}
                         />
-                        {errors.smallBlind && <HelperText type="error" visible={!!errors.smallBlind}>{errors.smallBlind?.message}</HelperText>}
+                        {errors.hand && <HelperText type="error" visible={!!errors.hand}>{errors.hand?.message}</HelperText>}
                     </>
                 )}
-                name="smallBlind"
-            />
-            <Controller
-                control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
-                    <>
-                        <TextInput
-                            label="Big Blind"
-                            onBlur={onBlur}
-                            onChangeText={(text) => {
-                                const numericText = text.replace(/[^0-9]/g, '');
-                                return onChange(numericText);
-                            }}
-                            value={String(value)}
-                            keyboardType="numeric"
-                            mode="outlined"
-                            style={styles.input}
-                            activeOutlineColor='#000000'
-                            error={!!errors.bigBlind}
-                        />
-                        {errors.bigBlind && <HelperText type="error" visible={!!errors.bigBlind}>{errors.bigBlind.message}</HelperText>}
-                    </>
-                )}
-                name="bigBlind"
+                name="hand"
             />
             <Controller
                 control={control}
@@ -161,35 +181,12 @@ function PokerHandForm({ close, preset }) {
                 render={({ field: { onChange, onBlur, value } }) => (
                     <>
                         <TextInput
-                            label="Starting Hand (e.g., AhKd, 54ss)"
-                            onBlur={onBlur}
-                            onChangeText={(text) => {
-                                if (errors.hand) { clearErrors('hand') };
-                                return onChange(text);
-                            }}
-                            value={value}
-                            mode="outlined"
-                            style={styles.input}
-                            activeOutlineColor='#000000'
-                            error={!!errors.hand}
-                        />
-                        {/* {errors.relevantStacks && <HelperText type="error" visible={!!errors.hand}>{errors.hand?.message}</HelperText>} */}
-                    </>
-                )}
-                name="hand"
-            />
-            <Controller
-                control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
-                    <>
-                        <TextInput
                             label="Relevant Stacks (e.g., CO 400, BU 600)"
                             onBlur={onBlur}
                             onChangeText={(text) => {
                                 if (errors.relevantStacks) { clearErrors('relevantStacks') };
                                 return onChange(text);
                             }}
-                            // onChangeText={onChange}
                             value={value}
                             mode="outlined"
                             style={styles.input}
@@ -205,7 +202,57 @@ function PokerHandForm({ close, preset }) {
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Number of Players</Text>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Small Blind</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%' }}
+                                buttons={[
+                                    createSegmentedButtonForBlind(1, '1'),
+                                    createSegmentedButtonForBlind(2, '2'),
+                                    createSegmentedButtonForBlind(3, '3'),
+                                    createSegmentedButtonForBlind(5, '5'),
+                                    createSegmentedButtonForBlind(10, '10'),
+                                ]}
+                            />
+                            {errors.smallBlind && <HelperText type="error" visible={!!errors.smallBlind}>{errors.smallBlind?.message}</HelperText>}
+                        </View>
+                    )
+                }
+                control={control}
+                name="smallBlind"
+            />
+            <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Big Blind</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%' }}
+                                buttons={[
+                                    createSegmentedButtonForBlind(2, '2'),
+                                    createSegmentedButtonForBlind(3, '3'),
+                                    createSegmentedButtonForBlind(5, '5'),
+                                    createSegmentedButtonForBlind(10, '10'),
+                                    createSegmentedButtonForBlind(20, '20'),
+                                ]}
+                            />
+                            {errors.bigBlind && <HelperText type="error" visible={!!errors.bigBlind}>{errors.bigBlind?.message}</HelperText>}
+                        </View>
+                    )
+                }
+                control={control}
+                name="bigBlind"
+            />
+            <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Number of Players</Text>
                             <SegmentedButtons
                                 value={value}
                                 onValueChange={onChange}
@@ -227,11 +274,49 @@ function PokerHandForm({ close, preset }) {
                 control={control}
                 name="numPlayers"
             />
-            <Controller
+            {numPlayers === 2 && <Controller
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Position</Text>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: 12 }}
+                                buttons={[...(positionMapping[2].map(p => createSegmentedButton(p.value, p.label)))]}
+                            />
+                            {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position?.message}</HelperText>}
+                        </View>
+                    )
+                }
+                control={control}
+                name="position"
+            />}
+            {numPlayers === 3 && <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: 12 }}
+                                buttons={[...(positionMapping[3].map(p => createSegmentedButton(p.value, p.label)))]}
+                            />
+                            {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position?.message}</HelperText>}
+                        </View>
+                    )
+                }
+                control={control}
+                name="position"
+            />}
+            {numPlayers !== 2 && numPlayers !== 3 && <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
                             <SegmentedButtons
                                 value={value}
                                 onValueChange={onChange}
@@ -252,7 +337,7 @@ function PokerHandForm({ close, preset }) {
                 }
                 control={control}
                 name="position"
-            />
+            />}
             <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
             </Button>
@@ -273,7 +358,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         minHeight: 40,
         padding: 2
-    }
+    },
 });
 
 export default PokerHandForm;

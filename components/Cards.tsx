@@ -1,6 +1,6 @@
 import { transFormCardsToFormattedString } from '@/utils/hand_utils';
 import React from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, TextStyle, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 
 interface CardProps {
@@ -70,6 +70,13 @@ export const SimpleCard: React.FC<CardProps> = ({ card, style, textStyle }) => {
 };
 
 export const ShowdownCard: React.FC<CardProps> = ({ card }) => {
+  if (card === "muck") {
+    return (
+      <View style={{position: 'relative', top: Platform.OS === "ios" ? 7 : 10.5}}>
+        <Text style={[styles.cardText, styles.emptyCardText]}>?</Text>
+      </View>
+    );
+  }
   const rank = card.substring(0, card.length - 1).toUpperCase();
   const suitChar = card.substring(card.length - 1).toLowerCase();
 
@@ -80,7 +87,7 @@ export const ShowdownCard: React.FC<CardProps> = ({ card }) => {
       <Text style={{color: suitColor, fontWeight: '600'}} variant='bodyLarge'>
         {rank}
       </Text>
-      <Text style={{ color: suitColor ,fontSize: 14}} variant='bodyLarge'>
+      <Text style={{ color: suitColor, fontSize: 14}} variant='bodyLarge'>
         {suitSymbol}
       </Text>
     </View>

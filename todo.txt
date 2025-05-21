@@ -1,7 +1,17 @@
 TODOS:
+* show ?? when player mucks, include non showdown hands in review page
+* Update text formatting for copy (%, Hero, Eff, Tags?)
+* Add chip for 3rd blind
+* verify undo removes last action correctly
+* Support straddle for UTG
+* verify small blind is getting added into pot
+* Add tag to review page
+* format stacks for DB entry
+* use enter key for transition, double space?
+* if player folded early, we should include them in showdownHands
 * fix any issues with all-ins and folds
 * show ?? when player mucks
-* # players revamp
+* players revamp
 * hero pos revamp
 * fix player can not raise error - player a raise player b raises and player a tries to raise
 

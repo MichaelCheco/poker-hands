@@ -1,4 +1,4 @@
-import { ActionType, Decision, GameQueueItem, GameQueueItemType, PlayerAction, PokerPlayerInput, Position } from "@/types";
+import { ActionType, Decision, GameQueueItem, GameQueueItemType, PlayerAction, PokerHandValidationResult, PokerPlayerInput, Position } from "@/types";
 
 export function isMuck(text: string): boolean {
     return text.toLowerCase().trim() === "muck";
@@ -19,7 +19,7 @@ export function getRemainingCardActions(gameQueue: GameQueueItem[]): GameQueueIt
 
 export function AddVillainsToGameQueue(villains: Position[]): GameQueueItem[] {
     const newQueueItems: GameQueueItem[] = villains.map(villain => ({
-        placeholder: `${villain}'s cards`,
+        placeholder: `${villain}'s cards or "muck"`,
         shouldTransitionAfterStep: false,
         actionType: ActionType.kVillainCards,
         position: villain,
@@ -97,6 +97,115 @@ export function convertRRSS_to_RSRS(rrssHandString: string | null | undefined): 
     return rsrsHandString;
 }
 
+/**
+ * Validates and parses a 4-character string representing a poker hand into a two-card array.
+ * Handles two formats:
+ * 1. RSRS (Rank1, Suit1, Rank2, Suit2) - e.g., "AsQs" -> ["As", "Qs"]
+ * 2. RRSS (Rank1, Rank2, Suit1, Suit2) - e.g., "AQss" -> ["As", "Qs"], "T9ch" -> ["Tc", "9h"]
+ *
+ * @param handString The 4-character input string.
+ * @returns An object with `isValid` (boolean), `parsedHand` (string[] if valid), and `error` (string if invalid).
+ */
+export function validateAndParsePokerHandString(handString: string): PokerHandValidationResult {
+    // 1. Validate input type and length
+    if (typeof handString !== 'string' || handString.length !== 4) {
+        return {
+            isValid: false,
+            error: 'Invalid input: Hand string must be exactly 4 characters long.'
+        };
+    }
+
+    // 2. Extract characters
+    const c1_raw = handString[0];
+    const c2_raw = handString[1];
+    const c3_raw = handString[2];
+    const c4_raw = handString[3];
+
+    // For validation, use consistent casing
+    const c1 = c1_raw.toUpperCase();
+    const c2 = c2_raw; // Case will be determined by its role (rank=upper, suit=lower)
+    const c3 = c3_raw; // Case will be determined by its role
+    const c4 = c4_raw.toLowerCase();
+
+
+    // 3. Preliminary validation: First char must be Rank, last must be Suit
+    if (!isRank(c1)) {
+        return {
+            isValid: false,
+            error: `Invalid input: First character "${c1_raw}" must be a valid rank (${VALID_RANKS_CHARS.join(', ')}).`
+        };
+    }
+    if (!isSuit(c4)) {
+        return {
+            isValid: false,
+            error: `Invalid input: Last character "${c4_raw}" must be a valid suit (${VALID_SUITS_CHARS.join(', ')}).`
+        };
+    }
+
+    let card1Str: string;
+    let card2Str: string;
+
+    // 4. Determine format based on the character at index 1 (c2_raw)
+    const c2_upper = c2_raw.toUpperCase();
+    const c2_lower = c2_raw.toLowerCase();
+
+    if (isSuit(c2_lower)) {
+        // --- Format 1: R1 S1 R2 S2 ---
+        // Example: "AsQs"
+        const c3_upper = c3_raw.toUpperCase();
+        if (!isRank(c3_upper)) {
+            return {
+                isValid: false,
+                error: `Invalid input: Format appears to be RSRS, but character at index 2 "${c3_raw}" is not a valid rank (${VALID_RANKS_CHARS.join(', ')}).`
+            };
+        }
+        const rank1 = c1;
+        const suit1 = c2_lower;
+        const rank2 = c3_upper;
+        const suit2 = c4; // c4 already validated and lowercased
+
+        card1Str = rank1 + suit1;
+        card2Str = rank2 + suit2;
+
+    } else if (isRank(c2_upper)) {
+        // --- Format 2: R1 R2 S1 S2 ---
+        // Examples: "AQss", "T9ch"
+        const c3_lower = c3_raw.toLowerCase();
+        if (!isSuit(c3_lower)) {
+            return {
+                isValid: false,
+                error: `Invalid input: Format appears to be RRSS, but character at index 2 "${c3_raw}" is not a valid suit (${VALID_SUITS_CHARS.join(', ')}).`
+            };
+        }
+        const rank1 = c1;
+        const rank2 = c2_upper;
+        const suit1 = c3_lower;
+        const suit2 = c4; // c4 already validated and lowercased
+
+        card1Str = rank1 + suit1;
+        card2Str = rank2 + suit2;
+    } else {
+        // Character at index 1 is neither a valid Rank nor a valid Suit
+        return {
+            isValid: false,
+            error: `Invalid input: Character at index 1 "${c2_raw}" must be a valid rank (${VALID_RANKS_CHARS.join(', ')}) or suit (${VALID_SUITS_CHARS.join(', ')}).`
+        };
+    }
+
+    // 5. Final check: Ensure the two formed cards are not identical
+    if (card1Str === card2Str) {
+        return {
+            isValid: false,
+            error: `Invalid input: Cards cannot be identical. Parsed as: "${card1Str}" and "${card2Str}".`
+        };
+    }
+
+    // 6. Return the valid result
+    return {
+        isValid: true,
+        parsedHand: [card1Str, card2Str]
+    };
+}
 
 /**
 * Converts a 4-character string representing a poker hand into a two-card array.

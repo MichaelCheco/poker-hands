@@ -139,6 +139,7 @@ export default function HandDetailScreen() {
                         position={handDetails.hero_position as string}
                         pot={handDetails.final_pot_size as number}
                         showdown={handDetails.showdown_hands}
+                        stacks={parseStackSizes2(handDetails.stacks)}
                     />
                 </ScrollView>
             )}
