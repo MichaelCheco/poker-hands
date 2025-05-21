@@ -9,7 +9,6 @@ import { playerOptions, positionMapping } from '@/constants';
 import { HandSetupInfo, Position } from '@/types';
 import { validateAndParsePokerHandString } from '@/utils/card_utils';
 
-let handMessage = '';
 const handFormValidationSchema = Yup.object().shape({
     smallBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number'),
     bigBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number').min(Yup.ref('smallBlind'), 'Must be >= small blind'),
@@ -21,22 +20,17 @@ const handFormValidationSchema = Yup.object().shape({
         .test(
             'valid-hand-format',
             'Invalid hand format',
-            function (value) { // Use a regular function to access `this.createError` if needed, or just return the string
-                if (!value) { // Handle cases where value might be undefined or null if not caught by .required()
-                    return true; // Or handle as an error if empty string is invalid despite .required()
+            (value, ctx) => {
+                if (!value) {
+                    return true;
                 }
                 const result = validateAndParsePokerHandString(value);
-                console.log('Validation result:', result); // For debugging
 
                 if (result.isValid) {
-                    return true; // Validation passes
+                    return true;
                 }
 
-                // If not valid, return the specific error message from your function
-                // This message will be used by Yup.
-                return this.createError({ message: result.error || 'Invalid hand format' });
-                // Or, more simply, if you don't need to customize the path/params of the error:
-                // return result.error || 'Invalid hand format'; 
+                return ctx.createError({ message: result.error || 'Invalid hand format' });
             }
         ),
     relevantStacks: Yup.string().required('Required').test(
@@ -117,9 +111,7 @@ function PokerHandForm({ close, preset }) {
         });
         close();
     };
-    const onError = (errors: FieldErrors, e) => {
-        console.log(errors, ' error')
-    };
+    const onError = (errors: FieldErrors, e) => {};
     React.useEffect(() => {
         if (numPlayers) {
             setPositionOptions([...(positionMapping[numPlayers].map(p => createSegmentedButton(p.value, p.label)))]);
@@ -129,6 +121,22 @@ function PokerHandForm({ close, preset }) {
             setValue('position', initialLoad ? 'BU' : '');
         }
     }, [numPlayers, setValue]);
+
+    const currentPositionValue = watch('position');
+    const positionButtonGroups = React.useMemo(() => {
+        if (!numPlayers || !positionMapping[numPlayers]) {
+            return [];
+        }
+        const options = positionMapping[numPlayers].map((p: { value: string; label: string }) =>
+            createSegmentedButton(p.value, p.label)
+        );
+
+        if (numPlayers > 3 && options.length > 3) { // Split if more than 3 options for numPlayers > 3
+            const midPoint = Math.ceil(options.length / 2);
+            return [options.slice(0, midPoint), options.slice(midPoint)];
+        }
+        return [options]; // Always return an array of arrays
+    }, [numPlayers, currentPositionValue]);
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -274,70 +282,29 @@ function PokerHandForm({ close, preset }) {
                 control={control}
                 name="numPlayers"
             />
-            {numPlayers === 2 && <Controller
-                render={
-                    ({ field: { onChange, value } }) => (
-                        <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
-                            <SegmentedButtons
-                                value={value}
-                                onValueChange={onChange}
-                                density='small'
-                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: 12 }}
-                                buttons={[...(positionMapping[2].map(p => createSegmentedButton(p.value, p.label)))]}
-                            />
-                            {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position?.message}</HelperText>}
-                        </View>
-                    )
-                }
+            <Controller
                 control={control}
                 name="position"
-            />}
-            {numPlayers === 3 && <Controller
-                render={
-                    ({ field: { onChange, value } }) => (
-                        <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
+                render={({ field: { onChange, value } }) => (
+                    <View style={{marginBottom: 8}}>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
+                        {positionButtonGroups.map((buttonGroup, index) => (
                             <SegmentedButtons
+                                key={index}
                                 value={value}
-                                onValueChange={onChange}
+                                onValueChange={(newValue) => {
+                                    if (errors.position) clearErrors('position');
+                                    onChange(newValue);
+                                }}
                                 density='small'
-                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: 12 }}
-                                buttons={[...(positionMapping[3].map(p => createSegmentedButton(p.value, p.label)))]}
+                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: index < positionButtonGroups.length - 1 ? 6 : 0 }}
+                                buttons={buttonGroup}
                             />
-                            {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position?.message}</HelperText>}
-                        </View>
-                    )
-                }
-                control={control}
-                name="position"
-            />}
-            {numPlayers !== 2 && numPlayers !== 3 && <Controller
-                render={
-                    ({ field: { onChange, value } }) => (
-                        <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
-                            <SegmentedButtons
-                                value={value}
-                                onValueChange={onChange}
-                                density='small'
-                                style={{ width: '100%', flexWrap: 'wrap', marginBottom: 12 }}
-                                buttons={[...positionOptions.slice(0, Math.ceil(positionOptions.length / 2))]}
-                            />
-                            <SegmentedButtons
-                                value={value}
-                                onValueChange={onChange}
-                                density='small'
-                                style={{ width: '100%', flexWrap: 'wrap', }}
-                                buttons={[...positionOptions.slice(Math.ceil(positionOptions.length / 2))]}
-                            />
-                            {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position?.message}</HelperText>}
-                        </View>
-                    )
-                }
-                control={control}
-                name="position"
-            />}
+                        ))}
+                        {errors.position && <HelperText type="error" visible={!!errors.position}>{errors.position?.message}</HelperText>}
+                    </View>
+                )}
+            />
             <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
             </Button>

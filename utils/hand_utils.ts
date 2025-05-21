@@ -271,12 +271,16 @@ export function formatAndGetTextToCopy(
 
         showdown.forEach(handInfo => {
             const cardsString = handInfo.hole_cards;
-            lines.push(`- ${handInfo.position === position ? 'Hero' : handInfo.position} shows [ ${cardsString} ]`);
+            if (cardsString.trim().toLowerCase() === "muck") {
+                lines.push(`- ${handInfo.position === position ? 'Hero' : handInfo.position} mucks`);
+            } else {
+                lines.push(`- ${handInfo.position === position ? 'Hero' : handInfo.position} shows [ ${cardsString} ]`);
+            }
         });
 
         const winner = showdown.find(h => h.is_winner);
         if (winner) {
-            lines.push(`\nWinner: ${winner.position} wins $${pot} with ${winner.hand_description}`);
+            lines.push(`\nWinner: ${winner.position === position ? 'Hero' : winner.position} wins $${pot} with ${winner.hand_description}`);
         } else {
             // Optional: Indicate how the hand ended if not by showdown (e.g. player won uncontested)
             // This would require analysing the last actions. For simplicity, we omit this for now.

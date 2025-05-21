@@ -531,12 +531,7 @@ export default function App() {
         return { isValid: true }; // All validations passed
     }
     const handleInputChange = (text: string) => {
-        // ignore extra characters typed when error is present.
-        // if (inputError && text > inputValue) {
-        //     return;
-        // }
-
-        setInputValue(text)
+        setInputValue(text);
         const result = processAndValidateInput(text, state.current);
         if (!result.isValid) {
             assertIsDefined(result.error);
@@ -656,7 +651,9 @@ export default function App() {
                             autoFocus
                             blurOnSubmit={false}
                             returnKeyType="next"
-                            onSubmitEditing={() => { }}
+                            onSubmitEditing={() => {
+                                handleInputChange(`${inputValue}.`);
+                             }}
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
                     </SafeAreaView>

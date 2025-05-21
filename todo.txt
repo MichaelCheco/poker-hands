@@ -2,6 +2,7 @@ TODOS:
 * show ?? when player mucks, include non showdown hands in review page
 * Update text formatting for copy (%, Hero, Eff, Tags?)
 * Add chip for 3rd blind
+* fix effective
 * verify undo removes last action correctly
 * Support straddle for UTG
 * verify small blind is getting added into pot

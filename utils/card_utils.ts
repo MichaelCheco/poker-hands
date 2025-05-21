@@ -111,7 +111,7 @@ export function validateAndParsePokerHandString(handString: string): PokerHandVa
     if (typeof handString !== 'string' || handString.length !== 4) {
         return {
             isValid: false,
-            error: 'Invalid input: Hand string must be exactly 4 characters long.'
+            error: 'Hand string must be exactly 4 characters long.'
         };
     }
 
@@ -129,16 +129,16 @@ export function validateAndParsePokerHandString(handString: string): PokerHandVa
 
 
     // 3. Preliminary validation: First char must be Rank, last must be Suit
-    if (!isRank(c1)) {
+    if (!isRank(c1.toUpperCase())) {
         return {
             isValid: false,
-            error: `Invalid input: First character "${c1_raw}" must be a valid rank (${VALID_RANKS_CHARS.join(', ')}).`
+            error: `First character "${c1_raw}" must be a valid rank`
         };
     }
-    if (!isSuit(c4)) {
+    if (!isSuit(c4.toUpperCase())) {
         return {
             isValid: false,
-            error: `Invalid input: Last character "${c4_raw}" must be a valid suit (${VALID_SUITS_CHARS.join(', ')}).`
+            error: `Last character "${c4_raw}" must be a valid suit`
         };
     }
 
@@ -149,14 +149,14 @@ export function validateAndParsePokerHandString(handString: string): PokerHandVa
     const c2_upper = c2_raw.toUpperCase();
     const c2_lower = c2_raw.toLowerCase();
 
-    if (isSuit(c2_lower)) {
+    if (isSuit(c2_lower.toUpperCase())) {
         // --- Format 1: R1 S1 R2 S2 ---
         // Example: "AsQs"
         const c3_upper = c3_raw.toUpperCase();
         if (!isRank(c3_upper)) {
             return {
                 isValid: false,
-                error: `Invalid input: Format appears to be RSRS, but character at index 2 "${c3_raw}" is not a valid rank (${VALID_RANKS_CHARS.join(', ')}).`
+                error: `Format appears to be RSRS, but character at index 2 "${c3_raw}" is not a valid rank`
             };
         }
         const rank1 = c1;
@@ -171,10 +171,10 @@ export function validateAndParsePokerHandString(handString: string): PokerHandVa
         // --- Format 2: R1 R2 S1 S2 ---
         // Examples: "AQss", "T9ch"
         const c3_lower = c3_raw.toLowerCase();
-        if (!isSuit(c3_lower)) {
+        if (!isSuit(c3_lower.toUpperCase())) {
             return {
                 isValid: false,
-                error: `Invalid input: Format appears to be RRSS, but character at index 2 "${c3_raw}" is not a valid suit (${VALID_SUITS_CHARS.join(', ')}).`
+                error: `Format appears to be RRSS, but character at index 2 "${c3_raw}" is not a valid suit`
             };
         }
         const rank1 = c1;
@@ -188,7 +188,7 @@ export function validateAndParsePokerHandString(handString: string): PokerHandVa
         // Character at index 1 is neither a valid Rank nor a valid Suit
         return {
             isValid: false,
-            error: `Invalid input: Character at index 1 "${c2_raw}" must be a valid rank (${VALID_RANKS_CHARS.join(', ')}) or suit (${VALID_SUITS_CHARS.join(', ')}).`
+            error: `Character at index 1 "${c2_raw}" must be a valid rank`
         };
     }
 
@@ -196,7 +196,7 @@ export function validateAndParsePokerHandString(handString: string): PokerHandVa
     if (card1Str === card2Str) {
         return {
             isValid: false,
-            error: `Invalid input: Cards cannot be identical. Parsed as: "${card1Str}" and "${card2Str}".`
+            error: `Cards cannot be identical`
         };
     }
 
