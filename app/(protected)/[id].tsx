@@ -48,9 +48,7 @@ export default function HandDetailScreen() {
             'postgres_changes',
             { event: '*', schema: 'public', table: 'hands', filter: `id=${id}` },
             (payload) => {
-                // console.log('Change received!', payload)
                 if (!handDetails) {
-                    console.log('no hand details in subscription ...');
                     return;
                 }
                 const update = payload.new as DetailedHandData;
@@ -132,6 +130,7 @@ export default function HandDetailScreen() {
                         communityCards={handDetails.community_cards}
                         smallBlind={handDetails.small_blind}
                         bigBlind={handDetails.big_blind}
+                        thirdBlind={handDetails.third_blind}
                         gameType={handDetails.game_type}
                         numPlayers={handDetails.num_players}
                         location={handDetails.location as string}

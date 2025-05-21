@@ -63,7 +63,7 @@ export default function Index() {
   const renderHandItem = ({ item }: { item: SavedHandSummary }) => (
     <>
       <List.Item
-        title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind} • ${item.location}`}
+        title={`${item.currency}${item.small_blind}/${item.currency}${item.big_blind}${item.third_blind ? `/${item.currency}${item.third_blind}` : ''} • ${item.location}`}
         description={`${formatDateMMDDHHMM(item.played_at)}`}
         left={props => <List.Icon {...props} icon="cards-playing" />}
         onPress={() => {

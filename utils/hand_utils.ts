@@ -1,5 +1,5 @@
 import { initialState } from "../constants";
-import { ActionRecord, CalculatedPot, Decision, GameState, HandPot, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage } from "../types";
+import { ActionRecord, CalculatedPot, Decision, GameState, HandPot, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage, ThirdBlindInfo } from "../types";
 import * as Clipboard from 'expo-clipboard';
 import { format, parseISO } from 'date-fns';
 
@@ -129,6 +129,7 @@ export async function copyHand(
     pot: number,
     showdown: ShowdownHandRecord[],
     stacks: PlayerStacks,
+    thirdBlind: number | undefined
 ): Promise<boolean> {
     const text = formatAndGetTextToCopy(
         actionList,
@@ -141,15 +142,14 @@ export async function copyHand(
         pot,
         showdown,
         stacks,
+        thirdBlind
     );
     try {
         await Clipboard.setStringAsync(text);
-        console.log("Hand history copied to clipboard.");
-        // You could add user feedback here (e.g., a toast message)
+        // console.log("Hand history copied to clipboard.");
         return true;
     } catch (error) {
         console.error("Failed to copy hand history to clipboard:", error);
-        // Add user feedback for error
         return false;
     }
 }
@@ -178,6 +178,7 @@ export function formatAndGetTextToCopy(
     pot: number,
     showdown: ShowdownHandRecord[],
     stacks: PlayerStacks,
+    thirdBlind: number | undefined,
 ): string {
     if (!actions || actions.length === 0) {
         console.warn("No actions provided to format.");
@@ -186,10 +187,9 @@ export function formatAndGetTextToCopy(
     const positionsForPlayersInHand = showdown.map(s => s.position);
     const relevantStacks = positionsForPlayersInHand.map(p => stacks[p] ?? bigBlind * 100);
     const effectiveStack = Math.min(...relevantStacks);
-
     const lines: string[] = [];
     lines.push('')
-    lines.push(`$${smallBlind}/$${bigBlind} • ${location}`.trimStart());
+    lines.push(`$${smallBlind}/$${bigBlind}${thirdBlind ? `/$${thirdBlind}` : ''} • ${location}`.trimStart());
     lines.push(`\nHero: ${hand} ${position}`.trimStart());
     lines.push(`\nEff: $${effectiveStack}`.trimStart());
 
@@ -218,7 +218,7 @@ export function formatAndGetTextToCopy(
             // Reset for each new street
             if (stageNum === Stage.Preflop) {
                 // Preflop, the BB is the initial "bet" to overcome
-                lastAggressiveBetTotalOnStreet = bigBlind;
+                lastAggressiveBetTotalOnStreet = (thirdBlind || bigBlind);
             } else {
                 // Postflop, starts at 0 until a bet
                 lastAggressiveBetTotalOnStreet = 0;
@@ -240,10 +240,10 @@ export function formatAndGetTextToCopy(
                         if (lastAggressiveBetTotalOnStreet > 0) { // If there was a previous bet/raise to calculate against
                             const raiseMultiple = action.action_amount / lastAggressiveBetTotalOnStreet;
                             actionDetails = ` (${raiseMultiple.toFixed(1)}x)`;
-                        } else if (stageNum === Stage.Preflop && currentPotSizeBeforeAction === bigBlind + smallBlind) {
+                        } else if (stageNum === Stage.Preflop && currentPotSizeBeforeAction === bigBlind + smallBlind + (thirdBlind || 0)) {
                             // First raise preflop over blinds (no limpers)
                             // lastAggressiveBetTotalOnStreet was already set to bigBlind
-                            const raiseMultiple = action.action_amount / bigBlind;
+                            const raiseMultiple = action.action_amount / (thirdBlind || bigBlind);
                             actionDetails = ` (${raiseMultiple.toFixed(1)}x BB)`;
                         }
                         // If lastAggressiveBetTotalOnStreet is 0 postflop, it implies this 'R' is an error, should be 'B'.
@@ -289,12 +289,12 @@ export function formatAndGetTextToCopy(
 
     // Join lines into a single string
     const historyString = lines.join('\n');
-    console.log("\n", historyString); // For debugging
+    // console.log("\n", historyString);
     return historyString;
 }
 
 export function parseStackSizes(stackString: string, sequence: string[],
-    smallBlind: number, bigBlind: number
+    smallBlind: number, bigBlind: number, thirdBlind?: ThirdBlindInfo
 ): PlayerStacks {
     const stackObjects: PlayerStacks = {};
     const stackEntries = stackString.split(',').map(entry => entry.trim());
@@ -317,7 +317,9 @@ export function parseStackSizes(stackString: string, sequence: string[],
     }, stackObjects);
     result[Position.SB] = result[Position.SB] as number - smallBlind;
     result[Position.BB] = result[Position.BB] as number - bigBlind;
-
+    if (thirdBlind) {
+        result[thirdBlind.position] = result[thirdBlind.position] as number - thirdBlind.amount;
+    }
     // TODO handle straddles and antes
     return result;
 }

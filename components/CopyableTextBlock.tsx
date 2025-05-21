@@ -33,7 +33,6 @@ const CopyableTextBlock: React.FC<CopyableTextBlockProps> = ({
 
     try {
       await Clipboard.setStringAsync(textToCopy);
-      console.log('Text copied to clipboard!');
       setCopied(true);
       // Hide the 'copied' checkmark after a short delay
       setTimeout(() => setCopied(false), 1500);

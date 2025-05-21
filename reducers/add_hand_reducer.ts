@@ -126,39 +126,43 @@ function updateActionSequenceWithNewAction(
 }
 
 export function createInitialAppState(state: GameAppState, gameInfo: HandSetupInfo) {
-    const { position: heroPosition, hand, smallBlind, bigBlind, relevantStacks } = gameInfo;
+    // validate thirdBlind, 2 players
+    const { position: heroPosition, hand, smallBlind, bigBlind, relevantStacks, thirdBlind } = gameInfo;
     const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
+    let thirdBlindInfo = thirdBlind ? {position: actionSequence[2], amount: thirdBlind} : undefined;
     const upperCasedHand = hand.toUpperCase();
-    const stacks = parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind);
-    const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position) => ({
+    const stacks = parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind, thirdBlindInfo);
+    const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position, index) => ({
         position,
         isAllIn: false,
         hasActedThisStreet: false,
-        amountInvestedThisStreet: position === Position.SB ? smallBlind : position === Position.BB ? bigBlind : 0,
+        amountInvestedThisStreet: position === Position.SB ? smallBlind : position === Position.BB ? bigBlind : index === 2 && thirdBlind ? thirdBlind : 0,
         canRaise: true,
         hasFolded: false,
         stack: stacks[position] as number,
     }));
     const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
     const handAsArray = parsePokerHandString(upperCasedHand);
-    // const heroPosition = position.toUpperCase();
     const initialGameState: GameState = {
         ...state.current,
         actionSequence: initialSequence,
-        pot: smallBlind + bigBlind,
+        pot: smallBlind + bigBlind + (thirdBlind ?? 0),
         smallBlind,
         bigBlind,
+        thirdBlind: thirdBlindInfo,
         hero: { position: heroPosition, hand: handAsArray },
         deck: [...filterNewCardsFromDeck(handAsArray, [...state.current.deck])],
         playerActions: [],
         stage: Stage.Preflop,
         input: '',
-        betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind },
-        currentBetFacing: bigBlind,
-        lastRaiseAmount: bigBlind,
+        betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind, ...(thirdBlindInfo ? { [thirdBlindInfo.position]: thirdBlindInfo.amount} : {}) },
+        currentBetFacing: thirdBlind || bigBlind,
+        lastRaiseAmount: thirdBlind || bigBlind,
         numberOfBetsAndRaisesThisStreet: 1,
         stacks,
+        playerWhoMadeLastAggressiveAction: thirdBlindInfo ? thirdBlindInfo.position : Position.BB,
     };
+    // console.log(initialGameState.betsThisStreet)
     state.history.pop();
     state.history.push(initialGameState);
     return {
@@ -253,13 +257,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             // If playerAction.decision was not aggressive, newLastRaiseAmount remains curr.lastRaiseAmount.
             const newPlayerWhoMadeLastAggressiveAction = isAggressiveAction(playerAction.decision) ? playerAction.position : curr.playerWhoMadeLastAggressiveAction;
             const newNumberOfBetsAndRaisesThisStreet = curr.numberOfBetsAndRaisesThisStreet + (isAggressiveAction(playerAction.decision) ? 1 : 0);
-            // console.log('newLastRaiseAmount : ', newLastRaiseAmount);
-            // console.log('newCurrentBetToCall : ', newCurrentBetFacing);
-            // console.log('newPlayerWhoMadeLastAggressiveAction : ', newPlayerWhoMadeLastAggressiveAction);
-            // console.log('numberOfBetsAndRaisesThisStreet : ', newNumberOfBetsAndRaisesThisStreet);
 
-            // logActionSequence(updatedActionSequence);
-            logOrder(updatedActionSequence);
             playerAction.text = getMeaningfulTextToDisplay(
                 playerAction,
                 curr.numberOfBetsAndRaisesThisStreet,
@@ -348,7 +346,8 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     propertyUpdates.showdownHands = curr.allPlayerContributions.filter(p => {
                         let a = p.position === Position.SB && p.amount === curr.smallBlind;
                         let b = p.position === Position.BB && p.amount === curr.bigBlind;
-                        if (a || b) {
+                        let c = curr.thirdBlind && curr.thirdBlind.position === p.position && p.amount === curr.thirdBlind.amount;
+                        if (a || b || c) {
                             return false;
                         }
                         return true
@@ -386,9 +385,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
 
                 // Update betting information
                 propertyUpdates.actionSequence = updatedActionSequence;
-                console.log( ' ===== IN TRANSITION ')
-                // logActionSequence(updatedActionSequence);
-                logOrder(updatedActionSequence);
                 propertyUpdates.pot = curr.pot + amountToAdd;
                 propertyUpdates.betsThisStreet = {
                     ...curr.betsThisStreet,

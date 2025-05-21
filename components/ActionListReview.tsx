@@ -25,6 +25,7 @@ export default function ActionListReview({
     communityCards,
     smallBlind,
     bigBlind,
+    thirdBlind,
     gameType,
     numPlayers,
     location,
@@ -38,6 +39,7 @@ export default function ActionListReview({
     communityCards: string[],
     smallBlind: number;
     bigBlind: number;
+    thirdBlind?: number;
     gameType: string;
     numPlayers: number;
     location: string;
@@ -103,7 +105,7 @@ export default function ActionListReview({
                     <Text variant="titleMedium" style={{
                         color: '#000000E8',
                     }}>
-                        The Hand - ${smallBlind}/${bigBlind} {gameType} {numPlayers}-handed
+                        The Hand - ${smallBlind}/${bigBlind}{thirdBlind ? `/$${thirdBlind}` : ''} {gameType} {numPlayers}-handed
                     </Text>
                 </List.Subheader>
 
@@ -121,7 +123,8 @@ export default function ActionListReview({
                             position,
                             pot,
                             showdown,
-                            stacks);
+                            stacks,
+                        thirdBlind);
                         setSnackbarVisible(success);
                     }}
                     style={styles.subheaderIcon}

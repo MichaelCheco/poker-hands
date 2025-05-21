@@ -161,6 +161,7 @@ export interface SavedHandSummary {
     game_type: string;
     small_blind: number;
     big_blind: number;
+    third_blind?: number;
     location: string;
     num_players: number;
     hero_position: string;
@@ -174,6 +175,7 @@ export interface SavedHandSummary {
 export interface HandSetupInfo extends FieldValues {
     smallBlind: number;
     bigBlind: number;
+    thirdBlind?: number;
     numPlayers: number;
     position: string;
     relevantStacks: string;
@@ -183,6 +185,12 @@ export interface HandSetupInfo extends FieldValues {
 }
 
 export type BetsForStreetMap = Partial<Record<Position, number>>;
+
+
+export interface ThirdBlindInfo {
+    position: Position;
+    amount: number
+}
 
 export interface GameState {
     gameQueue: GameQueueItem[];
@@ -200,6 +208,7 @@ export interface GameState {
     stacks: PlayerStacks;
     smallBlind: number;
     bigBlind: number;
+    thirdBlind?: ThirdBlindInfo;
     currentBetFacing: number;
     lastRaiseAmount: number;
     playerWhoMadeLastAggressiveAction: Position | null;
@@ -323,6 +332,7 @@ export interface DetailedHandData {
     game_type: string;
     small_blind: number;
     big_blind: number;
+    third_blind?: number;
     location?: string;
     num_players: number;
     hero_position?: string;

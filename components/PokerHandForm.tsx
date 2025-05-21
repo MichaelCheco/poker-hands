@@ -8,6 +8,16 @@ import { useRouter } from 'expo-router';
 import { playerOptions, positionMapping } from '@/constants';
 import { HandSetupInfo, Position } from '@/types';
 import { validateAndParsePokerHandString } from '@/utils/card_utils';
+import { Switch } from 'react-native-paper';
+
+const ThirdBlindSwitch = ({ on, toggleSwitch }) => {
+    return (
+        <View style={{ alignItems: 'center', gap: 4, display: 'flex', flexDirection: 'row', marginVertical: 4 }}>
+            <Text>3rd blind?</Text>
+            <Switch color="#000000" value={on} onValueChange={toggleSwitch} />
+        </View>
+    );
+};
 
 const handFormValidationSchema = Yup.object().shape({
     smallBlind: Yup.number().required('Required').positive('Must be positive').typeError('Must be a number'),
@@ -37,12 +47,10 @@ const handFormValidationSchema = Yup.object().shape({
         'contains-position',
         'Stack size for selected position is missing',
         (value, context) => {
-
             const selectedPosition = context.parent.position;
             if (!selectedPosition || !value) {
                 return true;
             }
-
             // Check if the string contains the selected position (case-insensitive)
             const regex = new RegExp(`${selectedPosition}\\s*\\d+`, 'i');
             return regex.test(value);
@@ -66,7 +74,7 @@ const createSegmentedButtonForNumPlayers = (value: any, label: string) => ({
         minWidth: 50,
     },
     labelStyle: {
-        fontWeight: Platform.OS === "ios" ? '400' : '500',
+        fontWeight: Platform.OS === "ios" ? "400" : "500",
     },
 });
 
@@ -77,7 +85,7 @@ const createSegmentedButtonForBlind = (value: number, label: string) => ({
         minWidth: 50,
     },
     labelStyle: {
-        fontWeight: Platform.OS === "ios" ? '400' : '500',
+        fontWeight: Platform.OS === "ios" ? "400" : "500",
     },
 });
 
@@ -87,6 +95,7 @@ function PokerHandForm({ close, preset }) {
         defaultValues: {
             smallBlind: 5,
             bigBlind: 5,
+            thirdBlind: undefined,
             location: '',
             numPlayers: 8,
             position: '',
@@ -95,9 +104,9 @@ function PokerHandForm({ close, preset }) {
             ...preset
         },
     });
-    const [positionOptions, setPositionOptions] = React.useState<any>([]);
     const [initialLoad, setInitialLoad] = React.useState<any>(true);
-
+    const [isSwitchOn, setIsSwitchOn] = React.useState(!!getValues('thirdBlind'));
+    const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
     const router = useRouter();
     const theme = useTheme();
 
@@ -111,10 +120,9 @@ function PokerHandForm({ close, preset }) {
         });
         close();
     };
-    const onError = (errors: FieldErrors, e) => {};
+    const onError = (errors: FieldErrors, e) => { };
     React.useEffect(() => {
         if (numPlayers) {
-            setPositionOptions([...(positionMapping[numPlayers].map(p => createSegmentedButton(p.value, p.label)))]);
             if (initialLoad) {
                 setInitialLoad(false);
             }
@@ -123,6 +131,7 @@ function PokerHandForm({ close, preset }) {
     }, [numPlayers, setValue]);
 
     const currentPositionValue = watch('position');
+    const currentBigBlind = watch('bigBlind');
     const positionButtonGroups = React.useMemo(() => {
         if (!numPlayers || !positionMapping[numPlayers]) {
             return [];
@@ -137,6 +146,17 @@ function PokerHandForm({ close, preset }) {
         }
         return [options]; // Always return an array of arrays
     }, [numPlayers, currentPositionValue]);
+
+    const thirdButtonGroups = React.useMemo(() => {
+        if (!isSwitchOn) {
+            return [];
+        }
+        const value = getValues('bigBlind');
+        return [
+            createSegmentedButtonForBlind(value, `${value}`),
+            createSegmentedButtonForBlind(value * 2, `${value * 2}`),
+        ];
+    }, [currentBigBlind, isSwitchOn]);
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -179,7 +199,6 @@ function PokerHandForm({ close, preset }) {
                             activeOutlineColor='#000000'
                             error={!!errors.location}
                         />
-                        {/* {errors.location && <HelperText type="error" visible={!!errors.location}>{errors.location?.message}</HelperText>} */}
                     </>
                 )}
                 name="location"
@@ -256,6 +275,25 @@ function PokerHandForm({ close, preset }) {
                 control={control}
                 name="bigBlind"
             />
+            {isSwitchOn && <Controller
+                render={
+                    ({ field: { onChange, value } }) => (
+                        <View style={{ marginBottom: 8 }}>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Third Blind</Text>
+                            <SegmentedButtons
+                                value={value}
+                                onValueChange={onChange}
+                                density='small'
+                                style={{ width: '100%' }}
+                                buttons={thirdButtonGroups}
+                            />
+                            {errors.bigBlind && <HelperText type="error" visible={!!errors.bigBlind}>{errors.bigBlind?.message}</HelperText>}
+                        </View>
+                    )
+                }
+                control={control}
+                name="thirdBlind"
+            />}
             <Controller
                 render={
                     ({ field: { onChange, value } }) => (
@@ -286,7 +324,7 @@ function PokerHandForm({ close, preset }) {
                 control={control}
                 name="position"
                 render={({ field: { onChange, value } }) => (
-                    <View style={{marginBottom: 8}}>
+                    <View style={{ marginBottom: 8 }}>
                         <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
                         {positionButtonGroups.map((buttonGroup, index) => (
                             <SegmentedButtons
@@ -305,6 +343,7 @@ function PokerHandForm({ close, preset }) {
                     </View>
                 )}
             />
+            <ThirdBlindSwitch on={isSwitchOn} toggleSwitch={onToggleSwitch} />
             <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
             </Button>

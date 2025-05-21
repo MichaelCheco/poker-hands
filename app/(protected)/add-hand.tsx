@@ -103,10 +103,8 @@ const validateHeroInAction: ValidationFunction = (input, { playerActions, hero: 
 
 const validateAction: ValidationFunction = (input, state) => {
     const isCompleteSegment = input.endsWith(',') || input.endsWith('.');
-    const { playerActions, betsThisStreet, actionSequence, lastRaiseAmount, currentBetFacing, numberOfBetsAndRaisesThisStreet, stage, stacks, bigBlind, playerWhoMadeLastAggressiveAction } = state;
-    // console.log(`validateAction: last raise $ - ${lastRaiseAmount} || # bets ${numberOfBetsAndRaisesThisStreet}`)
+    const { playerActions, betsThisStreet, actionSequence, lastRaiseAmount, currentBetFacing, numberOfBetsAndRaisesThisStreet, stage, stacks, bigBlind, thirdBlind, playerWhoMadeLastAggressiveAction } = state;
     const segment = getSegment(input);
-    // console.log(input, ' - ', segment)
     const parts = getPartsFromSegment(segment);
     const nextPlayerToActPos = stage === Stage.Preflop
         ? parts[0]
@@ -114,11 +112,9 @@ const validateAction: ValidationFunction = (input, state) => {
     assertIsDefined(nextPlayerToActPos);
     const { decision, position, amount } = getPlayerAction(nextPlayerToActPos, segment, stage, 0);
     // console.log(`parts ::: ${decision} :: `, parts)
-    // assertIsDefined(playerInSequence);
     if (parts.length === 1) { 
         return { isValid: true }
     }
-    console.log(decisionToText(decision), '==')
     if (playerActions.length > 0 && playerActions[playerActions.length - 1].position === position && numberOfBetsAndRaisesThisStreet > 0) {
         return { isValid: false, error: `${position} can not make consecutive actions` };
     }
@@ -160,6 +156,11 @@ const validateAction: ValidationFunction = (input, state) => {
         if (isPreflop(stage) && position === Position.BB && numberOfBetsAndRaisesThisStreet === 1) {
             return { isValid: true }
         }
+
+        // special case for 3rd blind open
+        if (isPreflop(stage) && position === thirdBlind?.position && numberOfBetsAndRaisesThisStreet === 1) {
+            return { isValid: true }
+        }
         return { isValid: false, error: `${position} can not make consecutive aggressive actions` };
     }
     assertIsDefined(stacks[position]);
@@ -171,8 +172,8 @@ const validateAction: ValidationFunction = (input, state) => {
             if (numberOfBetsAndRaisesThisStreet) {
                 return { isValid: false, error: `A bet has already occurred on this street` };
             }
-            if (amount < bigBlind && isCompleteSegment) {
-                return { isValid: false, error: `Bet amount must be > than BB` };
+            if (amount < (thirdBlind?.amount || bigBlind) && isCompleteSegment) {
+                return { isValid: false, error: `Bet amount must be > than ${thirdBlind ? '3rd Blind' : 'BB'}` };
             }
             break;
         }

@@ -22,7 +22,7 @@ const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: b
     }
     for (let i = 0; i < recentHands.length; i++) {
         const hand = recentHands[i];
-        const token = `${hand.small_blind}-${hand.big_blind}-${hand.location}`;
+        const token = `${hand.small_blind}-${hand.big_blind}-${hand.third_blind || 0}-${hand.location}`;
         if (handsToShow.length === 3) {
             break;
         }
@@ -31,7 +31,7 @@ const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: b
             handsToShow.push(hand)
         };
     }
-    const fabActions = handsToShow.map((hand, index) => {
+    const fabActions = handsToShow.map((hand) => {
         return {
             icon: `alpha-${hand.location[0].toLowerCase()}`,
             color: theme.button.backgroundColor,
@@ -43,11 +43,12 @@ const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: b
             labelStyle: {
                 color: theme.colors.secondary
             },
-            label: `${hand.small_blind}/${hand.big_blind} ${hand.location.length > 14 ? hand.location.slice(0, 5) + '..' : hand.location}`,
+            label: `$${hand.small_blind}/$${hand.big_blind}${hand.third_blind ? `/$${hand.third_blind}` : ''} ${hand.location.length > 14 ? hand.location.slice(0, 5) + '..' : hand.location}`,
                 onPress: () => {
                     setPreset({
                         smallBlind: hand.small_blind,
                         bigBlind: hand.big_blind,
+                        thirdBlind: hand.third_blind,
                         location: hand.location,
                     });
                     setVisible();
@@ -76,8 +77,8 @@ return (
                     },
                     onPress: () => {
                         setPreset({
-                            smallBlind: '',
-                            bigBlind: '',
+                            smallBlind: 2,
+                            bigBlind: 5,
                             location: '',
                         });
                         setVisible()

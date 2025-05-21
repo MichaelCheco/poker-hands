@@ -102,6 +102,7 @@ export async function saveHandToSupabase(
             game_type: 'NLH', // Or from setupInfo if available
             small_blind: setupInfo.smallBlind,
             big_blind: setupInfo.bigBlind,
+            third_blind: setupInfo.thirdBlind,
             location: setupInfo.location,
             num_players: setupInfo.numPlayers,
             hero_position: handHistoryData.hero.position, // Assumes this is a position string
@@ -125,7 +126,7 @@ export async function saveHandToSupabase(
     }
 
     const handId = handData.id;
-    console.log("Hand inserted with ID:", handId);
+    // console.log("Hand inserted with ID:", handId);
 
     // 3. Insert into 'actions' table
     if (handHistoryData.playerActions && handHistoryData.playerActions.length > 0) {
@@ -206,9 +207,9 @@ export async function saveHandToSupabase(
                 handId
             };
         }
-        console.log(`${potsToInsert.length} pots inserted for hand ID: ${handId}`);
+        // console.log(`${potsToInsert.length} pots inserted for hand ID: ${handId}`);
     } else {
-        console.log("No side pots data provided or main pot handled differently for hand ID:", handId);
+        // console.log("No side pots data provided or main pot handled differently for hand ID:", handId);
     }
 
     // 5. Insert into 'showdown_hands' table (if showdown occurred)
@@ -233,7 +234,6 @@ export async function saveHandToSupabase(
 
         const showdownPositions = handHistoryData.showdown.map(s => s.playerId);
         const playersWholFolded = handHistoryData.showdownHands.filter(h => !(showdownPositions.includes(h.playerId)));
-        console.log(playersWholFolded, ' FOLDS !')
         let extraShowdownHands = playersWholFolded.map((p) => ({
             hand_id: handId,
             position: p.playerId,
@@ -278,7 +278,7 @@ export async function getSavedHands(
     try {
         const { data, error, count } = await supabase
             .from('hands')
-            .select('currency,small_blind,big_blind,location,id,hero_cards,played_at', { count: 'exact' }) // Select all columns, get total count
+            .select('currency,small_blind,big_blind,third_blind,location,id,hero_cards,played_at', { count: 'exact' }) // Select all columns, get total count
             .eq('user_id', userId) // Filter by the logged-in user's ID
             .order('played_at', { ascending: false }) // Order by most recent first
             .range(offset, offset + limit - 1); // Apply pagination

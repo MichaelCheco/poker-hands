@@ -123,7 +123,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     if (data.user) {
       setUser(data.user); // Set user immediately, session will be handled by onAuthStateChange
       setSession(data.session);
-      console.log("Sign up successful, user:", data.user);
+      // console.log("Sign up successful, user:", data.user);
       router.replace("/");
       // Supabase sends a confirmation email by default.
       // You might want to navigate to a "check your email" screen or directly log them in
@@ -155,11 +155,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     if (data.user && data.session) {
       setUser(data.user);
       setSession(data.session);
-      console.log("Login successful, user:", data.user);
+      // console.log("Login successful, user:", data.user);
       router.replace("/"); // Navigate to home screen after successful login
     } else if (data.user && !data.session) {
       // This case might happen if MFA is enabled or other factors
-      console.log("User data received but no session. MFA or other step might be required.");
+      // console.log("User data received but no session. MFA or other step might be required.");
       // Handle accordingly, e.g. navigate to MFA screen
     }
     return { error: null };
@@ -179,7 +179,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       } catch (e) {
         console.error("Failed to remove session from AsyncStorage on logout", e);
       }
-      console.log("Logout successful");
+      // console.log("Logout successful");
       router.replace("/login"); // Navigate to login screen after logout
     }
     setIsReady(true);

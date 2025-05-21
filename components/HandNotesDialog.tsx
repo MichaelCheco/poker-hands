@@ -48,7 +48,6 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
                 clearTimeout(debounceTimeoutRef.current);
             }
             debounceTimeoutRef.current = setTimeout(async () => {
-                console.log("Debounced save:", watchedNotes);
                 try {
                     await onSaveNotes(watchedNotes);
                 } catch (error) {
@@ -88,16 +87,11 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
         }
         const currentNotesValue = getValues("notes");
         if (typeof currentNotesValue === 'string') {
-            // Optionally, only save if notes actually changed from initialNotes
-            // if (currentNotesValue !== initialNotes) {
-            console.log("Saving on close:", currentNotesValue);
             try {
                 await onSaveNotes(currentNotesValue);
             } catch (error) {
                 console.error("Error saving on close:", error);
-                // Handle error (e.g., show a toast message)
             }
-            // }
         }
         hideDialog();
     }, [getValues, onSaveNotes, hideDialog, initialNotes]);
