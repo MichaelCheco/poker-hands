@@ -132,12 +132,10 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                             }
                             return (
                                 <View style={{ display: 'flex', flexDirection: 'row', 
-                                // borderColor: 'red', borderWidth: 1 
                                 }} >
                                     <ShowdownCard card={"muck"} />
                                     <ShowdownCard card={"muck"} />
                                 </View>
-                                // <Text style={{ fontSize: 16 }}>Mucked</Text>
                             )
                         }}
                         left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
@@ -168,7 +166,8 @@ const styles = StyleSheet.create({
     },
     actionPosition: {
         fontWeight: 'bold',
-        marginLeft: 8,
+        marginLeft: 6,
+        minWidth: 38,
         textAlign: 'center',
         alignSelf: 'center',
         color: '#555',
