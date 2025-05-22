@@ -1,13 +1,13 @@
 import React, { useReducer, useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Divider, Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult, PlayerStatus } from '@/types';
+import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult, PlayerStatus, PlayerTag } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
-import { calculateEffectiveStack, decisionToText, isPreflop } from '@/utils/hand_utils';
+import { calculateEffectiveStack, decisionToText, isPreflop, tagToLabel } from '@/utils/hand_utils';
 import { useTheme } from 'react-native-paper';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +19,45 @@ import { getLastAction, getPlayerAction, getUpdatedBettingInfo, isAggressiveActi
 import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_hand_reducer';
 import { assertIsDefined } from '@/utils/assert';
 import AnimatedInstructionText from '@/components/AnimatedInstructionText';
+
+const tags = [
+    PlayerTag.kLag,
+    PlayerTag.kTag,
+    PlayerTag.kLp,
+    PlayerTag.kTp,
+    PlayerTag.kWhale,
+    PlayerTag.kManiac,
+    PlayerTag.kPro,
+    PlayerTag.kNit,
+]
+const TagList = ({ chips, selectChip, position }) => {
+    return (
+        <View style={{ flexDirection: 'row', display: 'flex', width: '100%', flexWrap: 'wrap', gap: 8 }}>
+            {tags.map((tag) => (
+                <TagChip
+                    label={tagToLabel(tag)}
+                    onPress={() => {
+                        const copyOfChips = { ...chips };
+                        const currentChipValue = copyOfChips[position];
+                        if (currentChipValue === tag) {
+                            delete copyOfChips[position];
+                            selectChip(copyOfChips);
+                        } else {
+                            copyOfChips[position] = tag;
+                            selectChip(copyOfChips);
+                        }
+                    }}
+                    key={tag}
+                    selected={chips[position] === tag}
+                />
+
+            ))}
+        </View>
+    )
+}
+const TagChip = ({ label, onPress, selected }: { label: string, onPress: () => void, selected: boolean }) => (
+    <Chip showSelectedCheck={false} selected={selected} onPress={onPress} textStyle={{ color: selected ? '#FFF' : '#000000' }} style={{ backgroundColor: selected ? '#000000' : '#0000000D' }}>{label}</Chip>
+);
 
 const VALID_ACTIONS = Object.values(Decision);
 
@@ -96,7 +135,7 @@ const validateHeroInAction: ValidationFunction = (input, { playerActions, hero: 
     const isSequenceComplete = input.endsWith('.');
     if (!isSequenceComplete) { return { isValid: true } };
     if (!playerActions.some((action => action.position === position))) {
-        return {isValid: false, error: 'Hero must be in action sequence'}
+        return { isValid: false, error: 'Hero must be in action sequence' }
     }
     return { isValid: true };
 }
@@ -112,7 +151,7 @@ const validateAction: ValidationFunction = (input, state) => {
     assertIsDefined(nextPlayerToActPos);
     const { decision, position, amount } = getPlayerAction(nextPlayerToActPos, segment, stage, 0);
     // console.log(`parts ::: ${decision} :: `, parts)
-    if (parts.length === 1) { 
+    if (parts.length === 1) {
         return { isValid: true }
     }
     if (playerActions.length > 0 && playerActions[playerActions.length - 1].position === position && numberOfBetsAndRaisesThisStreet > 0) {
@@ -268,7 +307,7 @@ const validateCommunityCards: ValidationFunction = (input, currentState) => {
     }
     if (currentState.currentAction.id === GameQueueItemType.kVillainCard) {
         if (!containsPeriod) {
-            return {isValid: true}
+            return { isValid: true }
         }
         if (trimmedInput.toLowerCase().slice(0, -1) === "muck") {
             return { isValid: true }
@@ -420,21 +459,6 @@ const cardPipeline: ValidationFunction[] = [
     validateCommunityCards
 ];
 
-/**
- * TAGS:
- * LAG - Loose Aggressive
- * TAG - tight aggressive
- * LP - Loose passive
- * TP - tight passive
- * 🐟
- * 🐳 Whale
- * Pro
- * Bad Pro
- * Decent Pro
- * Good Pro
- * Maniac
- */
-
 export default function App() {
     const { data }: { data: string } = useLocalSearchParams();
     const gameInfo: HandSetupInfo = JSON.parse(data);
@@ -442,11 +466,13 @@ export default function App() {
     // State
     const [state, dispatch] = useReducer(reducer, initialAppState, (arg) => createInitialAppState(arg, gameInfo));
     const [isLoading, setIsLoading] = useState(false);
+    const [tagViewVisible, setTagViewVisible] = useState(false);
     const [animationComplete, setAnimationComplete] = useState(false);
 
     const [savedId, setSavedId] = useState('');
     const [inputError, setInputError] = useState('');
     const [inputValue, setInputValue] = useState('');
+    const [chipsSelected, setChipsSelected] = useState({});
     const [pipeline, setPipeline] = useState<ValidationFunction[]>(baseValidationPipeline);
 
     // Hooks
@@ -473,10 +499,11 @@ export default function App() {
 
     useEffect(() => {
         if (state.current.stage === Stage.Showdown) {
-            setIsLoading(true)
-            saveHand().then((id) => {
-                setSavedId(id);
-            });
+            setTagViewVisible(true);
+            // setIsLoading(true)
+            // saveHand().then((id) => {
+            //     setSavedId(id);
+            // });
         }
     }, [state.current.stage])
 
@@ -557,7 +584,7 @@ export default function App() {
     };
 
     async function saveHand() {
-        const result = await saveHandToSupabase(state.current, gameInfo);
+        const result = await saveHandToSupabase(state.current, gameInfo, chipsSelected);
         return result.handId
     }
     const goToDetailPage = () => {
@@ -601,7 +628,30 @@ export default function App() {
                     <SuccessAnimation visible={isLoading} onAnimationComplete={() => setAnimationComplete(true)} />
                 </View>
             )}
-            {!isLoading && <KeyboardAvoidingView
+            {tagViewVisible && (
+                <View style={{ padding: 8, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
+                    <Text variant='titleMedium' style={{ marginBottom: 18 }}>Tag Opponents</Text>
+                    <Divider bold style={{ marginBottom: 18 }} />
+                    {state.current.showdownHands.filter(hand => hand.playerId !== state.current.hero.position).map((hand, index, arr) => (
+                        <View key={hand.playerId} style={{ flexDirection: 'column', display: 'flex', gap: 6 }}>
+                            <Text variant='labelLarge' style={{ marginBottom: 2 }}>{hand.playerId}</Text>
+                            <TagList chips={chipsSelected} selectChip={setChipsSelected} position={hand.playerId} />
+                            {index !== state.current.showdownHands.length - 1 && arr.length > 1 && <Divider bold style={{ marginVertical: 20 }} />}
+                        </View>
+                    ))}
+                    <Button
+                        mode="contained"
+                        onPress={() => {
+                            setIsLoading(true)
+                            setTagViewVisible(false);
+                            saveHand().then((id) => {
+                                setSavedId(id);
+                            })
+                        }}
+                        style={{ ...styles.button, ...theme.button, marginTop: 18, marginInline: 0 }}>Save Hand</Button>
+                </View>
+            )}
+            {!isLoading && !tagViewVisible && <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 enabled={Platform.OS === "ios"}
@@ -654,7 +704,7 @@ export default function App() {
                             returnKeyType="next"
                             onSubmitEditing={() => {
                                 handleInputChange(`${inputValue}.`);
-                             }}
+                            }}
                             right={<TextInput.Icon icon="undo-variant" onPress={handleUndo} forceTextInputFocus={true} />}
                         />
                     </SafeAreaView>

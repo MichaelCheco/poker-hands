@@ -325,7 +325,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 if (!nextAction) {
                     const showdownHands = [formatHeroHand(curr.hero), ...hands];
                     const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({...player,eligible: determinePlayerEligibility(player.position, curr.playerActions)})));
-                    // console.table(pots)
                     const formattedCards = formatCommunityCards(curr.cards);
                     const showdownPots: CalculatedPot[] = pots.map((pot: CalculatedPot) => {
                         const eligibleHands = showdownHands.filter(hand => (pot.eligiblePositions.includes((hand.playerId as Position)) && !(typeof hand.holeCards === "string")));
@@ -336,11 +335,9 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                             eligiblePositions: pot.eligiblePositions,
                          }
                     });
-                    // console.log(`showdownPots: `, showdownPots);
                     const handInfo = determineHandWinner(
                         showdownHands.filter(hand => !(typeof hand.holeCards === "string")),
                         formattedCards) as WinnerInfo;
-                    // console.log(handInfo.details, ' handInfo.details')
                     propertyUpdates.calculatedPots = showdownPots;
                     propertyUpdates.showdown = handInfo.details;
                     propertyUpdates.showdownHands = curr.allPlayerContributions.filter(p => {
@@ -454,7 +451,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             }
 
             const newHistory = state.history.push(curr);
-            // console.log(finalState, ' finalState ')
             const newTransitionState = {
                 current: { ...finalState },
                 history: newHistory,

@@ -153,6 +153,17 @@ export interface PreflopStatus {
     hasActed: boolean;
 }
 
+export enum PlayerTag {
+    kLag = 0,
+    kTag = 1,
+    kLp = 2,
+    kTp = 3,
+    kWhale = 4,
+    kManiac = 5,
+    kPro = 6,
+    kNit = 7,
+}
+
 // Define the structure of the data returned from the 'hands' table
 // Adjust based on your actual table columns and desired data
 export interface SavedHandSummary {
@@ -266,6 +277,7 @@ export interface ShowdownHandRecord {
     is_winner: boolean;
     hand_description: string;
     created_at: string;
+    tag?: PlayerTag;
   }
   
 /**

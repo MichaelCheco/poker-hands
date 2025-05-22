@@ -149,6 +149,7 @@ function PokerHandForm({ close, preset }) {
 
     const thirdButtonGroups = React.useMemo(() => {
         if (!isSwitchOn) {
+            setValue('thirdBlind', undefined);
             return [];
         }
         const value = getValues('bigBlind');

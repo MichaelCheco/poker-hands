@@ -1,5 +1,5 @@
 import { initialState } from "../constants";
-import { ActionRecord, CalculatedPot, Decision, GameState, HandPot, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PokerPlayerInput, Position, ShowdownHandRecord, Stage, ThirdBlindInfo } from "../types";
+import { ActionRecord, CalculatedPot, Decision, GameState, HandPot, PlayerAction, PlayerPotContribution, PlayerStacks, PlayerStatus, PlayerTag, PokerPlayerInput, Position, ShowdownHandRecord, Stage, ThirdBlindInfo } from "../types";
 import * as Clipboard from 'expo-clipboard';
 import { format, parseISO } from 'date-fns';
 
@@ -151,6 +151,48 @@ export async function copyHand(
     } catch (error) {
         console.error("Failed to copy hand history to clipboard:", error);
         return false;
+    }
+}
+
+export function tagToLabel(tag: PlayerTag): string {
+    switch (tag) {
+        case PlayerTag.kLag:
+            return "Loose Aggressive"
+        case PlayerTag.kTag:
+            return "Tight Aggressive"
+        case PlayerTag.kLp:
+            return "Loose Passive"
+        case PlayerTag.kTp:
+            return "Tight Passive"
+        case PlayerTag.kWhale:
+            return "Whale"
+        case PlayerTag.kManiac:
+            return "Maniac"
+        case PlayerTag.kPro:
+            return "Pro"
+        case PlayerTag.kNit:
+            return "Nit"
+    }
+}
+
+export function tagToAbbreviatedLabel(tag: PlayerTag): string {
+    switch (tag) {
+        case PlayerTag.kLag:
+            return "LA"
+        case PlayerTag.kTag:
+            return "TA"
+        case PlayerTag.kLp:
+            return "LP"
+        case PlayerTag.kTp:
+            return "TP"
+        case PlayerTag.kWhale:
+            return "W"
+        case PlayerTag.kManiac:
+            return "M"
+        case PlayerTag.kPro:
+            return "P"
+        case PlayerTag.kNit:
+            return "N"
     }
 }
 

@@ -1,4 +1,4 @@
-import { GameState, HandSetupInfo, SavedHandSummary } from "@/types";
+import { GameState, HandSetupInfo, PlayerTag, Position, SavedHandSummary } from "@/types";
 import { transFormCardsToFormattedString } from "@/utils/card_utils";
 import { supabase } from "@/utils/supabase";
 
@@ -78,9 +78,10 @@ export async function deleteHand(handId: string): Promise<boolean> {
 
 export async function saveHandToSupabase(
     handHistoryData: GameState,
-    setupInfo: HandSetupInfo
+    setupInfo: HandSetupInfo,
+    chips: Record<Position, PlayerTag>, 
 ): Promise<{ success: boolean; message: string; handId: string; }> {
-
+    console.log(chips, ' chips!')
     // 1. Get Authenticated User ID
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError) throw new Error(`Authentication error: ${authError.message}`);
@@ -229,6 +230,7 @@ export async function saveHandToSupabase(
                 hole_cards: typeof playerHand.holeCards === "string" ? playerHand.holeCards : playerHand.holeCards.join(''),
                 is_winner: isWinnerOfAnyPot,
                 hand_description: playerHand.description,
+                tag: (playerHand.playerId === handHistoryData.hero.position || !chips[playerHand.playerId as Position]) ? undefined : chips[playerHand.playerId as Position],
             };
         });
 

@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme, Icon } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
 import { ShowdownHandRecord, Stage, ActionRecord, Position, Decision, HandPot, PlayerStacks } from '@/types';
-import { getHandSummary } from '@/utils/hand_utils';
+import { getHandSummary, tagToAbbreviatedLabel } from '@/utils/hand_utils';
 import { assertIsDefined } from '@/utils/assert';
 import StackChangeDisplay from './StackChangeDisplay';
 
@@ -138,7 +138,18 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                                 </View>
                             )
                         }}
-                        left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
+                        left={() => (
+                            <View style={styles.leftContentContainer}>
+                                <Text
+                                    style={styles.actionPosition}
+                                    numberOfLines={1}
+                                    ellipsizeMode="tail">
+                                    {hand.position}
+                                </Text>
+                                {hand.tag && <Text variant='labelSmall' style={{ fontStyle: 'italic', color: '#A8A8A8' }}>LA</Text>}
+                            </View>
+                        )}
+                        // left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
                         right={() => <StackChangeDisplay
                             initialStack={initialStack}
                             finalStack={initialStack - getPlayerTotalContribution(hand.position) + getTotalWinningsFromPots(hand.position)} />}
@@ -166,11 +177,20 @@ const styles = StyleSheet.create({
     },
     actionPosition: {
         fontWeight: 'bold',
-        marginLeft: 6,
+        // marginLeft: 6,
         minWidth: 38,
         textAlign: 'center',
         alignSelf: 'center',
         color: '#555',
+    },
+    leftContentContainer: {
+        display: 'flex',
+        marginLeft: 6,
+        // borderColor: 'red',
+        // borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 38,
     },
 });
 
