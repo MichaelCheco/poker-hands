@@ -1,5 +1,7 @@
 TODOS:
 * show ?? when player mucks, include non showdown hands in review page
+* only add players to show down if they reached the flop
+* make sure tagging works in pots where players fold
 * Update text formatting for copy (%, Hero, Eff, Tags?)
 * Add chip for 3rd blind
 * fix effective

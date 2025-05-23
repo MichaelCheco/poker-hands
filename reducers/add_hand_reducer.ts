@@ -205,7 +205,7 @@ function determinePlayerEligibility(position: Position, playerActions: PlayerAct
 export function reducer(state: GameAppState, action: { type: DispatchActionType; payload: any }): GameAppState {
     switch (action.type) {
         case DispatchActionType.kUndo:
-            console.log('============== UNDO ===========\n\n')
+            // console.log('============== UNDO ===========\n\n')
             if (state.history.isEmpty()) {
                 return state;
             }
@@ -335,12 +335,13 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                             eligiblePositions: pot.eligiblePositions,
                          }
                     });
+                    const preflopActions = curr.playerActions.filter(action => action.stage === Stage.Preflop);
                     const handInfo = determineHandWinner(
                         showdownHands.filter(hand => !(typeof hand.holeCards === "string")),
                         formattedCards) as WinnerInfo;
                     propertyUpdates.calculatedPots = showdownPots;
                     propertyUpdates.showdown = handInfo.details;
-                    propertyUpdates.showdownHands = curr.allPlayerContributions.filter(p => {
+                    const showhands = curr.allPlayerContributions.filter(p => {
                         let a = p.position === Position.SB && p.amount === curr.smallBlind;
                         let b = p.position === Position.BB && p.amount === curr.bigBlind;
                         let c = curr.thirdBlind && curr.thirdBlind.position === p.position && p.amount === curr.thirdBlind.amount;
@@ -348,11 +349,14 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                             return false;
                         }
                         return true
+                    }).filter((hand, i, a) => {
+                        return !preflopActions.some(action => action.position === hand.position && action.decision === Decision.kFold)
                     }).map(p => ({
                         playerId: p.position,
                         holeCards: "muck",
                         description: '',
                     }));
+                    propertyUpdates.showdownHands = showhands;
                 } else {
                     propertyUpdates.showdownHands = hands;
                 }

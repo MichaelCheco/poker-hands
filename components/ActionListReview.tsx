@@ -3,7 +3,7 @@ import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { IconButton, List, Snackbar, Text } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
-import { copyHand } from '@/utils/hand_utils';
+import { copyHand, getPotSizesEnteringStreets } from '@/utils/hand_utils';
 
 function getFlopCards(cards: string[]) {
     let [card1, card2, card3, ...rest] = cards;
@@ -49,6 +49,7 @@ export default function ActionListReview({
     showdown: ShowdownHandRecord[];
     stacks: PlayerStacks;
 }) {
+    const stageToPotSizeMap = getPotSizesEnteringStreets(actionList);
     const [snackbarVisible, setSnackbarVisible] = React.useState(false);
     const groupedActions: Record<Stage, ActionRecord[]> = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc: Record<Stage, ActionRecord[]>, action: ActionRecord) => {
@@ -63,30 +64,7 @@ export default function ActionListReview({
             [Stage.Showdown]: [],
         });
     }, [actionList]);
-
-    const groupedPotSizes: Record<Stage, number> = React.useMemo(() => {
-        return actionList.filter(a => !(a.was_auto_folded)).reduce((acc: Record<Stage, number>, action: ActionRecord) => {
-            const stage: Stage = action.stage;
-            acc[stage] = acc[stage] + (action?.action_amount || 0);
-            return acc;
-        }, {
-            [Stage.Preflop]: 0,
-            [Stage.Flop]: 0,
-            [Stage.Turn]: 0,
-            [Stage.River]: 0,
-            [Stage.Showdown]: 0,
-        });
-    }, [actionList]);
-    const flopPotSize = groupedPotSizes[Stage.Preflop];
-    const turnPotSize = flopPotSize + groupedPotSizes[Stage.Flop];
-    const riverPotSize = turnPotSize + groupedPotSizes[Stage.Turn];
     const sortedStages = Object.keys(groupedActions).map(Number).filter(a => (a !== Stage.Showdown && groupedActions[a as Stage].length > 0)).sort((a, b) => a - b);
-    const stageToPotSizeMap: Partial<Record<Stage, number>> = {
-        [Stage.Preflop]: 0,
-        [Stage.Flop]: flopPotSize,
-        [Stage.Turn]: turnPotSize,
-        [Stage.River]: riverPotSize,
-    }
     return (
         <List.Section style={{ paddingBottom: 32, marginTop: 24 }}>
             <Snackbar

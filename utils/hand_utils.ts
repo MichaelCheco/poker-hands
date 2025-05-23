@@ -174,6 +174,37 @@ export function tagToLabel(tag: PlayerTag): string {
             return "Nit"
     }
 }
+export type StreetPotSizes = Partial<Record<Stage.Flop | Stage.Turn | Stage.River, number>>;
+
+export function getPotSizesEnteringStreets(actions: ActionRecord[]): StreetPotSizes {
+    const potSizesByStreet: StreetPotSizes = {};
+    const recordedStages = new Set<Stage>(); // To ensure we only record the first action of a street
+
+    for (const action of actions) {
+        const currentStage = action.stage;
+
+        // We are only interested in Flop, Turn, and River
+        if (
+            (currentStage === Stage.Flop ||
+                currentStage === Stage.Turn ||
+                currentStage === Stage.River) &&
+            !recordedStages.has(currentStage) // Check if we've already recorded this stage
+        ) {
+            if (action.pot_size_before !== null && action.pot_size_before !== undefined) {
+                potSizesByStreet[currentStage as Stage.Flop | Stage.Turn | Stage.River] = action.pot_size_before;
+            }
+            recordedStages.add(currentStage); // Mark this stage as recorded
+        }
+
+        // Optimization: if all relevant stages are recorded, we can stop iterating
+        if (recordedStages.has(Stage.Flop) &&
+            recordedStages.has(Stage.Turn) &&
+            recordedStages.has(Stage.River)) {
+            break;
+        }
+    }
+    return potSizesByStreet;
+}
 
 export function tagToAbbreviatedLabel(tag: PlayerTag): string {
     switch (tag) {
@@ -237,6 +268,7 @@ export function formatAndGetTextToCopy(
 
     // Group actions by stage
     const groupedActions: { [stage: number]: ActionRecord[] } = {};
+    const stageToPotSizeMap = getPotSizesEnteringStreets(actions);
     for (const action of actions) {
         // Only include stages relevant to betting rounds for action listing
         if (action.stage <= Stage.River) {
@@ -256,7 +288,7 @@ export function formatAndGetTextToCopy(
         const stageActions = groupedActions[stageNum];
 
         if (stageActions && stageActions.length > 0) {
-            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)}\n`);
+            lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)} ${stageNum !== Stage.Preflop && stageNum !== Stage.Showdown && `($${stageToPotSizeMap[stageNum]})`}\n`);
             // Reset for each new street
             if (stageNum === Stage.Preflop) {
                 // Preflop, the BB is the initial "bet" to overcome

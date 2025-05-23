@@ -146,7 +146,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                                     ellipsizeMode="tail">
                                     {hand.position}
                                 </Text>
-                                {hand.tag && <Text variant='labelSmall' style={{ fontStyle: 'italic', color: '#A8A8A8' }}>LA</Text>}
+                                {hand.tag && <Text variant='labelSmall' style={{ fontStyle: 'italic', color: '#7D7D7D' }}>LA</Text>}
                             </View>
                         )}
                         // left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}

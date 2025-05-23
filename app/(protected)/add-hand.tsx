@@ -499,11 +499,14 @@ export default function App() {
 
     useEffect(() => {
         if (state.current.stage === Stage.Showdown) {
-            setTagViewVisible(true);
-            // setIsLoading(true)
-            // saveHand().then((id) => {
-            //     setSavedId(id);
-            // });
+            if (state.current.showdownHands.length > 0) {
+                setTagViewVisible(true);
+            } else {
+                setIsLoading(true)
+                saveHand().then((id) => {
+                    setSavedId(id);
+                });
+            }
         }
     }, [state.current.stage])
 
@@ -630,11 +633,11 @@ export default function App() {
             )}
             {tagViewVisible && (
                 <View style={{ padding: 8, marginTop: 12, display: 'flex', flexDirection: 'column' }}>
-                    <Text variant='titleMedium' style={{ marginBottom: 18 }}>Tag Opponents</Text>
+                    <Text variant='titleLarge' style={{ marginBottom: 18 }}>Tag Opponents</Text>
                     <Divider bold style={{ marginBottom: 18 }} />
                     {state.current.showdownHands.filter(hand => hand.playerId !== state.current.hero.position).map((hand, index, arr) => (
                         <View key={hand.playerId} style={{ flexDirection: 'column', display: 'flex', gap: 6 }}>
-                            <Text variant='labelLarge' style={{ marginBottom: 2 }}>{hand.playerId}</Text>
+                            <Text variant='titleMedium' style={{ marginBottom: 8 }}>{hand.playerId}</Text>
                             <TagList chips={chipsSelected} selectChip={setChipsSelected} position={hand.playerId} />
                             {index !== state.current.showdownHands.length - 1 && arr.length > 1 && <Divider bold style={{ marginVertical: 20 }} />}
                         </View>

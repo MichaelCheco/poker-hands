@@ -81,7 +81,6 @@ export async function saveHandToSupabase(
     setupInfo: HandSetupInfo,
     chips: Record<Position, PlayerTag>, 
 ): Promise<{ success: boolean; message: string; handId: string; }> {
-    console.log(chips, ' chips!')
     // 1. Get Authenticated User ID
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError) throw new Error(`Authentication error: ${authError.message}`);
