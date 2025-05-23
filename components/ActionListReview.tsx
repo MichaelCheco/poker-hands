@@ -132,7 +132,6 @@ export default function ActionListReview({
                                 <List.Item
                                     title={item.text_description}
                                     titleStyle={{ ...styles.actionText, fontSize: 15 }}
-
                                     left={() => <Text style={styles.actionPosition}>{item.position}</Text>}
                                     style={styles.actionItem}
                                 />

@@ -29,17 +29,6 @@ function getStageName(stage: Stage): string {
     }
 }
 
-function getTextSummaryForLastStage(actionList: ActionRecord[]): string {
-    const lastStagePlayed = actionList[actionList.length - 1].stage;
-    const lastStageActions = actionList.filter(action => action.stage === lastStagePlayed);
-    let text = '';
-    for (const action of lastStageActions) {
-        text = text + `${action.position} ${action.decision}, `
-    }
-    text = text.slice(0, -2);
-    return text;
-}
-
 export function isPreflop(stage: Stage): boolean {
     return stage === Stage.Preflop;
 }
@@ -87,17 +76,56 @@ export function formatDateMMDDHHMM(dateInput: string | Date | number): string {
     }
 }
 
-function getWinner(actionSequence: string[]): string {
-    if (actionSequence.length > 1) {
-        console.error(`action sequence should only contain 1 player. `, actionSequence)
+/**
+ * Generates a textual summary of actions that occurred on the last played street
+ * (Flop, Turn, or River) for hands that did not reach showdown.
+ *
+ * @param actions - An array of all poker actions in the hand, sorted by action_index.
+ * @returns A string summarizing the actions on the last played post-flop street,
+ * or a message indicating the hand ended preflop or had no actions.
+ */
+export function generateLastStreetActionSummary(actions: ActionRecord[]): string {
+    if (!actions || actions.length === 0) {
+        return "No actions recorded for this hand.";
     }
-    return actionSequence[0];
-}
 
-export function getHandSummary(finalStreet: Stage, actions: ActionRecord[], handPots: HandPot[], pot: number): string {
-    const winner = actions.filter(s => s.stage === finalStreet).filter(a => a.decision !== Decision.kFold)[0].position;
-    let summary = `${getTextSummaryForLastStage(actions)}.\n${winner} wins $${pot}.`;
-    return summary;
+    let lastPlayedPostFlopStage: Stage | null = null;
+
+    // Iterate backwards to find the last post-flop street with action
+    for (let i = actions.length - 1; i >= 0; i--) {
+        const stage = actions[i].stage;
+        if (stage === Stage.Flop || stage === Stage.Turn || stage === Stage.River) {
+            lastPlayedPostFlopStage = stage;
+            break;
+        }
+    }
+
+    if (lastPlayedPostFlopStage === null) {
+        return "Hand ended preflop."; // Or "No post-flop actions to summarize."
+    }
+
+    // Filter actions for that specific last played post-flop street
+    const lastStreetActions = actions.filter(action => action.stage === lastPlayedPostFlopStage);
+
+    if (lastStreetActions.length === 0) {
+        // This case should ideally not be reached if lastPlayedPostFlopStage was found
+        // and actions array is not malformed.
+        return `No actions found on the ${getStageName(lastPlayedPostFlopStage)}.`;
+    }
+
+    // Construct the summary from the text_description of each action on that street
+    const actionDescriptions = lastStreetActions.map(action => {
+        // Prepend position if not already in text_description to avoid "CO CO bets..."
+        // This check is basic; more sophisticated NLP might be needed for perfect grammar.
+        const positionUpper = action.position.toUpperCase();
+        const textDescUpper = action.text_description.toUpperCase();
+        if (textDescUpper.startsWith(positionUpper) || textDescUpper.startsWith(action.position.toLowerCase())) {
+            return action.text_description;
+        }
+        return `${action.position} ${action.text_description}`;
+    });
+
+    return `${getStageName(lastPlayedPostFlopStage)}: ${actionDescriptions.join(', ')}.`;
 }
 
 function getStageCards(stage: Stage, communityCards: string[]): string {

@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme, Icon } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
 import { ShowdownHandRecord, Stage, ActionRecord, Position, Decision, HandPot, PlayerStacks } from '@/types';
-import { getHandSummary, tagToAbbreviatedLabel } from '@/utils/hand_utils';
+import { generateLastStreetActionSummary, getHandSummary, tagToAbbreviatedLabel } from '@/utils/hand_utils';
 import { assertIsDefined } from '@/utils/assert';
 import StackChangeDisplay from './StackChangeDisplay';
 
@@ -157,7 +157,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                 )
             }
             ) : (
-                <Text style={{ marginTop: 8 }}>{getHandSummary(finalStreet, actions, handPots, pot)}</Text>
+                    <Text style={{ marginVertical: 8, marginLeft: 12 }} variant='labelLarge'>{generateLastStreetActionSummary(actions)}</Text>
             )}
         </List.Section>
     );

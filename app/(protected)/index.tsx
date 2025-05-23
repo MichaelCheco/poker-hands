@@ -77,7 +77,6 @@ export default function Index() {
   return (
     <PaperProvider theme={theme}>
       <View style={containerStyle}>
-        {/* --- Display List, Loading, or Error --- */}
         {isLoading && <ActivityIndicator animating={true} size="large" style={styles.loader} />}
         {error && <Text style={styles.errorText}>Error loading hands: {error}</Text>}
         {!isLoading && !error && (
@@ -91,7 +90,6 @@ export default function Index() {
             contentContainerStyle={styles.listContentContainer}
           />
         )}
-        {/* --- End Display --- */}
         <Portal>
           <Modal
             style={{ backgroundColor: '#F2F2F2' }}
