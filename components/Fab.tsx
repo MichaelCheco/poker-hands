@@ -22,7 +22,7 @@ const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: b
     }
     for (let i = 0; i < recentHands.length; i++) {
         const hand = recentHands[i];
-        const token = `${hand.small_blind}-${hand.big_blind}-${hand.third_blind || 0}-${hand.location}`;
+        const token = `${hand.small_blind}-${hand.big_blind}-${hand.third_blind || 0}-${Number(hand.big_blind_ante)}-${hand.location}`;
         if (handsToShow.length === 3) {
             break;
         }
@@ -43,12 +43,13 @@ const Fab = ({ fabVisible, setVisible, recentHands, setPreset }: { fabVisible: b
             labelStyle: {
                 color: theme.colors.secondary
             },
-            label: `$${hand.small_blind}/$${hand.big_blind}${hand.third_blind ? `/$${hand.third_blind}` : ''} ${hand.location.length > 14 ? hand.location.slice(0, 5) + '..' : hand.location}`,
+            label: `$${hand.small_blind}/$${hand.big_blind}${hand.big_blind_ante ? ` (${hand.big_blind})` : ''}${hand.third_blind ? `/$${hand.third_blind}` : ''} ${hand.location.length > 14 ? hand.location.slice(0, 5) + '..' : hand.location}`,
                 onPress: () => {
                     setPreset({
                         smallBlind: hand.small_blind,
                         bigBlind: hand.big_blind,
                         thirdBlind: hand.third_blind,
+                        bigBlindAnte: hand.big_blind_ante,
                         location: hand.location,
                     });
                     setVisible();

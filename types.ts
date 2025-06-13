@@ -173,6 +173,7 @@ export interface SavedHandSummary {
     small_blind: number;
     big_blind: number;
     third_blind?: number;
+    big_blind_ante: boolean;
     location: string;
     num_players: number;
     hero_position: string;
@@ -187,6 +188,7 @@ export interface HandSetupInfo extends FieldValues {
     smallBlind: number;
     bigBlind: number;
     thirdBlind?: number;
+    bigBlindAnte: boolean;
     numPlayers: number;
     position: string;
     relevantStacks: string;
@@ -345,6 +347,7 @@ export interface DetailedHandData {
     small_blind: number;
     big_blind: number;
     third_blind?: number;
+    big_blind_ante: boolean;
     location?: string;
     num_players: number;
     hero_position?: string;

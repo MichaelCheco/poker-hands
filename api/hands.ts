@@ -103,6 +103,7 @@ export async function saveHandToSupabase(
             small_blind: setupInfo.smallBlind,
             big_blind: setupInfo.bigBlind,
             third_blind: setupInfo.thirdBlind,
+            big_blind_ante: setupInfo.bigBlindAnte,
             location: setupInfo.location,
             num_players: setupInfo.numPlayers,
             hero_position: handHistoryData.hero.position, // Assumes this is a position string
@@ -279,7 +280,7 @@ export async function getSavedHands(
     try {
         const { data, error, count } = await supabase
             .from('hands')
-            .select('currency,small_blind,big_blind,third_blind,location,id,hero_cards,played_at', { count: 'exact' }) // Select all columns, get total count
+            .select('currency,small_blind,big_blind,big_blind_ante,third_blind,location,id,hero_cards,played_at', { count: 'exact' }) // Select all columns, get total count
             .eq('user_id', userId) // Filter by the logged-in user's ID
             .order('played_at', { ascending: false }) // Order by most recent first
             .range(offset, offset + limit - 1); // Apply pagination

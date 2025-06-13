@@ -418,7 +418,7 @@ export function formatAndGetTextToCopy(
 }
 
 export function parseStackSizes(stackString: string, sequence: string[],
-    smallBlind: number, bigBlind: number, thirdBlind?: ThirdBlindInfo
+    smallBlind: number, bigBlind: number, bigBlindAnte: boolean,  thirdBlind?: ThirdBlindInfo,
 ): PlayerStacks {
     const stackObjects: PlayerStacks = {};
     const stackEntries = stackString.split(',').map(entry => entry.trim());
@@ -440,7 +440,7 @@ export function parseStackSizes(stackString: string, sequence: string[],
         return acc;
     }, stackObjects);
     result[Position.SB] = result[Position.SB] as number - smallBlind;
-    result[Position.BB] = result[Position.BB] as number - bigBlind;
+    result[Position.BB] = result[Position.BB] as number - (bigBlindAnte ? bigBlind * 2 : bigBlind);
     if (thirdBlind) {
         result[thirdBlind.position] = result[thirdBlind.position] as number - thirdBlind.amount;
     }

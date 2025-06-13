@@ -131,6 +131,7 @@ export default function HandDetailScreen() {
                         smallBlind={handDetails.small_blind}
                         bigBlind={handDetails.big_blind}
                         thirdBlind={handDetails.third_blind}
+                        bigBlindAnte={handDetails.big_blind_ante}
                         gameType={handDetails.game_type}
                         numPlayers={handDetails.num_players}
                         location={handDetails.location as string}

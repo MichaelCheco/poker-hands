@@ -26,6 +26,7 @@ export default function ActionListReview({
     smallBlind,
     bigBlind,
     thirdBlind,
+    bigBlindAnte,
     gameType,
     numPlayers,
     location,
@@ -40,6 +41,7 @@ export default function ActionListReview({
     smallBlind: number;
     bigBlind: number;
     thirdBlind?: number;
+    bigBlindAnte: boolean;
     gameType: string;
     numPlayers: number;
     location: string;
@@ -83,7 +85,7 @@ export default function ActionListReview({
                     <Text variant="titleMedium" style={{
                         color: '#000000E8',
                     }}>
-                        The Hand - ${smallBlind}/${bigBlind}{thirdBlind ? `/$${thirdBlind}` : ''} {gameType} {numPlayers}-handed
+                        The Hand - ${smallBlind}/${bigBlind}{bigBlindAnte ? ` (${bigBlind})` : ''}{thirdBlind ? `/$${thirdBlind}` : ''} {gameType} {numPlayers}-handed
                     </Text>
                 </List.Subheader>
 

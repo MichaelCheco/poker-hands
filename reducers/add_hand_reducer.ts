@@ -127,11 +127,11 @@ function updateActionSequenceWithNewAction(
 
 export function createInitialAppState(state: GameAppState, gameInfo: HandSetupInfo) {
     // validate thirdBlind, 2 players
-    const { position: heroPosition, hand, smallBlind, bigBlind, relevantStacks, thirdBlind } = gameInfo;
+    const { position: heroPosition, hand, smallBlind, bigBlind, relevantStacks, thirdBlind, bigBlindAnte } = gameInfo;
     const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
     let thirdBlindInfo = thirdBlind ? {position: actionSequence[2], amount: thirdBlind} : undefined;
     const upperCasedHand = hand.toUpperCase();
-    const stacks = parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind, thirdBlindInfo);
+    const stacks = parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind, bigBlindAnte, thirdBlindInfo);
     const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position, index) => ({
         position,
         isAllIn: false,
@@ -141,12 +141,13 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
         hasFolded: false,
         stack: stacks[position] as number,
     }));
+    console.log('ante: ', bigBlindAnte)
     const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
     const handAsArray = parsePokerHandString(upperCasedHand);
     const initialGameState: GameState = {
         ...state.current,
         actionSequence: initialSequence,
-        pot: smallBlind + bigBlind + (thirdBlind ?? 0),
+        pot: smallBlind + (bigBlindAnte ? bigBlind * 2 : bigBlind) + (thirdBlind ?? 0),
         smallBlind,
         bigBlind,
         thirdBlind: thirdBlindInfo,
@@ -162,6 +163,7 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
         stacks,
         playerWhoMadeLastAggressiveAction: thirdBlindInfo ? thirdBlindInfo.position : Position.BB,
     };
+    console.log(initialGameState, ' initialGameState')
     // console.log(initialGameState.betsThisStreet)
     state.history.pop();
     state.history.push(initialGameState);

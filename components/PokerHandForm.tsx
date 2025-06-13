@@ -10,10 +10,10 @@ import { HandSetupInfo, Position } from '@/types';
 import { validateAndParsePokerHandString } from '@/utils/card_utils';
 import { Switch } from 'react-native-paper';
 
-const ThirdBlindSwitch = ({ on, toggleSwitch }) => {
+const GameOptionSwitch = ({ on, toggleSwitch, label }) => {
     return (
         <View style={{ alignItems: 'center', gap: 4, display: 'flex', flexDirection: 'row', marginVertical: 4 }}>
-            <Text>3rd blind?</Text>
+            <Text>{label}</Text>
             <Switch color="#000000" value={on} onValueChange={toggleSwitch} />
         </View>
     );
@@ -96,6 +96,7 @@ function PokerHandForm({ close, preset }) {
             smallBlind: 5,
             bigBlind: 5,
             thirdBlind: undefined,
+            bigBlindAnte: false,
             location: '',
             numPlayers: 8,
             position: '',
@@ -105,8 +106,15 @@ function PokerHandForm({ close, preset }) {
         },
     });
     const [initialLoad, setInitialLoad] = React.useState<any>(true);
-    const [isSwitchOn, setIsSwitchOn] = React.useState(!!getValues('thirdBlind'));
-    const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
+    const [isThirdBlindSwitchOn, setIsThirdBlindSwitchOn] = React.useState(!!getValues('thirdBlind'));
+    const [isBigBlindAnteSwitchOn, setIsBigBlindAnteSwitchOn] = React.useState(!!getValues('bigBlindAnte'));
+    const onThirdBlindSwitchToggle = () => setIsThirdBlindSwitchOn(!isThirdBlindSwitchOn);
+    const onBigBlindAnteSwitchToggle = () => {
+        const newValue = !isBigBlindAnteSwitchOn;
+        setIsBigBlindAnteSwitchOn(newValue)
+        setValue('bigBlindAnte', newValue)
+    };
+
     const router = useRouter();
     const theme = useTheme();
 
@@ -148,7 +156,7 @@ function PokerHandForm({ close, preset }) {
     }, [numPlayers, currentPositionValue]);
 
     const thirdButtonGroups = React.useMemo(() => {
-        if (!isSwitchOn) {
+        if (!isThirdBlindSwitchOn) {
             setValue('thirdBlind', undefined);
             return [];
         }
@@ -157,7 +165,7 @@ function PokerHandForm({ close, preset }) {
             createSegmentedButtonForBlind(value, `${value}`),
             createSegmentedButtonForBlind(value * 2, `${value * 2}`),
         ];
-    }, [currentBigBlind, isSwitchOn]);
+    }, [currentBigBlind, isThirdBlindSwitchOn]);
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -276,7 +284,7 @@ function PokerHandForm({ close, preset }) {
                 control={control}
                 name="bigBlind"
             />
-            {isSwitchOn && <Controller
+            {isThirdBlindSwitchOn && <Controller
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
@@ -344,7 +352,11 @@ function PokerHandForm({ close, preset }) {
                     </View>
                 )}
             />
-            <ThirdBlindSwitch on={isSwitchOn} toggleSwitch={onToggleSwitch} />
+            <View style={{display: 'flex', flexDirection: 'row', gap: 8, marginVertical: 4}}>
+
+            <GameOptionSwitch on={isThirdBlindSwitchOn} toggleSwitch={onThirdBlindSwitchToggle} label={"3rd blind?"}/>
+            <GameOptionSwitch on={isBigBlindAnteSwitchOn} toggleSwitch={onBigBlindAnteSwitchToggle} label={"BB ante?"} />
+            </View>
             <Button mode="contained" onPress={handleSubmit(onSubmit, onError)} disabled={isSubmitting} style={{ ...styles.button, ...theme.button }}>
                 Start
             </Button>
