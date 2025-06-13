@@ -306,7 +306,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             let propertyUpdates: Partial<GameState> = {};
             // Get current actions and sequence before any potential modifications
             let finalPlayerActions = [...curr.playerActions];
-
+            let updatedActionSequence;
             if (curr.currentAction.actionType === ActionType.kCommunityCard) {
                 const inputCards = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const newCards = getCards([...curr.cards], [...curr.deck], inputCards);
@@ -325,6 +325,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 if (!nextAction) {
                     const showdownHands = [formatHeroHand(curr.hero), ...hands];
                     const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({...player,eligible: determinePlayerEligibility(player.position, curr.playerActions)})));
+                    console.log(pots)
                     const formattedCards = formatCommunityCards(curr.cards);
                     const showdownPots: CalculatedPot[] = pots.map((pot: CalculatedPot) => {
                         const eligibleHands = showdownHands.filter(hand => (pot.eligiblePositions.includes((hand.playerId as Position)) && !(typeof hand.holeCards === "string")));
@@ -377,7 +378,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
 
                 // Calculate the player's new stack size
                 const newStackSize = currentStack - amountToAdd;
-                const updatedActionSequence = updateActionSequenceWithNewAction(playerAction, curr.actionSequence, newStackSize, newPlayerBetTotal).filter((p) => p.hasActedThisStreet).sort((a, b) => positionToRank(a.position) - positionToRank(b.position));
+                updatedActionSequence = updateActionSequenceWithNewAction(playerAction, curr.actionSequence, newStackSize, newPlayerBetTotal).filter((p) => p.hasActedThisStreet).sort((a, b) => positionToRank(a.position) - positionToRank(b.position));
                 playerAction.text = getMeaningfulTextToDisplay(
                     playerAction,
                     getNumBetsForStage(curr.playerActions, initialStage),
@@ -427,7 +428,8 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             if (curr.currentAction.id === GameQueueItemType.kRiverAction ||
                 (curr.currentAction.id === GameQueueItemType.kRiverCard && curr.gameQueue.length === 0)) {
                 // add villains to queue for card collection
-                updatedGameQueue = AddVillainsToGameQueue(curr.actionSequence.filter(v => v.position !== curr.hero.position).map(v => v.position));
+                console.log(curr, ' CURR')
+                updatedGameQueue = AddVillainsToGameQueue(updatedActionSequence.filter(v => v.position !== curr.hero.position).map(v => v.position));
                 nextAction = updatedGameQueue[0];
                 updatedGameQueue = updatedGameQueue.slice(1);
                 finalState = {

@@ -202,6 +202,28 @@ export function tagToLabel(tag: PlayerTag): string {
             return "Nit"
     }
 }
+
+export function tagToAbbrievatedLabel(tag: PlayerTag): string {
+    switch (tag) {
+        case PlayerTag.kLag:
+            return "LA"
+        case PlayerTag.kTag:
+            return "TA"
+        case PlayerTag.kLp:
+            return "LP"
+        case PlayerTag.kTp:
+            return "TP"
+        case PlayerTag.kWhale:
+            return "W"
+        case PlayerTag.kManiac:
+            return "M"
+        case PlayerTag.kPro:
+            return "P"
+        case PlayerTag.kNit:
+            return "N"
+    }
+}
+
 export type StreetPotSizes = Partial<Record<Stage.Flop | Stage.Turn | Stage.River, number>>;
 
 export function getPotSizesEnteringStreets(actions: ActionRecord[]): StreetPotSizes {

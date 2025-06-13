@@ -263,7 +263,7 @@ export function generateRichHandDescription(evaluation: HandEvaluation | null): 
         case HandRank.THREE_OF_A_KIND:
             return `Three of a Kind, ${pluralRankName(values[0])}`;
         case HandRank.TWO_PAIR:
-            return `Two Pair, ${pluralRankName(values[0])} and ${pluralRankName(values[1])} (Kicker: ${cardName(values[2])})`;
+            return `Two Pair, ${pluralRankName(values[0])} and ${pluralRankName(values[1])}`;
         case HandRank.ONE_PAIR:
             return `Pair of ${pluralRankName(values[0])}`;
         case HandRank.HIGH_CARD:

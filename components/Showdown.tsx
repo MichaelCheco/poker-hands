@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme, Icon } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
 import { ShowdownHandRecord, Stage, ActionRecord, Position, Decision, HandPot, PlayerStacks } from '@/types';
-import { generateLastStreetActionSummary, getHandSummary, tagToAbbreviatedLabel } from '@/utils/hand_utils';
+import { generateLastStreetActionSummary, getHandSummary, tagToAbbreviatedLabel, tagToAbbrievatedLabel } from '@/utils/hand_utils';
 import { assertIsDefined } from '@/utils/assert';
 import StackChangeDisplay from './StackChangeDisplay';
 
@@ -118,7 +118,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                 return (
                     <List.Item
                         contentStyle={{}}
-                        description={`${hand.hand_description} ${getSimplifiedPlayerPotSummary(hand.position, handPots)}`}
+                        description={`${hand.hand_description}`}
                         descriptionStyle={{ color: '#00000082' }}
                         key={`${hand.position}-${hand.hole_cards}-${index}`}
                         title={() => {
@@ -131,7 +131,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                                 )
                             }
                             return (
-                                <View style={{ display: 'flex', flexDirection: 'row', 
+                                <View style={{ display: 'flex', flexDirection: 'row', position: 'relative', bottom: 9
                                 }} >
                                     <ShowdownCard card={"muck"} />
                                     <ShowdownCard card={"muck"} />
@@ -146,7 +146,7 @@ const Showdown = ({ showdownHands, finalStreet, actions, pot, handPots, stacks, 
                                     ellipsizeMode="tail">
                                     {hand.position}
                                 </Text>
-                                {hand.tag && <Text variant='labelSmall' style={{ fontStyle: 'italic', color: '#7D7D7D' }}>LA</Text>}
+                                {hand.tag && <Text variant='labelSmall' style={{ fontStyle: 'italic', color: '#7D7D7D' }}>{tagToAbbrievatedLabel(hand.tag)}</Text>}
                             </View>
                         )}
                         // left={() => <Text style={styles.actionPosition}>{hand.position}</Text>}
