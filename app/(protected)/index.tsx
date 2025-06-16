@@ -13,6 +13,7 @@ import { parsePokerHandString } from '@/utils/card_utils';
 import { useNavigation } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
 import FilterModal, { PokerHandFilters } from '@/components/FilterModal';
+import EmptyFilterState from '@/components/EmptyFilterState';
 
 export default function Index() {
   const router = useRouter();
@@ -64,7 +65,6 @@ export default function Index() {
     try {
       const { hands, error: fetchError, count } = await getSavedHands();
       if (fetchError) throw fetchError;
-      // console.log(hands)
       setSavedHands(hands || []);
     } catch (err: any) {
       console.error("Error fetching hands:", err);
@@ -121,7 +121,7 @@ export default function Index() {
             renderItem={renderHandItem}
             keyExtractor={(item) => item.id}
             ListEmptyComponent={
-              <EmptyState />
+              Object.values(activeFilters).some(f => f !== 'any') ? <EmptyFilterState /> : <EmptyState />
             }
             contentContainerStyle={styles.listContentContainer}
           />

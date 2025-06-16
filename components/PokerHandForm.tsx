@@ -238,7 +238,7 @@ function PokerHandForm({ close, preset }) {
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Small Blind</Text>
+                            <Text variant="labelMedium" style={{  marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Small Blind</Text>
                             <SegmentedButtons
                                 value={value}
                                 onValueChange={onChange}
@@ -263,7 +263,7 @@ function PokerHandForm({ close, preset }) {
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Big Blind</Text>
+                            <Text variant="labelMedium" style={{  marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Big Blind</Text>
                             <SegmentedButtons
                                 value={value}
                                 onValueChange={onChange}
@@ -288,7 +288,7 @@ function PokerHandForm({ close, preset }) {
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Third Blind</Text>
+                            <Text variant="labelMedium" style={{  marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Third Blind</Text>
                             <SegmentedButtons
                                 value={value}
                                 onValueChange={onChange}
@@ -307,7 +307,7 @@ function PokerHandForm({ close, preset }) {
                 render={
                     ({ field: { onChange, value } }) => (
                         <View style={{ marginBottom: 8 }}>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Number of Players</Text>
+                            <Text variant="labelMedium" style={{  marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Number of Players</Text>
                             <SegmentedButtons
                                 value={value}
                                 onValueChange={onChange}
@@ -334,7 +334,7 @@ function PokerHandForm({ close, preset }) {
                 name="position"
                 render={({ field: { onChange, value } }) => (
                     <View style={{ marginBottom: 8 }}>
-                        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
+                        <Text variant="labelMedium" style={{  marginBottom: 4, fontWeight: Platform.OS === "ios" ? '400' : '500' }}>Position</Text>
                         {positionButtonGroups.map((buttonGroup, index) => (
                             <SegmentedButtons
                                 key={index}

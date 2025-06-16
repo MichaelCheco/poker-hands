@@ -1,3 +1,5 @@
 TODOS:
-- tags
-- ios keyboard
+- placeholder
+- email validation
+- SPR
+- HU/Multiway

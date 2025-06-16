@@ -64,7 +64,6 @@ const relativeHeroPositionOptions = [
 
 const FilterModal: React.FC<FilterModalProps> = ({ visible, onDismiss, onApplyFilters, currentFilters }) => {
     const theme = useTheme();
-
     // Internal state for selected filter values in the modal
     const [potType, setPotType] = useState<PokerHandFilters['potType']>(currentFilters.potType);
     const [position, setPosition] = useState<PokerHandFilters['position']>(currentFilters.position);
