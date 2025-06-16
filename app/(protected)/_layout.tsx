@@ -24,7 +24,7 @@ export default function ProtectedLayout() {
             <Stack.Screen
                 name="index"
                 options={{
-                    headerTitle: "Saved Hands",
+                    headerTitle: '',
 
                 }}
             />

@@ -69,7 +69,6 @@ export enum Position {
     BB = 'BB',
     UTG = 'UTG',
     UTG_1 = 'UTG1',
-    UTG_2 = 'UTG2',
     LJ = 'LJ',
     HJ = 'HJ',
     CO = 'CO',

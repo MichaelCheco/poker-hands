@@ -82,7 +82,6 @@ export const numPlayersToActionSequenceList: Record<number, Position[]> = {
   6: [Position.SB, Position.BB, Position.UTG, Position.HJ, Position.CO, Position.BU],
   7: [Position.SB, Position.BB, Position.UTG, Position.LJ, Position.HJ, Position.CO, Position.BU],
   8: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.LJ, Position.HJ, Position.CO, Position.BU],
-  9: [Position.SB, Position.BB, Position.UTG, Position.UTG_1, Position.UTG_2, Position.LJ, Position.HJ, Position.CO, Position.BU],
 };
 
 export const initialDeck: string[] = [

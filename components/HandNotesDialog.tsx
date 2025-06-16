@@ -159,8 +159,6 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
                         onPress={handleSaveAndClose}
                         mode="contained" // Makes it stand out
                         style={[styles.button, styles.saveButton, theme.button]} // Combine common and specific styles
-                        // labelStyle={styles.deleteButtonLabel}
-                        // Use buttonColor for background in Paper v5+
                          buttonColor={theme.colors.primary}
                          // For older versions, you might need to rely more on style={{backgroundColor: ...}}
                     >

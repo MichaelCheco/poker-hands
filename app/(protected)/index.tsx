@@ -11,6 +11,8 @@ import { SavedHandSummary } from '@/types';
 import EmptyState from '@/components/EmptyState';
 import { parsePokerHandString } from '@/utils/card_utils';
 import { useNavigation } from '@react-navigation/native';
+import { TouchableOpacity } from 'react-native';
+import FilterModal, { PokerHandFilters } from '@/components/FilterModal';
 
 export default function Index() {
   const router = useRouter();
@@ -26,23 +28,36 @@ export default function Index() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [preset, setPreset] = React.useState({});
   const [error, setError] = React.useState<any>(null);
+  const [filterModalVisible, setFilterModalVisible] = React.useState(false); // State for new FilterModal
+  // State to store the currently active filters
+  const [activeFilters, setActiveFilters] = React.useState<PokerHandFilters>({
+    potType: 'any',
+    position: 'any',
+    boardTexture: 'any',
+    relativeHeroPosition: 'any',
+  });
 
-  // const Options = () => {
-  //     return (
-  //         <TouchableOpacity>
-  //             <IconButton icon={"delete"} onPressIn={() => console.log('press')} style={{zIndex:3}}/>
-  //         </TouchableOpacity>
-  //     )
-  // }
-  // React.useLayoutEffect(() => {
-  //     navigation.setOptions({
-  //       headerTitle: "Saved Hands",
-  //       headerRight: () => <Options />,
-  //     });
-  // }, [navigation])
+  // --- Modal Visibility Handlers ---
+  const showNewHandModal = () => setVisible(true);
+  const hideNewHandModal = () => setVisible(false);
+
+  const showFilterModal = () => setFilterModalVisible(true);
+  const hideFilterModal = () => setFilterModalVisible(false);
+  const Options = () => {
+      return (
+          <TouchableOpacity>
+          <IconButton icon={"tune"} onPressIn={showFilterModal} style={{zIndex:3}}/>
+          </TouchableOpacity>
+      )
+  }
+  React.useLayoutEffect(() => {
+      navigation.setOptions({
+        headerRight: () => <Options />,
+      });
+  }, [navigation])
 
   // --- Fetching Logic ---
-  const loadHands = React.useCallback(async (showLoadingIndicator = true) => {
+  const loadHands = React.useCallback(async (showLoadingIndicator = true, filters: PokerHandFilters = activeFilters) => {
     // Only show full loading indicator on initial load or manual refresh
     if (showLoadingIndicator) setIsLoading(true);
     setError(null);
@@ -59,7 +74,7 @@ export default function Index() {
       // Only turn off loading indicator if it was turned on
       if (showLoadingIndicator) setIsLoading(false);
     }
-  }, []);
+  }, [activeFilters]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -68,8 +83,14 @@ export default function Index() {
       // Load hands, show loading indicator only if savedHands is currently null (initial load)
       loadHands(savedHands === null);
 
-    }, [])
+    }, [activeFilters])
   );
+  const handleApplyFilters = React.useCallback((filters: PokerHandFilters) => {
+    console.log('Filters applied:', filters);
+    setActiveFilters(filters); // Update the active filters state
+    // Now re-load/filter your hands based on the new active filters
+    loadHands(true, filters); // Pass the new filters directly
+  }, [loadHands]);
 
   function closeModal() {
     setVisible(false);
@@ -115,7 +136,27 @@ export default function Index() {
             <PokerHandForm close={closeModal} preset={preset} />
           </Modal>
         </Portal>
-        <Fab fabVisible={!visible}
+        {/* PokerHandForm Modal */}
+        <Portal>
+          <Modal
+            style={{ backgroundColor: '#F2F2F2' }} // Consider moving this style to a StyleSheet object
+            visible={visible}
+            onDismiss={hideNewHandModal}
+            contentContainerStyle={{ padding: 5 }} // Consider moving this style
+          >
+            <PokerHandForm close={hideNewHandModal} preset={preset} />
+          </Modal>
+        </Portal>
+
+        {/* Your new FilterModal */}
+        <FilterModal
+          visible={filterModalVisible}
+          onDismiss={hideFilterModal}
+          onApplyFilters={handleApplyFilters}
+          currentFilters={activeFilters} // Pass current active filters to initialize modal
+        />
+
+        <Fab fabVisible={!visible && !filterModalVisible}
           setPreset={setPreset}
           setVisible={() => setVisible(true)}
           recentHands={savedHands || []} />
