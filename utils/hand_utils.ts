@@ -337,7 +337,7 @@ export function formatAndGetTextToCopy(
     for (const stageNum of stageOrder) {
         const stageActions = groupedActions[stageNum];
 
-        if (stageActions && stageActions.length > 0) {
+        if (stageActions && stageNum !== Stage.Preflop && stageActions.length > 0) {
             lines.push(`\n${getStageName(stageNum).toUpperCase()}${getStageCards(stageNum, communityCards)} ${stageNum !== Stage.Preflop && stageNum !== Stage.Showdown && `($${stageToPotSizeMap[stageNum]})`}\n`);
             // Reset for each new street
             if (stageNum === Stage.Preflop) {

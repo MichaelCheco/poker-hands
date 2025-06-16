@@ -4,7 +4,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { deleteHand, getHandDetailsById, updateNotesForHand } from '@/api/hands';
 import { formatDateMMDDHHMM, parseStackSizes2 } from '@/utils/hand_utils';
 import { DetailedHandData } from '@/types';
-import { Text, Divider, IconButton } from 'react-native-paper';
+import { Text, Divider, IconButton, Snackbar } from 'react-native-paper';
 import Showdown from '@/components/Showdown';
 import ActionListReview from '@/components/ActionListReview';
 import DeleteHandConfirmationDialog from '@/components/DeleteHandConfirmationDialog';
@@ -18,12 +18,12 @@ function HandActions({ date, onDeleteClick, onNotesClick }) {
             flexDirection: 'row',
         }}>
             <IconButton
-                onTouchEnd={onNotesClick}
+                onPress={onNotesClick}
                 icon={"note-text-outline"} style={{ margin: 0, position: 'absolute', right: 42 }} size={26} />
             <IconButton
                 icon={"delete"}
                 style={{ margin: 0 }}
-                onTouchEnd={onDeleteClick}
+                onPress={onDeleteClick}
                 size={26}
             />
         </TouchableOpacity>
@@ -32,6 +32,7 @@ function HandActions({ date, onDeleteClick, onNotesClick }) {
 export default function HandDetailScreen() {
     const navigation = useNavigation();
     const router = useRouter();
+    const [snackbarVisible, setSnackbarVisible] = React.useState(false);
     const { id } = useLocalSearchParams<{ id: string }>();
     const [handDetails, setHandDetails] = useState<DetailedHandData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -56,8 +57,6 @@ export default function HandDetailScreen() {
             }
         )
         .subscribe()
-    // console.log(hands)
-    // hands.
     useLayoutEffect(() => {
         navigation.setOptions({
             headerBackButtonDisplayMode: "default",
@@ -68,8 +67,6 @@ export default function HandDetailScreen() {
             setError(null);
             try {
                 const details: DetailedHandData = await getHandDetailsById(id);
-                // console.log(details);
-                // console.log(`details.notes in parent: ${details.notes}`);
                 setHandDetails(details);
                 navigation.setOptions({
                     headerBackButtonDisplayMode: "default",
@@ -140,12 +137,19 @@ export default function HandDetailScreen() {
                         pot={handDetails.final_pot_size as number}
                         showdown={handDetails.showdown_hands}
                         stacks={parseStackSizes2(handDetails.stacks)}
+                        setSnackbarVisible={setSnackbarVisible}
                     />
                 </ScrollView>
             )}
             {!isLoading && !error && !handDetails && (
                 <Text>Hand not found.</Text>
             )}
+            <Snackbar
+                visible={snackbarVisible}
+                onDismiss={() => setSnackbarVisible(false)}
+                duration={1000}>
+                Hand Copied! ✅
+            </Snackbar>
         </View>
     );
 }

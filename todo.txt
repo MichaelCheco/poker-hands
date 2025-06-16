@@ -1,1 +1,3 @@
 TODOS:
+- tags
+- ios keyboard

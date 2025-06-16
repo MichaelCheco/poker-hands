@@ -205,6 +205,13 @@ export interface ThirdBlindInfo {
     amount: number
 }
 
+export enum PotType {
+    kLimped = 'LIMPED',
+    kSrp = 'SRP',
+    kThreeBet = '3_BET',
+    kFourBet = '4_BET',
+}
+
 export interface GameState {
     gameQueue: GameQueueItem[];
     currentAction: GameQueueItem;
@@ -231,6 +238,7 @@ export interface GameState {
     calculatedPots: CalculatedPot[];
     showdown: ShowdownDetails[] | null;
     allPlayerContributions: PlayerPotContribution[];
+    potType: PotType;
 }
 
 export interface PokerHandValidationResult {

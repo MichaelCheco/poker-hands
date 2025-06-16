@@ -1,11 +1,25 @@
 import { numPlayersToActionSequenceList } from "@/constants";
-import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PreflopStatus, ShowdownDetails, Stage, WinnerInfo } from "@/types";
+import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PotType, PreflopStatus, ShowdownDetails, Stage, WinnerInfo } from "@/types";
 import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, isAggressiveAction, removeAfterLastComma } from "@/utils/action_utils";
 import { assertIsArray, assertIsDefined } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
 import { determineHandWinner } from "@/utils/hand_evaluator";
 import { calculateSidePots, decisionToText, formatHeroHand, getInitialGameState, moveFirstTwoToEnd, parseStackSizes, positionToRank } from "@/utils/hand_utils";
 import { ImmutableStack } from "@/utils/immutable_stack";
+
+function getPotType(numberOfBetsAndRaisesThisStreet: number): PotType {
+    switch (numberOfBetsAndRaisesThisStreet) {
+        case 1:
+            return PotType.kLimped;
+        case 2:
+            return PotType.kSrp;
+        case 3:
+            return PotType.kThreeBet;
+        case 4:
+        default:
+            return PotType.kFourBet;
+    }
+}
 
 export const initialAppState: GameAppState = {
     current: getInitialGameState(),
@@ -22,7 +36,7 @@ function logActionSequence(s: PlayerStatus[]) {
 }
 
 function logOrder(s: PlayerStatus[] | undefined) {
-    if (!s) {return}
+    if (!s) { return }
 
     console.log('\n\n===== ORDER =====\n')
     console.log(s.map(p => p.position).join(', '))
@@ -129,7 +143,7 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
     // validate thirdBlind, 2 players
     const { position: heroPosition, hand, smallBlind, bigBlind, relevantStacks, thirdBlind, bigBlindAnte } = gameInfo;
     const actionSequence = numPlayersToActionSequenceList[gameInfo.numPlayers];
-    let thirdBlindInfo = thirdBlind ? {position: actionSequence[2], amount: thirdBlind} : undefined;
+    let thirdBlindInfo = thirdBlind ? { position: actionSequence[2], amount: thirdBlind } : undefined;
     const upperCasedHand = hand.toUpperCase();
     const stacks = parseStackSizes(relevantStacks, actionSequence, smallBlind, bigBlind, bigBlindAnte, thirdBlindInfo);
     const initialPlayerStatuses: PlayerStatus[] = actionSequence.map((position: Position, index) => ({
@@ -141,7 +155,6 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
         hasFolded: false,
         stack: stacks[position] as number,
     }));
-    console.log('ante: ', bigBlindAnte)
     const initialSequence = moveFirstTwoToEnd(initialPlayerStatuses);
     const handAsArray = parsePokerHandString(upperCasedHand);
     const initialGameState: GameState = {
@@ -156,15 +169,13 @@ export function createInitialAppState(state: GameAppState, gameInfo: HandSetupIn
         playerActions: [],
         stage: Stage.Preflop,
         input: '',
-        betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind, ...(thirdBlindInfo ? { [thirdBlindInfo.position]: thirdBlindInfo.amount} : {}) },
+        betsThisStreet: { [Position.SB]: smallBlind, [Position.BB]: bigBlind, ...(thirdBlindInfo ? { [thirdBlindInfo.position]: thirdBlindInfo.amount } : {}) },
         currentBetFacing: thirdBlind || bigBlind,
         lastRaiseAmount: thirdBlind || bigBlind,
         numberOfBetsAndRaisesThisStreet: 1,
         stacks,
         playerWhoMadeLastAggressiveAction: thirdBlindInfo ? thirdBlindInfo.position : Position.BB,
     };
-    console.log(initialGameState, ' initialGameState')
-    // console.log(initialGameState.betsThisStreet)
     state.history.pop();
     state.history.push(initialGameState);
     return {
@@ -237,11 +248,11 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     history: state.history,
                 };
             }
-            
+
             const currentStack = curr.stacks[actingPlayer] as number;
             // 3. Calculate betting information updates based on new player action
             const { amountToAdd, newPlayerBetTotal, newCurrentBetFacing } =
-            getUpdatedBettingInfo(curr.betsThisStreet, curr.currentBetFacing, currentStack, playerAction);
+                getUpdatedBettingInfo(curr.betsThisStreet, curr.currentBetFacing, currentStack, playerAction);
             // Use betting information to populate `amount` and `text` on player action.
             playerAction.amount = newPlayerBetTotal;
             playerAction.potSizeBefore = curr.pot;
@@ -264,30 +275,30 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 playerAction,
                 curr.numberOfBetsAndRaisesThisStreet,
                 curr.stage);
-                
-                const addActionState: GameState = {
-                    ...state.current,
-                    input: '',
-                    // 2. Add new action to list of player actions
-                    playerActions: [...curr.playerActions, playerAction],
-                    // 4. Update action sequence
-                    // Pre-flop: Action sequence is handled differently, often based on who is left
-                    // after the betting round, so we don't modify it here per-action.
-                    // It gets recalculated during the transition from Preflop.
-                    actionSequence: updatedActionSequence,
-                    pot: curr.pot + amountToAdd,
-                    betsThisStreet: {
-                        ...curr.betsThisStreet,
-                        [actingPlayer]: newPlayerBetTotal,
-                    },
-                    stacks: {
-                        ...curr.stacks,
-                        [actingPlayer]: newStackSize,
-                    },
-                    currentBetFacing: newCurrentBetFacing,
-                    lastRaiseAmount: newLastRaiseAmount,
-                    playerWhoMadeLastAggressiveAction: newPlayerWhoMadeLastAggressiveAction,
-                    numberOfBetsAndRaisesThisStreet: newNumberOfBetsAndRaisesThisStreet,
+
+            const addActionState: GameState = {
+                ...state.current,
+                input: '',
+                // 2. Add new action to list of player actions
+                playerActions: [...curr.playerActions, playerAction],
+                // 4. Update action sequence
+                // Pre-flop: Action sequence is handled differently, often based on who is left
+                // after the betting round, so we don't modify it here per-action.
+                // It gets recalculated during the transition from Preflop.
+                actionSequence: updatedActionSequence,
+                pot: curr.pot + amountToAdd,
+                betsThisStreet: {
+                    ...curr.betsThisStreet,
+                    [actingPlayer]: newPlayerBetTotal,
+                },
+                stacks: {
+                    ...curr.stacks,
+                    [actingPlayer]: newStackSize,
+                },
+                currentBetFacing: newCurrentBetFacing,
+                lastRaiseAmount: newLastRaiseAmount,
+                playerWhoMadeLastAggressiveAction: newPlayerWhoMadeLastAggressiveAction,
+                numberOfBetsAndRaisesThisStreet: newNumberOfBetsAndRaisesThisStreet,
             };
             const newHistory = state.history.push(curr);
             const newStateAfterAdd = {
@@ -320,23 +331,23 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                 const handText = action.payload.input.slice(0, -1).trim().toUpperCase();
                 const position = curr.currentAction.position as Position;
                 const villainHand = isMuck(handText)
-                ? { playerId: position, holeCards: "muck" } as PokerPlayerInput
-                : getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), position);
+                    ? { playerId: position, holeCards: "muck" } as PokerPlayerInput
+                    : getVillainCards(action.payload.input.slice(0, -1).trim().toUpperCase(), position);
                 const hands = [...curr.showdownHands, villainHand];
                 // All hands have been collected, determine winner information.
                 if (!nextAction) {
                     const showdownHands = [formatHeroHand(curr.hero), ...hands];
-                    const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({...player,eligible: determinePlayerEligibility(player.position, curr.playerActions)})));
-                    console.log(pots)
+                    const pots = calculateSidePots(curr.allPlayerContributions.map(player => ({ ...player, eligible: determinePlayerEligibility(player.position, curr.playerActions) })));
                     const formattedCards = formatCommunityCards(curr.cards);
                     const showdownPots: CalculatedPot[] = pots.map((pot: CalculatedPot) => {
                         const eligibleHands = showdownHands.filter(hand => (pot.eligiblePositions.includes((hand.playerId as Position)) && !(typeof hand.holeCards === "string")));
                         const winnerInfo = determineHandWinner(eligibleHands, formattedCards) as WinnerInfo;
-                        return { winningPlayerPositions: winnerInfo.winners.map(w => w.playerId),
+                        return {
+                            winningPlayerPositions: winnerInfo.winners.map(w => w.playerId),
                             winningHandDescription: winnerInfo.winningHandDescription,
                             potAmount: pot.potAmount,
                             eligiblePositions: pot.eligiblePositions,
-                         }
+                        }
                     });
                     const preflopActions = curr.playerActions.filter(action => action.stage === Stage.Preflop);
                     const handInfo = determineHandWinner(
@@ -412,13 +423,17 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             };
 
             let finalState = newStateBase;
+            if (initialStage === Stage.Preflop && nextStage === Stage.Flop) {
+                console.log(`transitioning away from preflop`);
+                finalState.potType = getPotType(finalState.numberOfBetsAndRaisesThisStreet);
+            }
 
             // If the stage actually changed, recalculate the action sequence for the new stage.
             const stageChanged = initialStage !== nextStage && nextStage !== Stage.Showdown;
             if (stageChanged) {
                 finalState = {
                     ...finalState,
-                    allPlayerContributions: getUpdatedListOfPlayerContributions(finalState.allPlayerContributions, {...finalState.betsThisStreet}),
+                    allPlayerContributions: getUpdatedListOfPlayerContributions(finalState.allPlayerContributions, { ...finalState.betsThisStreet }),
                     betsThisStreet: {},
                     potForStreetMap: { ...finalState.potForStreetMap, [nextStage]: finalState.pot },
                     currentBetFacing: 0,
@@ -430,7 +445,6 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
             if (curr.currentAction.id === GameQueueItemType.kRiverAction ||
                 (curr.currentAction.id === GameQueueItemType.kRiverCard && curr.gameQueue.length === 0)) {
                 // add villains to queue for card collection
-                console.log(curr, ' CURR')
                 updatedGameQueue = AddVillainsToGameQueue(updatedActionSequence.filter(v => v.position !== curr.hero.position).map(v => v.position));
                 nextAction = updatedGameQueue[0];
                 updatedGameQueue = updatedGameQueue.slice(1);
@@ -438,7 +452,7 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
                     ...finalState,
                     currentAction: nextAction,
                     gameQueue: updatedGameQueue,
-                    allPlayerContributions: getUpdatedListOfPlayerContributions(finalState.allPlayerContributions, {...finalState.betsThisStreet }),
+                    allPlayerContributions: getUpdatedListOfPlayerContributions(finalState.allPlayerContributions, { ...finalState.betsThisStreet }),
                     input: '',
                 };
             }

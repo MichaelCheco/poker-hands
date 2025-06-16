@@ -185,7 +185,6 @@ const validateAction: ValidationFunction = (input, state) => {
     if (amount === 0 && isCompleteSegment && isAggressiveAction(decision)) {
         return { isValid: false, error: 'Amount is missing' }
     }
-    // console.log(playerInSequence, ' p')
 
     if ((decision === Decision.kRaise || decision === Decision.kBet) && (!amount || isNaN(Number(amount)) || Number(amount) <= 0)) {
         return { isValid: false, error: `Invalid amount for ${decision}: "${amount || ''}` };
@@ -587,6 +586,7 @@ export default function App() {
     };
 
     async function saveHand() {
+        console.log(chipsSelected, 'chipsSelected')
         const result = await saveHandToSupabase(state.current, gameInfo, chipsSelected);
         return result.handId
     }
@@ -658,7 +658,7 @@ export default function App() {
                 style={styles.container}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 enabled={Platform.OS === "ios"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
+                keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight - 8 : 0}
             >
                 <View style={{
                     alignItems: 'center',

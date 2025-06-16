@@ -103,7 +103,18 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
         content: { paddingHorizontal: 24, },
         textInput: { marginTop: 8, marginBottom: 12, maxHeight: 160, minHeight: 120, borderRadius: 8 }, // Added minHeight
         actions: { paddingHorizontal: 16, paddingBottom: 16, justifyContent: 'flex-end' },
-        button: { marginLeft: 8 },
+        button: { marginLeft: 8, width: 64 },
+        cancelButton: {
+            // You might set specific colors if needed, e.g., outline or text color
+            // borderColor: theme.colors.outline,
+        },
+        saveButton: {
+            // You might set specific colors if needed, e.g., outline or text color
+            // borderColor: theme.colors.outline,
+        },
+        cancelButtonLabel: {
+            // color: theme.colors.primary, // Or another appropriate color
+        },
         // No saveButtonLabel needed now
         // cancelButtonLabel: {}, // Can be used for "Close" button
     });
@@ -111,7 +122,7 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
     return (
         <Portal>
             <Dialog visible={visible} onDismiss={handleSaveAndClose} style={styles.dialog}>
-                {/* <Dialog.Title style={styles.title}>Hand Notes</Dialog.Title> */}
+                <Dialog.Title style={styles.title}>Hand Notes</Dialog.Title>
                 <Dialog.Content style={styles.content}>
                     <Controller
                         control={control}
@@ -132,16 +143,30 @@ const HandNotesDialog: React.FC<HandNotesDialogProps> = ({ visible, hideDialog, 
                         name="notes"
                     />
                 </Dialog.Content>
-                {/* <Dialog.Actions style={styles.actions}>
+                <Dialog.Actions style={styles.actions}>
+                    {/* Cancel Button - Standard text button */}
+                    <Button
+                        onPress={hideDialog}
+                        style={[styles.button, styles.cancelButton]} // Combine common and specific styles
+                        labelStyle={styles.cancelButtonLabel}
+                        // mode="outlined" // Alternative look
+                        textColor={theme.colors.primary} // Explicitly set text color for clarity
+                    >
+                        Cancel
+                    </Button>
+                    {/* Delete Button - Contained button for emphasis */}
                     <Button
                         onPress={handleSaveAndClose}
-                        style={styles.button}
-                        // labelStyle={styles.cancelButtonLabel} // Optional styling
-                        textColor={theme.colors.primary}
+                        mode="contained" // Makes it stand out
+                        style={[styles.button, styles.saveButton, theme.button]} // Combine common and specific styles
+                        // labelStyle={styles.deleteButtonLabel}
+                        // Use buttonColor for background in Paper v5+
+                         buttonColor={theme.colors.primary}
+                         // For older versions, you might need to rely more on style={{backgroundColor: ...}}
                     >
-                        Done
+                        Save
                     </Button>
-                </Dialog.Actions> */}
+                </Dialog.Actions>
             </Dialog>
         </Portal>
     );

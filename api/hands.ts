@@ -99,21 +99,22 @@ export async function saveHandToSupabase(
         .insert({
             user_id: userId,
             played_at: setupInfo.playedAt ? new Date(setupInfo.playedAt).toISOString() : new Date().toISOString(),
-            game_type: 'NLH', // Or from setupInfo if available
+            game_type: 'NLH',
             small_blind: setupInfo.smallBlind,
             big_blind: setupInfo.bigBlind,
             third_blind: setupInfo.thirdBlind,
             big_blind_ante: setupInfo.bigBlindAnte,
             location: setupInfo.location,
             num_players: setupInfo.numPlayers,
-            hero_position: handHistoryData.hero.position, // Assumes this is a position string
+            hero_position: handHistoryData.hero.position,
             hero_cards: handHistoryData.hero.hand,
             final_pot_size: totalPotForHandRecord,
             currency: setupInfo.currency || '$',
             notes: setupInfo.notes,
-            stacks: setupInfo.relevantStacks, // Make sure this is in JSONB compatible format
+            stacks: setupInfo.relevantStacks,
             community_cards: handHistoryData.cards.map(c => transFormCardsToFormattedString(c)),
             final_street: handHistoryData.playerActions[handHistoryData.playerActions.length - 1]?.stage,
+            pot_type: handHistoryData.potType,
         })
         .select('id')
         .single();
@@ -214,6 +215,7 @@ export async function saveHandToSupabase(
     }
 
     // 5. Insert into 'showdown_hands' table (if showdown occurred)
+    console.log(chips, ' --- ', handHistoryData.showdown)
     if (handHistoryData.showdown && handHistoryData.showdown.length > 0) {
         const showdownHandsToInsert = handHistoryData.showdown.map(playerHand => {
             // playerHand.playerId is assumed to be the position string (e.g., "SB", "BB")
@@ -235,13 +237,15 @@ export async function saveHandToSupabase(
         });
 
         const showdownPositions = handHistoryData.showdown.map(s => s.playerId);
-        const playersWholFolded = handHistoryData.showdownHands.filter(h => !(showdownPositions.includes(h.playerId)));
-        let extraShowdownHands = playersWholFolded.map((p) => ({
+        const playersWhoFolded = handHistoryData.showdownHands.filter(h => !(showdownPositions.includes(h.playerId)));
+        let extraShowdownHands = playersWhoFolded.map((p) => ({
             hand_id: handId,
             position: p.playerId,
             hole_cards: "muck",
             is_winner: false,
             hand_description: "",
+            tag: (p.playerId === handHistoryData.hero.position || !chips[p.playerId as Position]) ? undefined : chips[p.playerId as Position],
+
         }))
         const { error: showdownError } = await supabase
             .from('showdown_hands')

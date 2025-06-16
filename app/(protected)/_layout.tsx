@@ -1,6 +1,8 @@
 import { AuthContext } from "@/utils/authContext";
 import { Redirect, Stack } from "expo-router";
 import { useContext } from "react";
+import { Pressable, TouchableOpacity } from "react-native";
+import { IconButton } from "react-native-paper";
 
 export const unstable_settings = {
     initialRouteName: "index",

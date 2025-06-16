@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider } from 'react-native-paper';
+import { Modal, Portal, PaperProvider, useTheme, List, ActivityIndicator, Text, Divider, IconButton, Button } from 'react-native-paper';
 import PokerHandForm from '../../components/PokerHandForm';
 import Fab from '@/components/Fab';
 import { formatDateMMDDHHMM } from '@/utils/hand_utils';
@@ -10,21 +10,36 @@ import { getSavedHands } from '@/api/hands';
 import { SavedHandSummary } from '@/types';
 import EmptyState from '@/components/EmptyState';
 import { parsePokerHandString } from '@/utils/card_utils';
+import { useNavigation } from '@react-navigation/native';
 
 export default function Index() {
   const router = useRouter();
-
   const [visible, setVisible] = React.useState(false);
   const theme = useTheme();
   const containerStyle = {
     flex: 1,
     backgroundColor: '#FFF',
   };
+    const navigation = useNavigation();
 
   const [savedHands, setSavedHands] = React.useState<SavedHandSummary[] | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [preset, setPreset] = React.useState({});
   const [error, setError] = React.useState<any>(null);
+
+  // const Options = () => {
+  //     return (
+  //         <TouchableOpacity>
+  //             <IconButton icon={"delete"} onPressIn={() => console.log('press')} style={{zIndex:3}}/>
+  //         </TouchableOpacity>
+  //     )
+  // }
+  // React.useLayoutEffect(() => {
+  //     navigation.setOptions({
+  //       headerTitle: "Saved Hands",
+  //       headerRight: () => <Options />,
+  //     });
+  // }, [navigation])
 
   // --- Fetching Logic ---
   const loadHands = React.useCallback(async (showLoadingIndicator = true) => {

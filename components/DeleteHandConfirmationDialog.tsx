@@ -37,11 +37,13 @@ const DeleteHandConfirmationDialog = ({ hideDialog, onDeletePress, visible }) =>
         button: {
             // Common style for both buttons, like margin
             marginLeft: 8, // Add space between buttons
+            width: 64
         },
         // Specific styles for the Delete button (destructive action)
         deleteButton: {
             // You might set a specific buttonColor from your theme or a direct color
              backgroundColor: theme.colors.error, // Use theme's error color for background
+
         },
         deleteButtonLabel: {
              color: theme.colors.onError, // Text color that contrasts with the error background

@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { MD3LightTheme as DefaultTheme, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from "@/utils/authContext";
+import { GestureHandlerRootView } from 'react-native-gesture-handler'; // Import GestureHandlerRootView
 
 const theme = {
   ...DefaultTheme,
@@ -23,6 +24,7 @@ const theme = {
 
 export default function RootLayout() {
   return (
+    <GestureHandlerRootView>
     <SafeAreaProvider>
       <PaperProvider theme={theme} >
         <AuthProvider>
@@ -36,5 +38,6 @@ export default function RootLayout() {
         </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }

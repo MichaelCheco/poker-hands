@@ -1,7 +1,7 @@
 import { ActionRecord, PlayerStacks, ShowdownHandRecord, Stage } from '@/types';
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { IconButton, List, Snackbar, Text } from 'react-native-paper';
+import { IconButton, List, Text } from 'react-native-paper';
 import { ShowdownCard } from './Cards';
 import { copyHand, getPotSizesEnteringStreets } from '@/utils/hand_utils';
 
@@ -34,7 +34,8 @@ export default function ActionListReview({
     position,
     pot,
     showdown,
-    stacks
+    stacks,
+    setSnackbarVisible
 }: {
     actionList: ActionRecord[],
     communityCards: string[],
@@ -50,9 +51,9 @@ export default function ActionListReview({
     pot: number;
     showdown: ShowdownHandRecord[];
     stacks: PlayerStacks;
+    setSnackbarVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
     const stageToPotSizeMap = getPotSizesEnteringStreets(actionList);
-    const [snackbarVisible, setSnackbarVisible] = React.useState(false);
     const groupedActions: Record<Stage, ActionRecord[]> = React.useMemo(() => {
         return actionList.filter(a => !(a.was_auto_folded)).reduce((acc: Record<Stage, ActionRecord[]>, action: ActionRecord) => {
             const stage: Stage = action.stage;
@@ -69,12 +70,6 @@ export default function ActionListReview({
     const sortedStages = Object.keys(groupedActions).map(Number).filter(a => (a !== Stage.Showdown && groupedActions[a as Stage].length > 0)).sort((a, b) => a - b);
     return (
         <List.Section style={{ paddingBottom: 32, marginTop: 24 }}>
-            <Snackbar
-                visible={snackbarVisible}
-                onDismiss={() => setSnackbarVisible(false)}
-                duration={1000}>
-                Hand Copied! ✅
-            </Snackbar>
             <View style={styles.subheaderContainer}>
                 <List.Subheader
                     style={[
