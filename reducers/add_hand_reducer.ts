@@ -1,5 +1,5 @@
 import { numPlayersToActionSequenceList } from "@/constants";
-import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PotType, PreflopStatus, ShowdownDetails, Stage, WinnerInfo } from "@/types";
+import { ActionType, BetsForStreetMap, CalculatedPot, Decision, DispatchActionType, GameAppState, GameQueueItemType, GameState, HandSetupInfo, PlayerAction, PlayerPotContribution, PlayerStatus, PokerPlayerInput, Position, PotType, PreflopStatus, RelativeHeroPosition, ShowdownDetails, Stage, WinnerInfo } from "@/types";
 import { getLastAction, getNewActionSequence, getNumBetsForStage, getPlayerAction, getPlayerActionsWithAutoFolds, getUpdatedBettingInfo, hasActionBeenAddedAlready, isAggressiveAction, removeAfterLastComma } from "@/utils/action_utils";
 import { assertIsArray, assertIsDefined } from "@/utils/assert";
 import { AddVillainsToGameQueue, didAllInAndACallOccurOnStreet, filterNewCardsFromDeck, formatCommunityCards, getCards, getRemainingCardActions, getVillainCards, isMuck, parsePokerHandString } from "@/utils/card_utils";
@@ -424,8 +424,8 @@ export function reducer(state: GameAppState, action: { type: DispatchActionType;
 
             let finalState = newStateBase;
             if (initialStage === Stage.Preflop && nextStage === Stage.Flop) {
-                console.log(`transitioning away from preflop`);
                 finalState.potType = getPotType(finalState.numberOfBetsAndRaisesThisStreet);
+                finalState.relativeHeroPosition = updatedActionSequence[updatedActionSequence?.length - 1].position === finalState.hero.position ? RelativeHeroPosition.kInPosition : RelativeHeroPosition.kOutOfPosition;
             }
 
             // If the stage actually changed, recalculate the action sequence for the new stage.

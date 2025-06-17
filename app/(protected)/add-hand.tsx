@@ -4,7 +4,7 @@ import { Button, Chip, Divider, Text, TextInput } from 'react-native-paper';
 import ActionList from '../../components/ActionList';
 import GameInfo from '../../components/GameInfo';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult, PlayerStatus, PlayerTag } from '@/types';
+import { ActionType, Decision, DispatchActionType, Stage, HandSetupInfo, Position, GameQueueItemType, ValidationFunction, GameState, ValidationResult, PlayerStatus, PlayerTag, BoardTexture } from '@/types';
 import { CommunityCards } from '@/components/Cards';
 import { numPlayersToActionSequenceList } from '@/constants';
 import { calculateEffectiveStack, decisionToText, isPreflop, tagToLabel } from '@/utils/hand_utils';
@@ -19,6 +19,7 @@ import { getLastAction, getPlayerAction, getUpdatedBettingInfo, isAggressiveActi
 import { createInitialAppState, initialAppState, reducer } from '@/reducers/add_hand_reducer';
 import { assertIsDefined } from '@/utils/assert';
 import AnimatedInstructionText from '@/components/AnimatedInstructionText';
+import { transFormCardsToFormattedString } from '@/utils/card_utils';
 
 const tags = [
     PlayerTag.kLag,
@@ -585,9 +586,230 @@ export default function App() {
         }
     };
 
+    // Helper to parse a card string into its rank and suit for easier processing
+    interface ParsedCard {
+        rank: string; // '2', '3', ..., 'T', 'J', 'Q', 'K', 'A'
+        suit: string; // 's', 'h', 'd', 'c'
+        rankValue: number; // 2, 3, ..., 10, 11, 12, 13, 14 (for A)
+    }
+
+    function parseCardString(cardStr: string): ParsedCard {
+        const rankChar = cardStr.substring(0, cardStr.length - 1).toUpperCase();
+        const suitChar = cardStr.substring(cardStr.length - 1).toLowerCase();
+
+        let rankValue: number;
+        switch (rankChar) {
+            case 'T': rankValue = 10; break;
+            case 'J': rankValue = 11; break;
+            case 'Q': rankValue = 12; break;
+            case 'K': rankValue = 13; break;
+            case 'A': rankValue = 14; break;
+            default: rankValue = parseInt(rankChar, 10);
+        }
+        return { rank: rankChar, suit: suitChar, rankValue: rankValue };
+    }
+
+    // --- Individual Board Texture Checks ---
+
+    // kAceHigh
+    function isAceHigh(parsedCards: ParsedCard[]): boolean {
+        return parsedCards.some(card => card.rank === 'A');
+    }
+
+    // kMonotone
+    function isMonotone(parsedCards: ParsedCard[]): boolean {
+        return parsedCards[0].suit === parsedCards[1].suit &&
+            parsedCards[0].suit === parsedCards[2].suit;
+    }
+
+    // kPaired (can also be trips, but trips is a type of paired)
+    function isPaired(parsedCards: ParsedCard[]): boolean {
+        const ranks = parsedCards.map(card => card.rank);
+        const rankCounts: { [key: string]: number } = {};
+        ranks.forEach(rank => {
+            rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+        });
+        // If any rank appears 2 or 3 times, it's paired (e.g., AAx, AAA)
+        return Object.values(rankCounts).some(count => count >= 2);
+    }
+
+    // kTrips (more specific than paired)
+    function isTrips(parsedCards: ParsedCard[]): boolean {
+        const ranks = parsedCards.map(card => card.rank);
+        const rankCounts: { [key: string]: number } = {};
+        ranks.forEach(rank => {
+            rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+        });
+        // If any rank appears exactly 3 times
+        return Object.values(rankCounts).some(count => count === 3);
+    }
+
+    // kDoubleBroadway (two or more Broadway cards: T, J, Q, K, A)
+    function isDoubleBroadway(parsedCards: ParsedCard[]): boolean {
+        const broadwayRanks = ['T', 'J', 'Q', 'K', 'A'];
+        const broadwayCount = parsedCards.filter(card => broadwayRanks.includes(card.rank)).length;
+        return broadwayCount >= 2;
+    }
+
+    // kRainbow
+    function isRainbow(parsedCards: ParsedCard[]): boolean {
+        const suits = new Set(parsedCards.map(card => card.suit));
+        return suits.size === 3; // All three cards have different suits
+    }
+
+    // kFlushDraw (Two-tone board)
+    function isFlushDraw(parsedCards: ParsedCard[]): boolean {
+        // It's a flush draw board if it's not monotone and not rainbow.
+        // Meaning, two suits are the same and one is different (e.g., HH C).
+        if (isMonotone(parsedCards) || isRainbow(parsedCards)) {
+            return false;
+        }
+        const suits = parsedCards.map(card => card.suit);
+        const suitCounts: { [key: string]: number } = {};
+        suits.forEach(suit => {
+            suitCounts[suit] = (suitCounts[suit] || 0) + 1;
+        });
+        // Check if one suit appears twice and another once
+        return Object.values(suitCounts).includes(2) && Object.values(suitCounts).includes(1);
+    }
+
+    // kConnected (Has straight possibilities - straight, gutshot, or double-guts)
+    function isConnected(parsedCards: ParsedCard[]): boolean {
+        // Sort cards by rank value for easier checking
+        const sortedRanks = parsedCards.map(card => card.rankValue).sort((a, b) => a - b);
+        const [r1, r2, r3] = sortedRanks;
+
+        // Handle Ace-low straight (A, 2, 3) where A has value 14
+        const ranksForStraightCheck = [...sortedRanks];
+        if (ranksForStraightCheck.includes(14)) { // If Ace is present
+            ranksForStraightCheck.push(1); // Add a '1' for Ace-low straight considerations
+            ranksForStraightCheck.sort((a, b) => a - b); // Re-sort
+        }
+
+        // Check for straight (0-gap)
+        if (
+            (r2 === r1 + 1 && r3 === r2 + 1) || // e.g., 5-6-7
+            (ranksForStraightCheck.includes(1) && ranksForStraightCheck.includes(2) && ranksForStraightCheck.includes(3) && ranksForStraightCheck.includes(4) && ranksForStraightCheck.includes(5)) // A-2-3-4-5 special case
+        ) {
+            return true;
+        }
+
+        // Check for 1-gap straight draw (e.g., 7-9-J, 8-T-Q, 2-4-5)
+        // This is more complex as it involves any 2 cards being 2-gapped or 1-gapped
+        // A simplified approach for 'connected' is often:
+        // Are any two cards consecutive? (e.g., 7-8-X)
+        // Are any two cards 1-gapped? (e.g., 7-9-X)
+        // Are all three cards within 4-5 ranks of each other (e.g., 7-9-J: 7 to J is 4 ranks, 2 gaps)
+        const hasConsecutive = (r2 === r1 + 1) || (r3 === r2 + 1);
+        const hasOneGap = (r2 === r1 + 2) || (r3 === r1 + 2) || (r3 === r2 + 2); // e.g. 2-4-5 or 2-3-5
+        const allWithin4Ranks = (r3 - r1 <= 4); // Max 3 gaps: e.g., 2-6-T (8 ranks apart), 2-3-4 (2 ranks apart) -> 2-3-4-5-6 (5 ranks)
+
+        // A common definition of 'connected' board is a board with at least two cards that are consecutive or one-gapped,
+        // making straight draws very common.
+        // For simplicity, let's say a board is connected if it offers at least one open-ended or gutshot straight draw with two hole cards.
+        // This can be approximated by checking gaps.
+        const gap1 = r2 - r1;
+        const gap2 = r3 - r2;
+
+        // All consecutive (0 gap)
+        if (gap1 === 1 && gap2 === 1) return true; // e.g. 7-8-9
+
+        // Two consecutive, one gapped (1 gap or 2 gap board within 4-5 ranks for OESD)
+        if ((gap1 === 1 && gap2 <= 2) || (gap1 <= 2 && gap2 === 1)) return true; // e.g. 7-8-T (1 gap), 7-9-T (1 gap)
+
+        // Two gapped (one card is 2-gapped, e.g., 7-9-J) -- this creates a gutshot to the middle card
+        // or two separate gapped straight draws (e.g. 7_9_K needs 8 or T for straight draw)
+        // For a broad "connected" filter, we consider more draws.
+        // If we have A,2,3... 14,2,3.
+        if (ranksForStraightCheck.some((r, i, arr) => i < arr.length - 1 && arr[i + 1] === r + 1) || // Two consecutive
+            ranksForStraightCheck.some((r, i, arr) => i < arr.length - 1 && arr[i + 1] === r + 2) // Two 1-gapped
+        ) {
+            return true;
+        }
+
+        // General connectedness: often involves sum of gaps
+        // A common simple check: if the largest gap is not too big.
+        // The sum of gaps (r3 - r1) should not be too large
+        if (r3 - r1 <= 4) { // e.g., 2-3-4, 2-3-5, 2-4-5, 2-3-6, 2-4-6, 2-5-6
+            // This covers many straight draws.
+            return true;
+        }
+
+        return false;
+    }
+
+
+    // kDisconnected (The inverse of connected for filtering purposes)
+    function isDisconnected(parsedCards: ParsedCard[]): boolean {
+        return !isConnected(parsedCards);
+    }
+
+
+    // kLowCards (All cards are low - typically defined as 8 or lower)
+    function isLowCards(parsedCards: ParsedCard[]): boolean {
+        // Define a threshold for "low cards" (e.g., 8 or lower)
+        const LOW_CARD_THRESHOLD = 8;
+        return parsedCards.every(card => card.rankValue <= LOW_CARD_THRESHOLD);
+    }
+
+
+    // --- Main function to get all matching textures ---
+    function getMatchingTextures(cards: string[]): BoardTexture[] {
+        const textures: BoardTexture[] = [];
+        const parsedCards = cards.map(parseCardString);
+
+        // Validate input: ensure exactly 3 cards and no duplicates (basic check)
+        if (parsedCards.length !== 3 || new Set(cards).size !== 3) {
+            console.warn("Invalid input for getMatchingTextures. Expected 3 unique cards.");
+            return [];
+        }
+
+        // Order of checks matters for clarity and avoiding redundant flags
+        // Example: A-A-A is trips AND paired. A-A-2 is paired.
+        // M-Q-J-T is connected, double broadway, ace-high is just ace-high.
+
+        // 1. High Card Presence
+        if (isAceHigh(parsedCards)) {
+            textures.push(BoardTexture.kAceHigh);
+        }
+        if (isDoubleBroadway(parsedCards)) {
+            textures.push(BoardTexture.kDoubleBroadway);
+        }
+        if (isLowCards(parsedCards)) {
+            textures.push(BoardTexture.kLowCards);
+        }
+
+        // 2. Pair/Rank Structure
+        if (isTrips(parsedCards)) { // Trips is most specific, so check first if applicable
+            textures.push(BoardTexture.kPaired); // Trips is a type of paired board
+            // No explicit BoardTexture.kTrips in your enum, so we flag as Paired
+        } else if (isPaired(parsedCards)) {
+            textures.push(BoardTexture.kPaired);
+        }
+
+
+        // 3. Suit Distribution (Mutually Exclusive)
+        if (isMonotone(parsedCards)) {
+            textures.push(BoardTexture.kMonotone);
+        } else if (isRainbow(parsedCards)) {
+            textures.push(BoardTexture.kRainbow);
+        } else if (isFlushDraw(parsedCards)) { // Two-tone
+            textures.push(BoardTexture.kFlushDraw);
+        }
+
+        // 4. Connectedness (Mutually Exclusive for filtering)
+        if (isConnected(parsedCards)) {
+            textures.push(BoardTexture.kConnected);
+        } else {
+            textures.push(BoardTexture.kDisconnected);
+        }
+
+        return textures;
+    }
+
     async function saveHand() {
-        console.log(chipsSelected, 'chipsSelected')
-        const result = await saveHandToSupabase(state.current, gameInfo, chipsSelected);
+        const matchingTextures = getMatchingTextures(state.current.cards.map(c => transFormCardsToFormattedString(c)).slice(0, 3))
+        const result = await saveHandToSupabase(state.current, gameInfo, chipsSelected, matchingTextures);
         return result.handId
     }
     const goToDetailPage = () => {

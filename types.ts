@@ -64,6 +64,30 @@ export interface GameAppState {
     history: ImmutableStack<GameState>;
 }
 
+export enum BoardTexture {
+    kAceHigh = 'A_HIGH' ,
+    kMonotone = 'MONOTONE' ,
+    kPaired = 'PAIRED' ,
+    kDoubleBroadway = '2_BROADWAY' ,
+    kRainbow = 'RAINBOW' ,
+    kFlushDraw = 'FLUSH_DRAW',
+    kConnected = 'CONNECTED',
+    kDisconnected = 'DISCONNECTED',
+    kLowCards = 'LOW_CARDS',
+}
+
+export enum RelativeHeroPosition {
+    kInPosition = 'IN_POSITION',
+    kOutOfPosition = 'OUT_OF_POSITION',
+}
+
+export interface PokerHandFilters {
+    potType: 'any' | PotType;
+    position: 'any'| Position;
+    boardTexture: ('any' | BoardTexture)[];
+    relativeHeroPosition: 'any' | RelativeHeroPosition;
+}
+
 export enum Position {
     SB = 'SB',
     BB = 'BB',
@@ -238,6 +262,7 @@ export interface GameState {
     showdown: ShowdownDetails[] | null;
     allPlayerContributions: PlayerPotContribution[];
     potType: PotType;
+    relativeHeroPosition: RelativeHeroPosition;
 }
 
 export interface PokerHandValidationResult {

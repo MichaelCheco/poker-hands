@@ -1,4 +1,4 @@
-import { GameState, HandSetupInfo, PlayerTag, Position, SavedHandSummary } from "@/types";
+import { BoardTexture, GameState, HandSetupInfo, PlayerTag, PokerHandFilters, Position, PotType, SavedHandSummary } from "@/types";
 import { transFormCardsToFormattedString } from "@/utils/card_utils";
 import { supabase } from "@/utils/supabase";
 
@@ -79,7 +79,8 @@ export async function deleteHand(handId: string): Promise<boolean> {
 export async function saveHandToSupabase(
     handHistoryData: GameState,
     setupInfo: HandSetupInfo,
-    chips: Record<Position, PlayerTag>, 
+    chips: Record<Position, PlayerTag>,
+    textures: BoardTexture[] 
 ): Promise<{ success: boolean; message: string; handId: string; }> {
     // 1. Get Authenticated User ID
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -115,6 +116,8 @@ export async function saveHandToSupabase(
             community_cards: handHistoryData.cards.map(c => transFormCardsToFormattedString(c)),
             final_street: handHistoryData.playerActions[handHistoryData.playerActions.length - 1]?.stage,
             pot_type: handHistoryData.potType,
+            board_texture: textures,
+            relative_hero_position: handHistoryData.relativeHeroPosition,
         })
         .select('id')
         .single();
@@ -215,7 +218,6 @@ export async function saveHandToSupabase(
     }
 
     // 5. Insert into 'showdown_hands' table (if showdown occurred)
-    console.log(chips, ' --- ', handHistoryData.showdown)
     if (handHistoryData.showdown && handHistoryData.showdown.length > 0) {
         const showdownHandsToInsert = handHistoryData.showdown.map(playerHand => {
             // playerHand.playerId is assumed to be the position string (e.g., "SB", "BB")
@@ -256,21 +258,18 @@ export async function saveHandToSupabase(
             return { success: false, message: `Failed to insert showdown hands: ${showdownError.message}`, handId };
         }
     }
-
     return { success: true, message: 'Hand saved successfully.', handId };
 }
 
 /**
  * Retrieves a list of saved hand summaries for the currently logged-in user.
- *
- * @param supabase - Initialized Supabase client instance.
+ * @param filters - Filters to apply.
  * @param limit - Optional number of hands to retrieve per page.
- * @param offset - Optional number of hands to skip (for pagination).
  * @returns Object containing the list of hands or an error.
  */
 export async function getSavedHands(
+    filters: PokerHandFilters,
     limit: number = 10, // Default limit
-    offset: number = 0 // Default offset
 ): Promise<{ hands: SavedHandSummary[] | null; error?: any; count?: number | null }> {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -279,17 +278,37 @@ export async function getSavedHands(
         return { hands: null, error: userError || new Error('User not authenticated') };
     }
     const userId = user.id;
-
     // 2. Query 'hands' table
+    
     try {
-        const { data, error, count } = await supabase
+        let query = supabase
             .from('hands')
-            .select('currency,small_blind,big_blind,big_blind_ante,third_blind,location,id,hero_cards,played_at', { count: 'exact' }) // Select all columns, get total count
-            .eq('user_id', userId) // Filter by the logged-in user's ID
-            .order('played_at', { ascending: false }) // Order by most recent first
-            .range(offset, offset + limit - 1); // Apply pagination
+            .select('currency,small_blind,big_blind,big_blind_ante,third_blind,location,id,hero_cards,played_at', { count: 'exact' })
+            .eq('user_id', userId); // Always apply user_id filter
 
-        if (error) throw error;
+        // Conditionally apply filters
+        if (filters.potType !== 'any') {
+            query = query.eq('pot_type', filters.potType);
+        }
+
+        if (filters.position !== 'any') {
+            query = query.eq('hero_position', filters.position);
+        }
+
+        if (filters.boardTexture[0] !== 'any') {
+            query = query.contains('board_texture', filters.boardTexture)
+        }
+
+        if (filters.relativeHeroPosition !== 'any') {
+            query = query.eq('relative_hero_position', filters.relativeHeroPosition);
+        }
+
+        // Apply ordering and range as before
+        query = query
+            .order('played_at', { ascending: false })
+            .range(0, limit - 1); // Range should be 0 to limit-1 for the first page
+
+        const { data, error, count } = await query;
 
         return { hands: data as SavedHandSummary[], error: null, count };
 

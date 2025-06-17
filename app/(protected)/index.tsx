@@ -7,12 +7,12 @@ import { formatDateMMDDHHMM } from '@/utils/hand_utils';
 import { MyHand } from '@/components/Cards';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getSavedHands } from '@/api/hands';
-import { SavedHandSummary } from '@/types';
+import { PokerHandFilters, SavedHandSummary } from '@/types';
 import EmptyState from '@/components/EmptyState';
 import { parsePokerHandString } from '@/utils/card_utils';
 import { useNavigation } from '@react-navigation/native';
 import { TouchableOpacity } from 'react-native';
-import FilterModal, { PokerHandFilters } from '@/components/FilterModal';
+import FilterModal from '@/components/FilterModal';
 import EmptyFilterState from '@/components/EmptyFilterState';
 
 export default function Index() {
@@ -63,7 +63,7 @@ export default function Index() {
     if (showLoadingIndicator) setIsLoading(true);
     setError(null);
     try {
-      const { hands, error: fetchError, count } = await getSavedHands();
+      const { hands, error: fetchError, count } = await getSavedHands(filters);
       if (fetchError) throw fetchError;
       setSavedHands(hands || []);
     } catch (err: any) {
@@ -86,7 +86,6 @@ export default function Index() {
     }, [activeFilters])
   );
   const handleApplyFilters = React.useCallback((filters: PokerHandFilters) => {
-    console.log('Filters applied:', filters);
     setActiveFilters(filters); // Update the active filters state
     // Now re-load/filter your hands based on the new active filters
     loadHands(true, filters); // Pass the new filters directly
@@ -121,7 +120,7 @@ export default function Index() {
             renderItem={renderHandItem}
             keyExtractor={(item) => item.id}
             ListEmptyComponent={
-              Object.values(activeFilters).some(f => f !== 'any') ? <EmptyFilterState /> : <EmptyState />
+              Object.values(activeFilters).some(f => typeof f === "string" ? f !== 'any' : f[0] !== 'any') ? <EmptyFilterState /> : <EmptyState />
             }
             contentContainerStyle={styles.listContentContainer}
           />
