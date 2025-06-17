@@ -1,5 +1,6 @@
 TODOS:
 - placeholder
 - email validation
+- react-native-copilot
 - SPR
 - HU/Multiway

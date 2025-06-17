@@ -3,59 +3,103 @@ import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { TextInput, Button, Text, useTheme, ActivityIndicator, HelperText } from 'react-native-paper';
 
+// Basic email validation regex
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginScreen() {
   const { logIn, signUp } = useAuth(); // Get functions from your AuthContext
   const theme = useTheme(); // Optional: for theming
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // New state for confirm password
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null); // Specific error for email
+  const [passwordError, setPasswordError] = useState<string | null>(null); // Specific error for password
+  const [generalError, setGeneralError] = useState<string | null>(null); // General auth error
 
   // State for toggling between Login and Sign Up modes
   const [isSignUpMode, setIsSignUpMode] = useState(true);
 
+  // --- Validation Logic ---
+  const validateInputs = (mode: 'login' | 'signup') => {
+    let isValid = true;
+    setEmailError(null);
+    setPasswordError(null);
+    setGeneralError(null);
+
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      isValid = false;
+    } else if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address.");
+      isValid = false;
+    }
+
+    if (!password.trim()) {
+      setPasswordError("Password is required.");
+      isValid = false;
+    } else if (password.length < 6) { // Common minimum password length
+      setPasswordError("Password must be at least 6 characters long.");
+      isValid = false;
+    }
+
+    if (mode === 'signup') {
+      if (!confirmPassword.trim()) {
+        setPasswordError("Please confirm your password."); // This will overwrite password error if primary
+        isValid = false;
+      } else if (password !== confirmPassword) {
+        setPasswordError("Passwords do not match.");
+        isValid = false;
+      }
+    }
+
+    return isValid;
+  };
+
+  // --- Login Handler ---
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError("Email and password are required.");
+    if (!validateInputs('login')) {
       return;
     }
+
     setIsLoading(true);
-    setError(null);
     try {
       const result = await logIn(email, password);
       if (result?.error) {
-        setError(result.error.message || "Failed to log in. Please check your credentials.");
+        setGeneralError(result.error.message || "Failed to log in. Please check your credentials.");
       }
-      // Navigation on success is handled by AuthProvider's onAuthStateChange or logIn function
     } catch (e: any) {
-      setError(e.message || "An unexpected error occurred during login.");
+      setGeneralError(e.message || "An unexpected error occurred during login.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
+  // --- Sign Up Handler ---
   const handleSignUp = async () => {
-    if (!email || !password) {
-      setError("Email and password are required.");
+    if (!validateInputs('signup')) {
       return;
     }
+
     setIsLoading(true);
-    setError(null);
     try {
       const result = await signUp(email, password);
       if (result?.error) {
-        setError(result.error.message || "Failed to sign up. Please try again.");
+        setGeneralError(result.error.message || "Failed to sign up. Please try again.");
       } else {
-        // Alert or message is handled by signUp function in AuthProvider
-        // Potentially switch to login mode or show a success message
-        setIsSignUpMode(false); // Switch back to login mode after successful signup prompt
-        setEmail(''); // Clear fields
+        // Sign up successful, clear fields and switch to login mode for next step
+        setEmail('');
         setPassword('');
+        setConfirmPassword('');
+        setIsSignUpMode(false);
+        // Alert handled by AuthProvider, often "Check your email for confirmation"
       }
     } catch (e: any) {
-      setError(e.message || "An unexpected error occurred during sign up.");
+      setGeneralError(e.message || "An unexpected error occurred during sign up.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -79,7 +123,10 @@ export default function LoginScreen() {
           autoCapitalize="none"
           disabled={isLoading}
           activeOutlineColor='#000000'
+          error={!!emailError} // Show error state
         />
+        {emailError && <HelperText type="error" visible={!!emailError}>{emailError}</HelperText>}
+
 
         <TextInput
           label="Password"
@@ -91,11 +138,28 @@ export default function LoginScreen() {
           autoCapitalize="none"
           disabled={isLoading}
           activeOutlineColor='#000000'
+          error={!!passwordError} // Show error state
         />
+        {passwordError && <HelperText type="error" visible={!!passwordError}>{passwordError}</HelperText>}
 
-        {error && (
-          <HelperText type="error" visible={!!error} style={styles.errorText}>
-            {error}
+        {isSignUpMode && ( // Only show confirm password in Sign Up mode
+          <TextInput
+            label="Confirm Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            mode="outlined"
+            style={styles.input}
+            secureTextEntry
+            autoCapitalize="none"
+            disabled={isLoading}
+            activeOutlineColor='#000000'
+            error={!!passwordError} // Reuse password error for visual consistency
+          />
+        )}
+
+        {generalError && ( // General errors are displayed below all inputs
+          <HelperText type="error" visible={!!generalError} style={styles.errorText}>
+            {generalError}
           </HelperText>
         )}
 
@@ -117,9 +181,13 @@ export default function LoginScreen() {
               mode="text"
               onPress={() => {
                 setIsSignUpMode(!isSignUpMode);
-                setError(null); // Clear errors when switching modes
-                // setEmail(''); // Optionally clear fields when switching
+                setEmailError(null);     // Clear specific errors
+                setPasswordError(null);
+                setGeneralError(null);   // Clear general error
+                // Optionally clear fields when switching modes
+                // setEmail('');
                 // setPassword('');
+                // setConfirmPassword('');
               }}
               style={styles.toggleButton}
               disabled={isLoading}
@@ -149,7 +217,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 0, // Removed default margin to give HelperText more control
   },
   button: {
     marginTop: 16,
@@ -166,6 +234,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: {
+    // This style is now mainly for generalError, HelperText handles specific input errors
     marginBottom: 10,
     fontSize: 14,
     textAlign: 'center',
